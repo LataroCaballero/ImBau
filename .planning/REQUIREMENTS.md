@@ -11,13 +11,13 @@ Requirements para el milestone v1 (fase 0). Cada uno mapea a fases del roadmap.
 
 ### Proceso
 
-- [ ] **PROC-01**: Antes de comenzar el desarrollo, se commitea el estado actual del repo y se crea la rama `fase-0/foundation` para el milestone v1
+- [x] **PROC-01**: Antes de comenzar el desarrollo, se commitea el estado actual del repo y se crea la rama `fase-0/foundation` para el milestone v1
 
 ### Monorepo & Tooling
 
-- [ ] **MONO-01**: El monorepo pnpm + Turborepo compila con apps (`web`, `panel`, `worker`) y packages (`db`, `api`, `quoting`, `ui`, `config`) esqueleto, con dependencias estrictamente descendentes (apps → api → db/ui → config)
-- [ ] **MONO-02**: TypeScript 5.9 estricto (sin `any` injustificado) y ESLint 9 flat config corren desde `packages/config` compartido en todo el workspace
-- [ ] **MONO-03**: Las variables de entorno se validan con schema Zod tipado al boot; una env faltante o inválida falla rápido con mensaje claro
+- [x] **MONO-01**: El monorepo pnpm + Turborepo compila con apps (`web`, `panel`, `worker`) y packages (`db`, `api`, `quoting`, `ui`, `config`) esqueleto, con dependencias estrictamente descendentes (apps → api → db/ui → config)
+- [x] **MONO-02**: TypeScript 5.9 estricto (sin `any` injustificado) y ESLint 9 flat config corren desde `packages/config` compartido en todo el workspace
+- [x] **MONO-03**: Las variables de entorno se validan con schema Zod tipado al boot; una env faltante o inválida falla rápido con mensaje claro
 
 ### Data Layer
 
@@ -62,24 +62,30 @@ Requirements para el milestone v1 (fase 0). Cada uno mapea a fases del roadmap.
 Diferido a milestones futuros (fases 1-6 de modelo-mvp.md, en orden ventana-Fable). Trackeado pero fuera del roadmap actual.
 
 ### Fase 1 — Schema + Media + Seed
+
 - **SCHEMA-01**: Schema completo de modelo-mvp.md §3.3 (floors, units, price_lists, payment_plans, quotes, brokers, leads, etc.)
 - **MEDIA-01**: Pipeline de media (R2 + sharp + blurhash, variantes AVIF/WebP)
 - **SEED-01**: Seed del edificio ficticio ~13 pisos estilo "Brigos Recoleta"
 
 ### Fase 3 — Cotizador
+
 - **QUOT-01**: `packages/quoting` puro con cobertura 100% + property-based tests, UI del cotizador, PDF server-side, CTA WhatsApp
 
 ### Fase 4 — Panel
+
 - **PANEL-01**: Grilla de unidades + import/export Excel, bandeja de leads, editor de hotspots
 
 ### Fase 2 — Explorador
+
 - **EXPL-01**: Explorador del edificio + ficha de unidad con realtime (SSE)
 
 ### Fases 5-6 — Portada/Obra/Brokers y Métricas/QA
+
 - **PORT-01**: Portada, avance de obra, galería, links de broker
 - **METR-01**: Métricas, alertas de interés, branding, e2e completos, performance budget
 
 ### Fundación diferida (pre-primer cliente pago)
+
 - **FOUND-01**: Backups Postgres (pgBackRest/wal-g a B2/R2) con restore ensayado
 - **FOUND-02**: Dashboards OTel completos, PgBouncer si la concurrencia lo pide, TLS on-demand para dominios custom
 
@@ -102,10 +108,10 @@ Qué fases cubren qué requirements. Se actualiza durante la creación del roadm
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PROC-01 | Phase 1 | Pending |
-| MONO-01 | Phase 1 | Pending |
-| MONO-02 | Phase 1 | Pending |
-| MONO-03 | Phase 1 | Pending |
+| PROC-01 | Phase 1 | Complete |
+| MONO-01 | Phase 1 | Complete |
+| MONO-02 | Phase 1 | Complete |
+| MONO-03 | Phase 1 | Complete |
 | DATA-01 | Phase 2 | Pending |
 | DATA-02 | Phase 2 | Pending |
 | DATA-03 | Phase 2 | Pending |
@@ -128,6 +134,7 @@ Qué fases cubren qué requirements. Se actualiza durante la creación del roadm
 | OBS-03 | Phase 4 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 24 total (PROC×1, MONO×3, DATA×4, AUTH×3, APP×4, INFRA×3, CI×3, OBS×3)
 - Mapped to phases: 24 ✓
 - Unmapped: 0 ✓
