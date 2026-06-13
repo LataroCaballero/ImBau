@@ -1,0 +1,5 @@
+# Local Claude Code settings (machine-specific; never commit)
+.claude/settings.local.json
+
+# Transient GSD agent worktrees
+.claude/worktrees/
