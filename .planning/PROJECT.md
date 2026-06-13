@@ -14,11 +14,10 @@ La fundación técnica queda desplegada y operable desde el día uno: cada commi
 
 ### Validated
 
-(None yet — ship to validate)
+- [x] Monorepo pnpm + Turborepo operativo con apps (`web`, `panel`, `worker`) y packages (`db`, `api`, `quoting`, `ui`, `config`) esqueleto — *Validado en Phase 1: Monorepo Foundation (PROC-01, MONO-01/02/03). Build de punta a punta, config compartida `@imbau/config`, env tipado con fail-fast, sobre la rama `fase-0/foundation`.*
 
 ### Active
 
-- [ ] Monorepo pnpm + Turborepo operativo con apps (`web`, `panel`, `worker`) y packages (`db`, `api`, `quoting`, `ui`, `config`) esqueleto
 - [ ] TypeScript estricto + lint + type-check + tests corriendo en CI (GitHub Actions); CI roja = no merge
 - [ ] Docker Compose con Postgres 16, Redis y servicios locales levantando con un comando
 - [ ] Better Auth funcionando: sesiones, organizaciones, memberships con roles (owner/developer/viewer), invitaciones por email
@@ -83,4 +82,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-12 after initialization*
+*Last updated: 2026-06-13 — Phase 1 (Monorepo Foundation) complete*
