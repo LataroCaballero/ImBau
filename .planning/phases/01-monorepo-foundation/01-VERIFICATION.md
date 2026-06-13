@@ -1,9 +1,10 @@
 ---
 phase: 01-monorepo-foundation
 verified: 2026-06-13T00:30:00Z
-status: human_needed
+status: passed
 score: 4/4 must-haves verified
 overrides_applied: 0
+human_verification_resolved: "2026-06-13 — ambos ítems confirmados en vivo por el orquestador (web en :3005 por colisión de :3000 con CLINICAL; panel en :3001), sign-off del usuario. Ver 01-UAT.md."
 human_verification:
   - test: "Iniciar apps/web en dev con NEXT_PUBLIC_APP_ENV=development y confirmar que la status page se renderiza en es-AR voseo con el entorno visible"
     expected: "La página muestra 'ImBau · Web', 'Entorno: development', y el componente AppStatus de @imbau/ui renderiza 'Estado: en línea'"
@@ -17,7 +18,7 @@ human_verification:
 
 **Phase Goal:** El monorepo compila de punta a punta con la config compartida que todo lo demás importa, sobre una rama de milestone limpia.
 **Verified:** 2026-06-13T00:30:00Z
-**Status:** human_needed
+**Status:** passed (4/4 automated; 2 human items confirmed live — ver 01-UAT.md)
 **Re-verification:** No — initial verification
 
 ---
