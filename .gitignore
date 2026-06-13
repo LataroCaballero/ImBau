@@ -6,6 +6,9 @@ node_modules/
 dist/
 .turbo/
 
+# Next.js generated type shim (regenerated on every build — never commit)
+next-env.d.ts
+
 # Environment files — secrets must never be committed (V14)
 .env
 .env.*

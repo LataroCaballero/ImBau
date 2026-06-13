@@ -1,3 +1,9 @@
 packages:
   - "apps/*"
   - "packages/*"
+# Build-script allowlist (pnpm 11 home — the package.json `pnpm` field is no
+# longer read). esbuild: transitive dep of vitest/tsx/tsup. sharp: Next 16's
+# native image optimizer. Both are well-known, approved packages.
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
