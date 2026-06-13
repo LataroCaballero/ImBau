@@ -1,6 +1,7 @@
 {
   "name": "imbau",
   "private": true,
+  "type": "module",
   "packageManager": "pnpm@11.6.0",
   "engines": {
     "node": ">=22"
@@ -14,7 +15,11 @@
     "format": "prettier --write ."
   },
   "devDependencies": {
+    "@imbau/config": "workspace:*",
+    "@vitest/coverage-v8": "4.1.8",
+    "eslint": "9.39.4",
     "turbo": "2.9.18",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "4.1.8"
   }
 }
