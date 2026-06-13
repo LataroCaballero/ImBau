@@ -1,3 +1,22 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+.next/
+dist/
+.turbo/
+
+# Environment files — secrets must never be committed (V14)
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# OS / editor cruft
+.DS_Store
+
 # Local Claude Code settings (machine-specific; never commit)
 .claude/settings.local.json
 
