@@ -555,7 +555,7 @@ it("rounds to integer USD", () => { expect(roundUsd(1234.6)).toBe(1235); });
 | A3 | `gh` CLI availability for PR creation (D-15) | Environment Availability | If absent, PR is created via web UI — no blocker. |
 | A4 | `@t3-oss/env` `experimental__runtimeEnv` is the current Next API for `NEXT_PUBLIC_*` wiring | Code Examples | API name could differ in 0.13.x; planner/executor verifies against installed package's README. Low risk. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **`engines` enforcement strictness for phase 1**
    - What we know: local Node is 20.19.6; target is 22 LTS; Next runs on ≥20.9.
