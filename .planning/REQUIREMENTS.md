@@ -102,13 +102,38 @@ Qué fases cubren qué requirements. Se actualiza durante la creación del roadm
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (pendiente — lo completa el roadmapper) | | |
+| PROC-01 | Phase 1 | Pending |
+| MONO-01 | Phase 1 | Pending |
+| MONO-02 | Phase 1 | Pending |
+| MONO-03 | Phase 1 | Pending |
+| DATA-01 | Phase 2 | Pending |
+| DATA-02 | Phase 2 | Pending |
+| DATA-03 | Phase 2 | Pending |
+| DATA-04 | Phase 2 | Pending |
+| AUTH-01 | Phase 3 | Pending |
+| AUTH-02 | Phase 3 | Pending |
+| AUTH-03 | Phase 3 | Pending |
+| APP-01 | Phase 3 | Pending |
+| APP-02 | Phase 3 | Pending |
+| APP-03 | Phase 3 | Pending |
+| APP-04 | Phase 3 | Pending |
+| INFRA-01 | Phase 4 | Pending |
+| INFRA-02 | Phase 4 | Pending |
+| INFRA-03 | Phase 4 | Pending |
+| CI-01 | Phase 4 | Pending |
+| CI-02 | Phase 4 | Pending |
+| CI-03 | Phase 4 | Pending |
+| OBS-01 | Phase 4 | Pending |
+| OBS-02 | Phase 4 | Pending |
+| OBS-03 | Phase 4 | Pending |
 
 **Coverage:**
-- v1 requirements: 21 total
-- Mapped to phases: 0
-- Unmapped: 21 ⚠️
+- v1 requirements: 24 total (PROC×1, MONO×3, DATA×4, AUTH×3, APP×4, INFRA×3, CI×3, OBS×3)
+- Mapped to phases: 24 ✓
+- Unmapped: 0 ✓
+
+> Nota: la versión inicial registraba "21 total" en el conteo de cobertura, pero los IDs enumerados arriba suman 24. Se corrige el conteo a 24 (la lista de IDs es la fuente de verdad).
 
 ---
 *Requirements defined: 2026-06-12*
-*Last updated: 2026-06-12 after initial definition*
+*Last updated: 2026-06-12 after roadmap creation (traceability mapped, 24/24 covered)*

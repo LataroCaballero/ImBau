@@ -1,0 +1,80 @@
+---
+gsd_state_version: '1.0'  # placeholder; syncStateFrontmatter overwrites on first state.* call
+status: planning
+progress:
+  total_phases: 4
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
+---
+
+# Project State
+
+## Project Reference
+
+See: .planning/PROJECT.md (updated 2026-06-12)
+
+**Core value:** La fundación técnica queda desplegada y operable desde el día uno: cada commit a main termina en software corriendo en staging con aislamiento multi-tenant verificable por RLS.
+**Current focus:** Phase 1 — Monorepo Foundation
+
+## Current Position
+
+Phase: 1 of 4 (Monorepo Foundation)
+Plan: 0 of TBD in current phase
+Status: Ready to plan
+Last activity: 2026-06-12 — Roadmap created (4 phases, coarse granularity)
+
+Progress: [░░░░░░░░░░] 0%
+
+## Performance Metrics
+
+**Velocity:**
+- Total plans completed: 0
+- Average duration: -
+- Total execution time: 0 hours
+
+**By Phase:**
+
+| Phase | Plans | Total | Avg/Plan |
+|-------|-------|-------|----------|
+| - | - | - | - |
+
+**Recent Trend:**
+- Last 5 plans: -
+- Trend: -
+
+*Updated after each plan completion*
+
+## Accumulated Context
+
+### Decisions
+
+Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
+
+- [Roadmap]: v1 = solo fase 0 del modelo-mvp.md; estructura horizontal por capas en orden de dependencias (config → db/RLS → auth/api/apps → infra/CI/CD)
+- [Roadmap]: DATA-04 (tests de ausencia cross-tenant) es la puerta de salida del milestone; corre en CI contra Postgres real (CI-02)
+
+### Pending Todos
+
+None yet.
+
+### Blockers/Concerns
+
+- [Phase 2/3]: APIs relativamente nuevas (Drizzle `pgPolicy`/`pgRole`, Better Auth org plugin) — re-verificar contra versiones pineadas en planning; reconciliar `member` (org plugin) vs `memberships`
+- [Control de fase 0]: si el milestone supera 1 semana, recalibrar todo el plan antes de seguir (regla del doc maestro; estimación 3-4 días con Fable)
+
+## Deferred Items
+
+Items acknowledged and carried forward from previous milestone close:
+
+| Category | Item | Status | Deferred At |
+|----------|------|--------|-------------|
+| *(none)* | | | |
+
+## Session Continuity
+
+Last session: 2026-06-12
+Stopped at: ROADMAP.md and STATE.md created; REQUIREMENTS.md traceability updated
+Resume file: None
