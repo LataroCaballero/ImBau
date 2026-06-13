@@ -1,3 +1,9 @@
 packages:
   - "apps/*"
   - "packages/*"
+# esbuild (transitive dep of vitest/tsx/tsup) needs its postinstall to fetch its
+# native binary. All three are approved in 01-RESEARCH.md's package audit. This
+# is the pnpm 11 home for the build-script allowlist (the package.json `pnpm`
+# field is no longer read).
+onlyBuiltDependencies:
+  - esbuild
