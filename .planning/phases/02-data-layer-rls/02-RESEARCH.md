@@ -44,7 +44,7 @@ None of these contradict the locked decisions; they are the API reality the plan
 ### Claude's Discretion
 - Exact role names beyond `app_authenticated` / `anon` (e.g. whether the owner/migrator is the connection default role or a named one), internal structure of `drizzle.config.ts` (with `entities.roles: true`), and folder organization inside `packages/db` (schema, policies, helpers, migrations).
 - Fine mechanics of how the `postgres` (porsager) pool opens/closes the transaction inside `withTenant()`/`withAnon()` and how `orgId` is injected safely (parameterized, never interpolated, to avoid injection in the `SET LOCAL`).
-- Exact Redis version/image in Compose (stack asks for Redis 7) and whether a health-check is exposed; Redis is container-only in phase 2, no app code touches it yet.
+- Exact Redis version/image in Compose (stack asks Redis 7) and whether a health-check is exposed; Redis is container-only in phase 2, no app code touches it yet.
 
 ### Deferred Ideas (OUT OF SCOPE)
 - `events` and `leads` with anonymous insert + edge rate-limit (Traefik) — considered to exercise the anonymous write path, but the model places them in later phases; deferred to SCHEMA-01. The anonymous write RLS pattern is still validated by cross-tenant writes failing in D-09.
@@ -561,21 +561,26 @@ volumes:
 | A4 | Compose host ports 5432/6379 are free locally. | Compose example | Port clash blocks `docker compose up`. User memory notes 3000/3001 owned by another project (not DB/Redis ports). Planner should confirm or remap. |
 | A5 | Role passwords can be injected at migrate time without committing literals (psql vars / templating). | Pattern 2 SQL | If the migration must contain literal passwords, that's a secret-in-repo issue (SOPS is phase 4). Planner should choose a no-literal injection mechanism for the roles SQL. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **uuid vs text for ids (A1)**
+> All three open questions were resolved during phase-2 planning (2026-06-15). The resolution lives in the plans cited below.
+
+1. **uuid vs text for ids (A1)** — RESOLVED
    - What we know: BA default ids are text; D-05 wrote `::uuid`.
    - What's unclear: whether the team wants to override BA to uuid ids in phase 2.
    - Recommendation: keep BA's default text ids in phase 2 (least friction), cast `::text`; revisit uuid override only if a later phase needs it. Flag the `::uuid`→`::text` reconciliation to the planner explicitly.
+   - **RESOLVED:** Plan 02-02 Task 1 verifies and documents the actual generated `organization.id` type before any policy is written; Task 2 types `projects.organization_id` and casts the policy (`::text` for BA's default text id, `::uuid` only if ids are overridden) to match. D-05's literal `::uuid` is reconciled to the real id type — recorded as a conscious deviation (see also context_compliance note in the plan-check). Keeping BA's default text ids in phase 2.
 
-2. **Where the roles/GRANTs/`FORCE` SQL lives**
+2. **Where the roles/GRANTs/`FORCE` SQL lives** — RESOLVED
    - What we know: Drizzle can't emit it (FLAG-2); it must be raw SQL.
    - What's unclear: appended into the generated `0000_*.sql` vs a separate ordered migration file vs a custom Drizzle migration.
    - Recommendation: a dedicated migration file in the same Drizzle journal (so `migrate` applies it in order and tests use the exact same path). Keep it ONE history (DATA-02). Discretion within `packages/db` layout.
+   - **RESOLVED:** Plan 02-02 Task 3 hand-writes a dedicated `migrations/0001_rls.sql` registered in `meta/_journal.json` (same single Drizzle history), applied in order by `drizzle-kit migrate` and by the test harness's programmatic `migrate()` — one path, no second migration system.
 
-3. **`withAnon` role selection: dedicated connection vs `SET ROLE`**
+3. **`withAnon` role selection: dedicated connection vs `SET ROLE`** — RESOLVED
    - What we know: D-04 prefers connecting directly as the role.
    - Recommendation: a dedicated `anon` connection string (`DATABASE_ANON_URL`) for symmetry; avoids `SET ROLE` complexity. Discretion.
+   - **RESOLVED:** Plan 02-01 Task 2 adds `DATABASE_ANON_URL` to the `dbEnv` preset; Plan 02-03 Task 1 builds a dedicated `anonClient`/`anonDb` on that URL and `withAnon` opens a txn on it with no `SET ROLE` and no tenant GUC.
 
 ## Environment Availability
 
@@ -589,6 +594,8 @@ volumes:
 
 **Missing dependencies with no fallback:** Docker/Compose availability was not probed; the planner should add an early task to confirm `docker compose version` works on the dev machine (it is the only hard external dependency for DATA-01/DATA-04).
 **Missing dependencies with fallback:** none.
+
+> **Planning-time update (2026-06-15):** `docker compose version` confirmed available (Compose 5.1.0). Host port 5432 confirmed free; host port 6379 is OCCUPIED by a local Homebrew redis-server — Plan 02-01 Task 1 remaps the Compose Redis to host port `6380` to resolve A4.
 
 ## Sources
 
