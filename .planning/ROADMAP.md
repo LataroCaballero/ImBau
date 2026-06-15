@@ -46,7 +46,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Toda tabla con tenant tiene `FORCE ROW LEVEL SECURITY` con roles de DB dedicados (app sin ownership ni BYPASSRLS, `anon` limitado a proyectos `publicado`) y el contexto de tenant fluye por transacción vía `withTenant()` con `SET LOCAL`
   4. Los tests de aislamiento cross-tenant corriendo como rol de app contra Postgres real demuestran que la org A no puede leer datos de la org B (test de ausencia — puerta de salida del milestone)
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Compose (Postgres 16 + Redis 7) + `packages/db` toolchain: deps, drizzle.config (entities.roles), three-URL env contract
+- [ ] 02-02-PLAN.md — Better Auth offline generate + fold, `projects`/`estado` + RLS policies/roles, generated migration + hand-written roles/GRANT/FORCE SQL, applied
+- [ ] 02-03-PLAN.md — `withTenant`/`withAnon` helpers + cross-tenant absence test harness (the DATA-04 exit gate)
 
 ### Phase 3: Auth, API & App Surfaces
 
@@ -84,6 +89,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Monorepo Foundation | 3/3 | Complete    | 2026-06-13 |
-| 2. Data Layer + RLS | 0/TBD | Not started | - |
+| 2. Data Layer + RLS | 0/3 | Not started | - |
 | 3. Auth, API & App Surfaces | 0/TBD | Not started | - |
 | 4. Staging, Observability & CI/CD | 0/TBD | Not started | - |
