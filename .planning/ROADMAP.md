@@ -47,10 +47,17 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Los tests de aislamiento cross-tenant corriendo como rol de app contra Postgres real demuestran que la org A no puede leer datos de la org B (test de ausencia — puerta de salida del milestone)
 
 **Plans**: 3 plans
-
 Plans:
+**Wave 1**
+
 - [ ] 02-01-PLAN.md — Compose (Postgres 16 + Redis 7) + `packages/db` toolchain: deps, drizzle.config (entities.roles), three-URL env contract
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 02-02-PLAN.md — Better Auth offline generate + fold, `projects`/`estado` + RLS policies/roles, generated migration + hand-written roles/GRANT/FORCE SQL, applied
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 02-03-PLAN.md — `withTenant`/`withAnon` helpers + cross-tenant absence test harness (the DATA-04 exit gate)
 
 ### Phase 3: Auth, API & App Surfaces
