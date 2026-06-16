@@ -3,8 +3,13 @@ packages:
   - "packages/*"
 # Build-script allowlist (pnpm 11.6). esbuild: transitive dep of vitest/tsx/tsup.
 # sharp: Next 16's native image optimizer. Both are well-known, approved packages.
+# @prisma/client + better-sqlite3: dev-only transitive deps of @better-auth/cli,
+# used ONLY for the offline `generate` step (no runtime, no DB driver) — their
+# native builds are intentionally NOT run (false), so pnpm stops flagging them.
 # pnpm 11.6 honors the allowBuilds map; the legacy onlyBuiltDependencies array is
 # not read by this version (it left builds ignored and rewrote a stub on install).
 allowBuilds:
+  '@prisma/client': false
+  better-sqlite3: false
   esbuild: true
   sharp: true

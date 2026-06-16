@@ -8,10 +8,23 @@
   },
   "scripts": {
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
+  },
+  "dependencies": {
+    "@imbau/config": "workspace:*",
+    "@t3-oss/env-core": "0.13.11",
+    "better-auth": "1.6.18",
+    "drizzle-orm": "0.45.2",
+    "postgres": "3.4.9",
+    "zod": "4.4.3"
   },
   "devDependencies": {
-    "@imbau/config": "workspace:*",
+    "@better-auth/cli": "1.4.21",
+    "@types/node": "22.18.13",
+    "drizzle-kit": "0.31.10",
     "typescript": "5.9.3"
   }
 }
