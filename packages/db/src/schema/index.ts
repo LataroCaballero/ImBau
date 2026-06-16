@@ -1,8 +1,25 @@
 // Schema barrel — re-exports every table/enum/policy/role so drizzle-kit (schema glob
-// ./src/schema/*.ts) and consumers see one surface. JIT package: raw .ts re-exports,
-// `export *` per verbatimModuleSyntax (these are value exports: tables, enums, roles).
+// ./src/schema/*.ts) and consumers see one surface. JIT package: raw .ts re-exports.
 //
-// auth-schema.ts is the faithful Better Auth fold (Task 1). Task 2 adds roles.ts,
-// projects.ts, and member-rls.ts (the latter overlays the tenant RLS policy +
-// .enableRLS() onto the `member` table, re-exported decorated).
-export * from "./auth-schema";
+// auth-schema.ts is the faithful Better Auth fold. member-rls.ts overlays the tenant RLS
+// policy onto `member` and re-exports it decorated, so `member` is re-exported from
+// member-rls (NOT auth-schema) to avoid a duplicate-export conflict — the rest of the
+// auth tables come straight from the fold. projects.ts + roles.ts add the domain table,
+// enum, policies, and role stubs.
+export {
+  user,
+  session,
+  account,
+  verification,
+  organization,
+  invitation,
+  userRelations,
+  sessionRelations,
+  accountRelations,
+  organizationRelations,
+  memberRelations,
+  invitationRelations,
+} from "./auth-schema";
+export * from "./roles";
+export * from "./projects";
+export * from "./member-rls";

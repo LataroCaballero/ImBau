@@ -8,7 +8,16 @@ import { defineConfig } from "drizzle-kit";
 // migrations. The schema folder is created in plan 02; the glob can reference it now.
 export default defineConfig({
   dialect: "postgresql",
-  schema: "./src/schema/*.ts",
+  // Point at the concrete schema source files, NOT the barrel (index.ts). A glob that
+  // includes index.ts would re-read every table/policy through its re-exports, making
+  // drizzle-kit see each entity twice (e.g. "duplicated policy member_tenant"). The
+  // barrel is for consumers; drizzle-kit reads the sources directly.
+  schema: [
+    "./src/schema/auth-schema.ts",
+    "./src/schema/roles.ts",
+    "./src/schema/projects.ts",
+    "./src/schema/member-rls.ts",
+  ],
   out: "./migrations",
   entities: {
     roles: true,
