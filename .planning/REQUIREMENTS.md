@@ -21,10 +21,10 @@ Requirements para el milestone v1 (fase 0). Cada uno mapea a fases del roadmap.
 
 ### Data Layer
 
-- [ ] **DATA-01**: `docker compose up -d` levanta Postgres 16 y Redis locales con un comando
-- [ ] **DATA-02**: El schema base (organizations → projects + tablas de Better Auth) vive en `packages/db` con migraciones Drizzle versionadas (`generate` + `migrate`, nunca `push` ni cambios manuales)
-- [ ] **DATA-03**: Toda tabla con tenant tiene RLS con `FORCE ROW LEVEL SECURITY`, roles de DB dedicados (app sin ownership ni BYPASSRLS, `anon` limitado a proyectos `publicado`) y el contexto de tenant fluye por transacción vía helper `withTenant()` con `SET LOCAL`
-- [ ] **DATA-04**: Tests de aislamiento cross-tenant (de ausencia, no solo de presencia) corren contra Postgres real como rol de app: la org A no puede leer datos de la org B — puerta de salida del milestone
+- [x] **DATA-01**: `docker compose up -d` levanta Postgres 16 y Redis locales con un comando
+- [x] **DATA-02**: El schema base (organizations → projects + tablas de Better Auth) vive en `packages/db` con migraciones Drizzle versionadas (`generate` + `migrate`, nunca `push` ni cambios manuales)
+- [x] **DATA-03**: Toda tabla con tenant tiene RLS con `FORCE ROW LEVEL SECURITY`, roles de DB dedicados (app sin ownership ni BYPASSRLS, `anon` limitado a proyectos `publicado`) y el contexto de tenant fluye por transacción vía helper `withTenant()` con `SET LOCAL`
+- [x] **DATA-04**: Tests de aislamiento cross-tenant (de ausencia, no solo de presencia) corren contra Postgres real como rol de app: la org A no puede leer datos de la org B — puerta de salida del milestone
 
 ### Auth
 
@@ -112,10 +112,10 @@ Qué fases cubren qué requirements. Se actualiza durante la creación del roadm
 | MONO-01 | Phase 1 | Complete |
 | MONO-02 | Phase 1 | Complete |
 | MONO-03 | Phase 1 | Complete |
-| DATA-01 | Phase 2 | Pending |
-| DATA-02 | Phase 2 | Pending |
-| DATA-03 | Phase 2 | Pending |
-| DATA-04 | Phase 2 | Pending |
+| DATA-01 | Phase 2 | Complete |
+| DATA-02 | Phase 2 | Complete |
+| DATA-03 | Phase 2 | Complete |
+| DATA-04 | Phase 2 | Complete |
 | AUTH-01 | Phase 3 | Pending |
 | AUTH-02 | Phase 3 | Pending |
 | AUTH-03 | Phase 3 | Pending |
