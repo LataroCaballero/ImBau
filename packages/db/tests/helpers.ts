@@ -59,29 +59,37 @@ export async function makeProject(
   return id;
 }
 
+// Insert a fresh `user` (unique id + email) via the owner; returns its id. Exposed so the
+// cross-tenant write test (WR-01) can seed a VALID member.user_id FK and thereby prove the
+// member INSERT is rejected by RLS `withCheck`, not by the FK constraint firing first.
+export async function makeUser(): Promise<string> {
+  const id = randomUUID();
+  await ownerDb()
+    .db.insert(user)
+    .values({
+      id,
+      name: `User ${id.slice(0, 8)}`,
+      email: `user-${id}@example.test`,
+    });
+  return id;
+}
+
 // Insert a `member` row for `orgId`. Creates a `user` first when userId is not supplied so
 // the member.user_id FK holds. Returns the member id. (member is a tenant table — D-02/D-10.)
 export async function makeMember(
   orgId: string,
   userId?: string,
 ): Promise<string> {
-  const db = ownerDb().db;
-  let uid = userId;
-  if (!uid) {
-    uid = randomUUID();
-    await db.insert(user).values({
-      id: uid,
-      name: `User ${uid.slice(0, 8)}`,
-      email: `user-${uid}@example.test`,
-    });
-  }
+  const uid = userId ?? (await makeUser());
   const id = randomUUID();
-  await db.insert(member).values({
-    id,
-    organizationId: orgId,
-    userId: uid,
-    role: "member",
-    createdAt: new Date(),
-  });
+  await ownerDb()
+    .db.insert(member)
+    .values({
+      id,
+      organizationId: orgId,
+      userId: uid,
+      role: "member",
+      createdAt: new Date(),
+    });
   return id;
 }
