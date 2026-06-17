@@ -17,6 +17,7 @@ export default defineConfig({
     "./src/schema/roles.ts",
     "./src/schema/projects.ts",
     "./src/schema/member-rls.ts",
+    "./src/schema/organization-rls.ts",
   ],
   out: "./migrations",
   entities: {

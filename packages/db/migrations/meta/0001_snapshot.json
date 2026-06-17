@@ -435,7 +435,18 @@
           ]
         }
       },
-      "policies": {},
+      "policies": {
+        "organization_self": {
+          "name": "organization_self",
+          "as": "PERMISSIVE",
+          "for": "ALL",
+          "to": [
+            "app_authenticated"
+          ],
+          "using": "\"organization\".\"id\" = current_setting('app.current_organization_id', true)::text",
+          "withCheck": "\"organization\".\"id\" = current_setting('app.current_organization_id', true)::text"
+        }
+      },
       "checkConstraints": {},
       "isRLSEnabled": false
     },

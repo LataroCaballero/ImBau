@@ -46,6 +46,7 @@ CREATE TABLE "organization" (
 	CONSTRAINT "organization_slug_unique" UNIQUE("slug")
 );
 --> statement-breakpoint
+ALTER TABLE "organization" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "session" (
 	"id" text PRIMARY KEY NOT NULL,
 	"expires_at" timestamp NOT NULL,
@@ -103,6 +104,7 @@ CREATE INDEX "member_userId_idx" ON "member" USING btree ("user_id");--> stateme
 CREATE UNIQUE INDEX "organization_slug_uidx" ON "organization" USING btree ("slug");--> statement-breakpoint
 CREATE INDEX "session_userId_idx" ON "session" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("identifier");--> statement-breakpoint
+CREATE POLICY "organization_self" ON "organization" AS PERMISSIVE FOR ALL TO "app_authenticated" USING ("organization"."id" = current_setting('app.current_organization_id', true)::text) WITH CHECK ("organization"."id" = current_setting('app.current_organization_id', true)::text);--> statement-breakpoint
 CREATE POLICY "member_tenant" ON "member" AS PERMISSIVE FOR ALL TO "app_authenticated" USING ("member"."organization_id" = current_setting('app.current_organization_id', true)::text) WITH CHECK ("member"."organization_id" = current_setting('app.current_organization_id', true)::text);--> statement-breakpoint
 CREATE POLICY "projects_tenant" ON "projects" AS PERMISSIVE FOR ALL TO "app_authenticated" USING ("projects"."organization_id" = current_setting('app.current_organization_id', true)::text) WITH CHECK ("projects"."organization_id" = current_setting('app.current_organization_id', true)::text);--> statement-breakpoint
 CREATE POLICY "projects_anon_published" ON "projects" AS PERMISSIVE FOR SELECT TO "anon" USING ("projects"."estado" = 'publicado');

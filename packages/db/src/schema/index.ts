@@ -2,8 +2,9 @@
 // ./src/schema/*.ts) and consumers see one surface. JIT package: raw .ts re-exports.
 //
 // auth-schema.ts is the faithful Better Auth fold. member-rls.ts overlays the tenant RLS
-// policy onto `member` and re-exports it decorated, so `member` is re-exported from
-// member-rls (NOT auth-schema) to avoid a duplicate-export conflict — the rest of the
+// policy onto `member` and re-exports it decorated; organization-rls.ts does the same for
+// `organization` (CR-01). So `member` and `organization` are re-exported from their *-rls
+// overlay modules (NOT auth-schema) to avoid a duplicate-export conflict — the rest of the
 // auth tables come straight from the fold. projects.ts + roles.ts add the domain table,
 // enum, policies, and role stubs.
 export {
@@ -11,7 +12,6 @@ export {
   session,
   account,
   verification,
-  organization,
   invitation,
   userRelations,
   sessionRelations,
@@ -23,3 +23,4 @@ export {
 export * from "./roles";
 export * from "./projects";
 export * from "./member-rls";
+export * from "./organization-rls";
