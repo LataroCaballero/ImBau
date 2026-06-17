@@ -9,8 +9,7 @@
 // writes the member row with the invited role and (in better-auth 1.6.18) makes the accepted org
 // active. We then set it active explicitly as a belt-and-suspenders against the null-active-org
 // gap (Pitfall 2) and enter the dashboard. The invitee never needs to create their own org.
-import { use, useEffect, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { use, useEffect, useRef, useState, type FormEvent } from "react";
 import { authClient } from "../../../lib/auth-client";
 
 type Mode = "signup" | "login";
@@ -21,7 +20,6 @@ export default function AcceptInvitationPage({
   params: Promise<{ id: string }>;
 }): React.JSX.Element {
   const { id } = use(params);
-  const router = useRouter();
   const { data: session, isPending: sessionPending } =
     authClient.useSession();
 
@@ -31,17 +29,19 @@ export default function AcceptInvitationPage({
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [accepted, setAccepted] = useState(false);
+  // A ref (not state) guards the accept attempt so it runs EXACTLY ONCE. Using a `pending` state
+  // flag in the effect deps would make the effect cancel + re-run itself when setPending toggles,
+  // aborting the in-flight accept before it could navigate.
+  const startedRef = useRef(false);
 
-  // Once authenticated, accept the invitation automatically.
+  // Once authenticated, accept the invitation automatically (exactly once).
   useEffect(() => {
-    if (sessionPending || !session?.user || accepted || pending) return;
-    let cancelled = false;
+    if (sessionPending || !session?.user || startedRef.current) return;
+    startedRef.current = true;
+    setPending(true);
     void (async () => {
-      setPending(true);
       const { data, error: acceptError } =
         await authClient.organization.acceptInvitation({ invitationId: id });
-      if (cancelled) return;
       if (acceptError || !data) {
         setPending(false);
         setError(
@@ -49,20 +49,28 @@ export default function AcceptInvitationPage({
         );
         return;
       }
-      // Make the accepted org the active tenant before entering (Pitfall 2).
-      await authClient.organization.setActive({
-        organizationId: data.invitation.organizationId,
-      });
-      if (cancelled) return;
-      setPending(false);
-      setAccepted(true);
-      router.push("/");
-      router.refresh();
+      // acceptInvitation creates the membership; we then set the accepted org active so the
+      // dashboard does not bounce on a null active org (Pitfall 2). setActive is awaited because
+      // the dashboard read needs it; a failure surfaces as an error rather than a silent bounce.
+      const orgId =
+        data.invitation?.organizationId ?? data.member?.organizationId;
+      if (orgId) {
+        const { error: activeError } =
+          await authClient.organization.setActive({ organizationId: orgId });
+        if (activeError) {
+          setPending(false);
+          setError(
+            activeError.message ?? "No pudimos activar tu organización.",
+          );
+          return;
+        }
+      }
+      // Hard navigation so the dashboard's first request carries the session cookie with the
+      // freshly-set active org (a client-side router.push can race the cookie commit and land on
+      // the dashboard before activeOrganizationId is set → a bounce to /login).
+      window.location.assign("/");
     })();
-    return () => {
-      cancelled = true;
-    };
-  }, [sessionPending, session, accepted, pending, id, router]);
+  }, [sessionPending, session, id]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();

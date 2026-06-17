@@ -6,6 +6,11 @@ node_modules/
 dist/
 .turbo/
 
+# Playwright e2e artifacts (regenerated on every run — never commit)
+test-results/
+playwright-report/
+playwright/.cache/
+
 # Next.js generated type shim (regenerated on every build — never commit)
 next-env.d.ts
 

@@ -10,7 +10,6 @@
 // not 401 right after registering. Invitees use /accept-invitation/[id] instead (the accepted
 // org becomes active there).
 import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "../../lib/auth-client";
 
@@ -28,7 +27,6 @@ function slugify(value: string): string {
 }
 
 export default function SignupPage(): React.JSX.Element {
-  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -75,8 +73,9 @@ export default function SignupPage(): React.JSX.Element {
       return;
     }
 
-    router.push("/");
-    router.refresh();
+    // Hard navigation so the dashboard's first request carries the session cookie with the
+    // freshly-set active org (a client-side router.push can race the cookie commit → /login).
+    window.location.assign("/");
   }
 
   return (

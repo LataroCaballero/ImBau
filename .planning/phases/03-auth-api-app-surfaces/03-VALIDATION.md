@@ -42,7 +42,10 @@ created: 2026-06-17
 | 03-02-T3 | 03-02 | 2 | APP-01 | T-03-05 | `projects.listForOrg` returns only the active org's projects (RLS via withTenant), absence-proven both directions | integration | `pnpm --filter @imbau/api test -t "tenant isolation"` | ✅ `packages/api/tests/trpc-tenant.test.ts` | ✅ green |
 | 03-02-T3 | 03-02 | 2 | APP-02 | — | `projects.listPublished` (withAnon) returns only `publicado`, ZERO `borrador` | integration | `pnpm --filter @imbau/api test -t "anon published-only"` | ✅ `packages/api/tests/trpc-tenant.test.ts` | ✅ green |
 | 03-02-T1/T3 | 03-02 | 2 | AUTH-03 | T-03-06 | `member.invite` is owner-only: FORBIDDEN for a viewer caller, allowed for an owner | integration | `pnpm --filter @imbau/api test -t "requireRole"` | ✅ `packages/api/tests/trpc-tenant.test.ts` | ✅ green |
-| TBD | — | — | AUTH-01 / APP-03 / APP-04 | — | — | — | — | ❌ W0 | ⬜ pending |
+| 03-03-T3 | 03-03 | 3 | AUTH-01 | T-03-10 | signup → dashboard read → session persists across a full page reload (not bounced to /login) | e2e (Playwright) | `pnpm --filter @imbau/panel test:e2e -g "login persists"` | ✅ `apps/panel/e2e/auth-flow.spec.ts` | ✅ green |
+| 03-03-T3 | 03-03 | 3 | AUTH-03 | T-03-13/T-03-15 | owner invites by email → dev console fallback (no Resend key) → invitee accepts via /accept-invitation/[id] → `member` row lands with the assigned `viewer` role | e2e (Playwright) | `pnpm --filter @imbau/panel test:e2e -g "invite accept"` | ✅ `apps/panel/e2e/auth-flow.spec.ts` | ✅ green |
+| 03-03-T1 | 03-03 | 3 | AUTH-03 | T-03-14 | `sendInvitationEmail` dev fallback logs the accept link when `RESEND_API_KEY` is absent (no network) | unit (Vitest) | `pnpm --filter @imbau/api test -t "invitation email fallback"` | ✅ `packages/api/tests/send-invitation.test.ts` | ✅ green |
+| TBD | — | — | APP-03 / APP-04 | — | — | — | — | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
