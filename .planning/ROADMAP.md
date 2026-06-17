@@ -14,7 +14,7 @@ Este milestone construye la fundación técnica multi-tenant de ImBau en estrict
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Monorepo Foundation** - Workspace pnpm + Turborepo, config compartida (tsconfig, ESLint 9, env Zod) y esqueletos de paquetes que compilan (completed 2026-06-13)
-- [ ] **Phase 2: Data Layer + RLS** - Postgres 16 + Redis vía Compose, schema base con migraciones Drizzle y aislamiento de tenant verificado por tests de ausencia cross-tenant
+- [x] **Phase 2: Data Layer + RLS** - Postgres 16 + Redis vía Compose, schema base con migraciones Drizzle y aislamiento de tenant verificado por tests de ausencia cross-tenant (completed 2026-06-17)
 - [ ] **Phase 3: Auth, API & App Surfaces** - Better Auth (orgs, roles, invitaciones), costura tRPC y las tres apps (panel, web, worker) leyendo datos con el contexto de tenant correcto
 - [ ] **Phase 4: Staging, Observability & CI/CD** - Topología completa en el VPS detrás de Traefik, observabilidad (Sentry, pino → Loki, Uptime Kuma) y auto-deploy a staging en cada merge a main
 
@@ -58,7 +58,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 02-03-PLAN.md — `withTenant`/`withAnon` helpers + cross-tenant absence test harness (the DATA-04 exit gate)
+- [x] 02-03-PLAN.md — `withTenant`/`withAnon` helpers + cross-tenant absence test harness (the DATA-04 exit gate)
 
 ### Phase 3: Auth, API & App Surfaces
 
@@ -96,6 +96,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Monorepo Foundation | 3/3 | Complete    | 2026-06-13 |
-| 2. Data Layer + RLS | 2/3 | In Progress|  |
+| 2. Data Layer + RLS | 3/3 | Complete   | 2026-06-17 |
 | 3. Auth, API & App Surfaces | 0/TBD | Not started | - |
 | 4. Staging, Observability & CI/CD | 0/TBD | Not started | - |
