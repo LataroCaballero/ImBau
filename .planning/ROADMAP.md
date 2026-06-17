@@ -72,7 +72,24 @@ Plans:
   3. `apps/panel` tiene login funcionando y una página que lee datos protegidos por RLS de la organización activa; `apps/web` lee vía rol `anon` y solo ve proyectos en estado `publicado`
   4. `apps/worker` corre como shell deployable (BullMQ conectado a Redis, sin lógica de jobs) y cada app produce una imagen Docker deployable con Dockerfile multi-stage (`turbo prune` + Next.js standalone)
 
-**Plans**: TBD
+**Plans**: 5 plans
+Plans:
+**Wave 1**
+
+- [ ] 03-01-PLAN.md — Auth foundation: `authEnv` preset, `packages/api` deps (React Email install checkpoint), Better Auth runtime on the elevated owner pool (A1) + owner/developer/viewer roles, Vitest harness + fixtures + A1 integration test
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 03-02-PLAN.md — tRPC layer: init/context/middleware (session→tenant seam, `requireRole`), minimal D-07 routers (projects/org/member/invitation), `@imbau/api` barrel + tenant-isolation/role/anon integration tests
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 03-03-PLAN.md — Panel surface: Better Auth + tRPC handlers (panel only), auth/tRPC clients, login/signup/accept-invitation/dashboard pages, invitation email (Resend + dev console fallback), auth e2e + human-verify checkpoint
+- [ ] 03-04-PLAN.md — `apps/web` anon published-projects read (APP-02) + `apps/worker` BullMQ↔Redis shell (APP-03) + Redis-connect smoke test
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 03-05-PLAN.md — Multi-stage Dockerfiles for web/panel (Next standalone) + worker (tsup dist), authored only (image build verified in CI Phase 4)
 
 ### Phase 4: Staging, Observability & CI/CD
 
@@ -97,5 +114,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Monorepo Foundation | 3/3 | Complete    | 2026-06-13 |
 | 2. Data Layer + RLS | 3/3 | Complete    | 2026-06-17 |
-| 3. Auth, API & App Surfaces | 0/TBD | Not started | - |
+| 3. Auth, API & App Surfaces | 0/5 | Not started | - |
 | 4. Staging, Observability & CI/CD | 0/TBD | Not started | - |
