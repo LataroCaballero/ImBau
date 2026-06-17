@@ -80,7 +80,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 03-02-PLAN.md — tRPC layer: init/context/middleware (session→tenant seam, `requireRole`), minimal D-07 routers (projects/org/member/invitation), `@imbau/api` barrel + tenant-isolation/role/anon integration tests
+- [x] 03-02-PLAN.md — tRPC layer: init/context/middleware (session→tenant seam, `requireRole`), minimal D-07 routers (projects/org/member/invitation), `@imbau/api` barrel + tenant-isolation/role/anon integration tests
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -114,5 +114,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Monorepo Foundation | 3/3 | Complete    | 2026-06-13 |
 | 2. Data Layer + RLS | 3/3 | Complete    | 2026-06-17 |
-| 3. Auth, API & App Surfaces | 1/5 | In Progress|  |
+| 3. Auth, API & App Surfaces | 2/5 | In Progress|  |
 | 4. Staging, Observability & CI/CD | 0/TBD | Not started | - |
