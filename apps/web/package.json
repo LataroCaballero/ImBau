@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@imbau/api": "workspace:*",
     "@imbau/config": "workspace:*",
     "@imbau/ui": "workspace:*",
     "@t3-oss/env-nextjs": "0.13.11",
