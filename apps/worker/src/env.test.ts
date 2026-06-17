@@ -17,7 +17,8 @@ describe("worker env validation", () => {
         server: {
           ...baseEnv.server,
           ...redisEnv.server,
-          ...dbEnv.server,
+          // Mirror env.ts: worker uses only the owner DATABASE_URL.
+          DATABASE_URL: dbEnv.server.DATABASE_URL,
         },
         // DATABASE_URL invalid AND REDIS_URL missing — both must aggregate.
         runtimeEnv: { DATABASE_URL: "not-a-url", NODE_ENV: "test" },
@@ -47,7 +48,8 @@ describe("worker env validation", () => {
       server: {
         ...baseEnv.server,
         ...redisEnv.server,
-        ...dbEnv.server,
+        // Mirror env.ts: worker uses only the owner DATABASE_URL.
+        DATABASE_URL: dbEnv.server.DATABASE_URL,
       },
       runtimeEnv: {
         NODE_ENV: "test",
