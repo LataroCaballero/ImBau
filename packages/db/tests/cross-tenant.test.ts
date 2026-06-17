@@ -17,8 +17,14 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { sql, eq } from "drizzle-orm";
 import { withTenant, withAnon } from "../src/with-tenant";
-import { projects, member } from "../src/schema";
-import { makeOrg, makeProject, makeMember, closeFixtures } from "./helpers";
+import { projects, member, organization } from "../src/schema";
+import {
+  makeOrg,
+  makeProject,
+  makeMember,
+  makeUser,
+  closeFixtures,
+} from "./helpers";
 
 type Scenario = {
   orgA: string;
@@ -59,6 +65,8 @@ function countForOrg(
 
 describe("cross-tenant isolation (DATA-04 exit gate)", () => {
   it("(guard) app/anon connections are unprivileged (current_user + rolbypassrls=false)", async () => {
+    // tx.execute<T>() resolves to a directly-indexable RowList<T[]>; index it without any
+    // `as unknown as` re-cast (WR-03). The supplied generic IS the row type.
     const appGuard = await withTenant(s.orgA, async (tx) => {
       const who = await tx.execute<{ current_user: string }>(
         sql`select current_user`,
@@ -67,9 +75,8 @@ describe("cross-tenant isolation (DATA-04 exit gate)", () => {
         sql`select rolbypassrls from pg_roles where rolname = current_user`,
       );
       return {
-        user: (who as unknown as { current_user: string }[])[0]?.current_user,
-        bypass: (attrs as unknown as { rolbypassrls: boolean }[])[0]
-          ?.rolbypassrls,
+        user: who[0]?.current_user,
+        bypass: attrs[0]?.rolbypassrls,
       };
     });
     expect(appGuard.user).toBe("app_authenticated");
@@ -83,9 +90,8 @@ describe("cross-tenant isolation (DATA-04 exit gate)", () => {
         sql`select rolbypassrls from pg_roles where rolname = current_user`,
       );
       return {
-        user: (who as unknown as { current_user: string }[])[0]?.current_user,
-        bypass: (attrs as unknown as { rolbypassrls: boolean }[])[0]
-          ?.rolbypassrls,
+        user: who[0]?.current_user,
+        bypass: attrs[0]?.rolbypassrls,
       };
     });
     expect(anonGuard.user).toBe("anon");
@@ -126,6 +132,27 @@ describe("cross-tenant isolation (DATA-04 exit gate)", () => {
     expect(countForOrg(memberRows, s.orgA)).toBe(0);
   });
 
+  it("(a/b) organization self-isolation: a tenant reads ONLY its own organization row (CR-01)", async () => {
+    // `organization` IS a tenant table, scoped by its own id via the organization_self policy.
+    // org A (scoped to orgA) must see EXACTLY its own organization row and ZERO sibling rows —
+    // closing the CR-01 cross-tenant read leak (previously every tenant could enumerate every
+    // other tenant's name/slug/plan). This assertion is the under-test boundary for that fix.
+    const orgRowsA = await withTenant(s.orgA, async (tx) =>
+      tx.select().from(organization),
+    );
+    expect(orgRowsA.length).toBe(1);
+    expect(orgRowsA[0]?.id).toBe(s.orgA);
+    expect(orgRowsA.some((r) => r.id === s.orgB)).toBe(false);
+
+    // Mirror: org B sees only org B's organization row, never org A's.
+    const orgRowsB = await withTenant(s.orgB, async (tx) =>
+      tx.select().from(organization),
+    );
+    expect(orgRowsB.length).toBe(1);
+    expect(orgRowsB[0]?.id).toBe(s.orgB);
+    expect(orgRowsB.some((r) => r.id === s.orgA)).toBe(false);
+  });
+
   it("(c) cross-tenant INSERT throws on projects AND member (withCheck)", async () => {
     // INSERT a projects row claiming org B while scoped to org A — withCheck must reject it.
     await expect(
@@ -140,38 +167,48 @@ describe("cross-tenant isolation (DATA-04 exit gate)", () => {
     ).rejects.toThrow();
 
     // INSERT a member row claiming org B while scoped to org A — withCheck must reject it.
-    // (FK to user/org is satisfiable via the owner; the row is rejected by RLS withCheck, not FK.)
+    // WR-01: seed a VALID user via the owner first so the member.user_id FK is satisfiable.
+    // With a real userId, the ONLY possible rejection cause is the RLS `withCheck` (the old
+    // test used a non-existent userId, so the FK violation fired regardless of RLS — a
+    // vacuous gate). We further assert the error is a row-level-security / SQLSTATE 42501
+    // policy violation, not merely "some throw".
+    const uid = await makeUser();
     await expect(
       withTenant(s.orgA, async (tx) => {
         await tx.insert(member).values({
           id: `m-${Date.now()}`,
           organizationId: s.orgB,
-          userId: "nonexistent-user-but-rls-rejects-first",
+          userId: uid,
           role: "member",
           createdAt: new Date(),
         });
       }),
-    ).rejects.toThrow();
+    ).rejects.toThrow(/row-level security|42501/);
   });
 
   it("(c) cross-tenant UPDATE of an org B row affects 0 rows on projects AND member", async () => {
     // org B's projectB is invisible to org A (using clause), so the UPDATE matches 0 rows.
+    // Assert on `.returning()` length — a fully-typed `{ id }[]`, NOT an untyped driver-internal
+    // `.count` read behind an `as unknown as` cast (WR-02). RLS `using` makes the row unmatched,
+    // so zero rows are returned.
     const projUpdated = await withTenant(s.orgA, async (tx) => {
-      const res = await tx
+      const rows = await tx
         .update(projects)
         .set({ nombre: "hijacked" })
-        .where(eq(projects.id, s.projectB));
-      return (res as unknown as { count: number }).count;
+        .where(eq(projects.id, s.projectB))
+        .returning({ id: projects.id });
+      return rows.length;
     });
     expect(projUpdated).toBe(0);
 
     // org B's member rows are invisible to org A — UPDATE by organization_id matches 0 rows.
     const memberUpdated = await withTenant(s.orgA, async (tx) => {
-      const res = await tx
+      const rows = await tx
         .update(member)
         .set({ role: "hijacked" })
-        .where(eq(member.organizationId, s.orgB));
-      return (res as unknown as { count: number }).count;
+        .where(eq(member.organizationId, s.orgB))
+        .returning({ id: member.id });
+      return rows.length;
     });
     expect(memberUpdated).toBe(0);
   });
