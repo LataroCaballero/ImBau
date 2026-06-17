@@ -10,7 +10,9 @@ const workspaceRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
 const nextConfig: NextConfig = {
   // JIT consumption of internal workspace packages (raw src, no dist) — D-05.
-  transpilePackages: ["@imbau/ui", "@imbau/config"],
+  // @imbau/api carries the Better Auth runtime + tRPC router consumed by the panel
+  // handlers/clients, so it must be transpiled too.
+  transpilePackages: ["@imbau/api", "@imbau/ui", "@imbau/config"],
   // Standalone output for the fase-3 Docker image.
   output: "standalone",
   turbopack: { root: workspaceRoot },

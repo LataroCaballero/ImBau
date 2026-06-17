@@ -12,9 +12,15 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@imbau/api": "workspace:*",
     "@imbau/config": "workspace:*",
     "@imbau/ui": "workspace:*",
     "@t3-oss/env-nextjs": "0.13.11",
+    "@tanstack/react-query": "5.101.0",
+    "@trpc/client": "11.17.0",
+    "@trpc/server": "11.17.0",
+    "@trpc/tanstack-react-query": "11.17.0",
+    "better-auth": "1.6.18",
     "next": "16.2.9",
     "react": "19.2.7",
     "react-dom": "19.2.7",

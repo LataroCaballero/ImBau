@@ -1,11 +1,16 @@
-// Invitation email dispatch — STUB for plan 03-01 (D-09).
+// Invitation email dispatch (D-09 / D-11, AUTH-03) — real Resend with a dev console fallback.
 //
-// Plan 03-03 replaces this with the real Resend + React Email implementation. For now the
-// auth runtime needs a `sendInvitationEmail` callback that imports cleanly and is safe to run
-// in tests and dev: it logs the accept link to the console (the D-09 dev fallback) and never
-// reaches out to a network. The shape of `data` matches the org plugin's
-// `sendInvitationEmail(data)` payload so the 03-03 swap is import-compatible.
+// This replaces the plan 03-01 console stub as a drop-in: same `InvitationEmailData` shape and
+// the same `sendInvitationEmail(data): Promise<void>` signature the org plugin's
+// `sendInvitationEmail(data)` callback awaits (packages/api/src/auth/runtime.ts).
+//
+// D-09: when `RESEND_API_KEY` is absent (local dev / tests) we log the accept link to the
+// console and return — no network, zero external deps. The logged line carries only the public
+// accept URL, never a secret (V7). When the key IS present (staging/prod), we render the es-AR
+// React Email template and send it via Resend from the verified `INVITE_FROM` sender.
+import { Resend } from "resend";
 import { env } from "../auth/env";
+import { InvitationEmail } from "./templates/invitation";
 
 export interface InvitationEmailData {
   id: string;
@@ -15,15 +20,40 @@ export interface InvitationEmailData {
   inviter: { user: { name: string } };
 }
 
-// Returns a Promise (not `async`) so the org plugin's `await sendInvitationEmail(data)` works
-// and the 03-03 real (network) implementation is a drop-in swap — without an empty `await` in
-// this no-I/O stub.
-export function sendInvitationEmail(data: InvitationEmailData): Promise<void> {
+export async function sendInvitationEmail(
+  data: InvitationEmailData,
+): Promise<void> {
   const acceptUrl = `${env.BETTER_AUTH_URL}/accept-invitation/${data.id}`;
-  // Dev/test fallback (D-09): real Resend dispatch lands in plan 03-03. Logging the link is
-  // intentional here — there are no secrets in the line (only the public accept URL).
-  console.info(
-    `[invite] ${data.email} -> ${data.organization.name} (${data.role}) :: ${acceptUrl}`,
-  );
-  return Promise.resolve();
+  const inviter = data.inviter.user.name;
+  const orgName = data.organization.name;
+
+  // Dev/test fallback (D-09): no Resend key -> log the accept link and stop. The link is the
+  // only thing on the line (no secret), so it is safe to log.
+  if (!env.RESEND_API_KEY) {
+    console.info(
+      `[invite] ${data.email} -> ${orgName} (${data.role}) :: ${acceptUrl}`,
+    );
+    return;
+  }
+
+  // Staging/prod: render the es-AR template and send via Resend. INVITE_FROM must be a verified
+  // sender on the Resend account; it is required only once a key is present.
+  if (!env.INVITE_FROM) {
+    throw new Error(
+      "INVITE_FROM must be set when RESEND_API_KEY is present (verified Resend sender).",
+    );
+  }
+
+  const resend = new Resend(env.RESEND_API_KEY);
+  const { error } = await resend.emails.send({
+    from: env.INVITE_FROM,
+    to: data.email,
+    subject: `Te invitaron a ${orgName}`,
+    react: InvitationEmail({ acceptUrl, orgName, inviter }),
+  });
+  if (error) {
+    // Surface the failure (observable, never silently swallowed — CLAUDE.md). The message is
+    // Resend's own error, which does not include our API key.
+    throw new Error(`Resend failed to send the invitation: ${error.message}`);
+  }
 }

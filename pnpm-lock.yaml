@@ -32,6 +32,9 @@ importers:
 
   apps/panel:
     dependencies:
+      '@imbau/api':
+        specifier: workspace:*
+        version: link:../../packages/api
       '@imbau/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -41,6 +44,21 @@ importers:
       '@t3-oss/env-nextjs':
         specifier: 0.13.11
         version: 0.13.11(typescript@5.9.3)(zod@4.4.3)
+      '@tanstack/react-query':
+        specifier: 5.101.0
+        version: 5.101.0(react@19.2.7)
+      '@trpc/client':
+        specifier: 11.17.0
+        version: 11.17.0(@trpc/server@11.17.0(typescript@5.9.3))(typescript@5.9.3)
+      '@trpc/server':
+        specifier: 11.17.0
+        version: 11.17.0(typescript@5.9.3)
+      '@trpc/tanstack-react-query':
+        specifier: 11.17.0
+        version: 11.17.0(@tanstack/react-query@5.101.0(react@19.2.7))(@trpc/client@11.17.0(@trpc/server@11.17.0(typescript@5.9.3))(typescript@5.9.3))(@trpc/server@11.17.0(typescript@5.9.3))(react@19.2.7)(typescript@5.9.3)
+      better-auth:
+        specifier: 1.6.18
+        version: 1.6.18(@prisma/client@5.22.0)(better-sqlite3@12.10.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.10.1)(kysely@0.29.2)(pg@8.21.0)(postgres@3.4.9))(next@16.2.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(pg@8.21.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vitest@4.1.8)
       next:
         specifier: 16.2.9
         version: 16.2.9(@babel/core@7.29.7)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -167,6 +185,9 @@ importers:
       better-auth:
         specifier: 1.6.18
         version: 1.6.18(@prisma/client@5.22.0)(better-sqlite3@12.10.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.10.1)(kysely@0.29.2)(pg@8.21.0)(postgres@3.4.9))(next@16.2.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(pg@8.21.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vitest@4.1.8)
+      react:
+        specifier: 19.2.7
+        version: 19.2.7
       resend:
         specifier: ^6.12.4
         version: 6.12.4(@react-email/render@2.0.6(react-dom@19.2.7(react@19.2.7))(react@19.2.7))
@@ -183,6 +204,9 @@ importers:
       '@types/node':
         specifier: 22.18.13
         version: 22.18.13
+      '@types/react':
+        specifier: 19.2.17
+        version: 19.2.17
       drizzle-orm:
         specifier: 0.45.2
         version: 0.45.2(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.10.1)(kysely@0.29.2)(pg@8.21.0)(postgres@3.4.9)
