@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./access-control": "./src/auth/access-control.ts"
   },
   "scripts": {
     "lint": "eslint .",
