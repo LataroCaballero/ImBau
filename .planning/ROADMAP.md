@@ -85,7 +85,7 @@ Plans:
 **Wave 3** *(blocked on Wave 2 completion)*
 
 - [ ] 03-03-PLAN.md — Panel surface: Better Auth + tRPC handlers (panel only), auth/tRPC clients, login/signup/accept-invitation/dashboard pages, invitation email (Resend + dev console fallback), auth e2e + human-verify checkpoint
-- [ ] 03-04-PLAN.md — `apps/web` anon published-projects read (APP-02) + `apps/worker` BullMQ↔Redis shell (APP-03) + Redis-connect smoke test
+- [x] 03-04-PLAN.md — `apps/web` anon published-projects read (APP-02) + `apps/worker` BullMQ↔Redis shell (APP-03) + Redis-connect smoke test
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
@@ -114,5 +114,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Monorepo Foundation | 3/3 | Complete    | 2026-06-13 |
 | 2. Data Layer + RLS | 3/3 | Complete    | 2026-06-17 |
-| 3. Auth, API & App Surfaces | 2/5 | In Progress|  |
+| 3. Auth, API & App Surfaces | 3/5 | In Progress|  |
 | 4. Staging, Observability & CI/CD | 0/TBD | Not started | - |
