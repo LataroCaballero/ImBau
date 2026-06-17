@@ -76,7 +76,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 03-01-PLAN.md — Auth foundation: `authEnv` preset, `packages/api` deps (React Email install checkpoint), Better Auth runtime on the elevated owner pool (A1) + owner/developer/viewer roles, Vitest harness + fixtures + A1 integration test
+- [x] 03-01-PLAN.md — Auth foundation: `authEnv` preset, `packages/api` deps (React Email install checkpoint), Better Auth runtime on the elevated owner pool (A1) + owner/developer/viewer roles, Vitest harness + fixtures + A1 integration test
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -114,5 +114,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Monorepo Foundation | 3/3 | Complete    | 2026-06-13 |
 | 2. Data Layer + RLS | 3/3 | Complete    | 2026-06-17 |
-| 3. Auth, API & App Surfaces | 0/5 | Not started | - |
+| 3. Auth, API & App Surfaces | 1/5 | In Progress|  |
 | 4. Staging, Observability & CI/CD | 0/TBD | Not started | - |

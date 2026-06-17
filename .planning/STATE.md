@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 2 context gathered
-last_updated: "2026-06-17T16:44:19.575Z"
-last_activity: 2026-06-17
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-06-17T19:42:03.831Z"
+last_activity: 2026-06-17 -- Phase 3 execution started
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 11
+  completed_plans: 7
   percent: 50
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-12)
 
 **Core value:** La fundación técnica queda desplegada y operable desde el día uno: cada commit a main termina en software corriendo en staging con aislamiento multi-tenant verificable por RLS.
-**Current focus:** Phase 02 — data-layer-rls
+**Current focus:** Phase 3 — Auth, API & App Surfaces
 
 ## Current Position
 
-Phase: 3
-Plan: Not started
-Status: Executing Phase 02
-Last activity: 2026-06-17
+Phase: 3 (Auth, API & App Surfaces) — EXECUTING
+Plan: 2 of 5
+Status: Ready to execute
+Last activity: 2026-06-17 -- Phase 3 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -53,6 +53,7 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: -
 
 *Updated after each plan completion*
+| Phase 03 P01 | 26min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -63,6 +64,8 @@ Recent decisions affecting current work:
 
 - [Roadmap]: v1 = solo fase 0 del modelo-mvp.md; estructura horizontal por capas en orden de dependencias (config → db/RLS → auth/api/apps → infra/CI/CD)
 - [Roadmap]: DATA-04 (tests de ausencia cross-tenant) es la puerta de salida del milestone; corre en CI contra Postgres real (CI-02)
+- [Phase ?]: A1 locked: Better Auth adapter uses createOwnerDb (owner pool) to write RLS-FORCED organization/member; app data path stays on withTenant/withAnon (03-01)
+- [Phase ?]: Custom Better Auth AC must merge org-plugin defaultStatements; owner gets invitation:[create,cancel] so invite stays owner-only (03-01)
 
 ### Pending Todos
 
@@ -83,6 +86,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-15T21:25:17.597Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-data-layer-rls/02-CONTEXT.md
+Last session: 2026-06-17T19:41:54.567Z
+Stopped at: Completed 03-01-PLAN.md
+Resume file: None

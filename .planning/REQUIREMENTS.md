@@ -28,9 +28,9 @@ Requirements para el milestone v1 (fase 0). Cada uno mapea a fases del roadmap.
 
 ### Auth
 
-- [ ] **AUTH-01**: Un usuario puede registrarse y loguearse con email/contraseña vía Better Auth, y su sesión persiste entre refrescos
-- [ ] **AUTH-02**: Un usuario pertenece a organizaciones con roles owner/developer/viewer (organization plugin), y la organización activa de su sesión determina su contexto de tenant
-- [ ] **AUTH-03**: Un owner puede invitar miembros a su organización por email (Resend + React Email) y el invitado puede aceptar y entrar con el rol asignado
+- [x] **AUTH-01**: Un usuario puede registrarse y loguearse con email/contraseña vía Better Auth, y su sesión persiste entre refrescos
+- [x] **AUTH-02**: Un usuario pertenece a organizaciones con roles owner/developer/viewer (organization plugin), y la organización activa de su sesión determina su contexto de tenant
+- [x] **AUTH-03**: Un owner puede invitar miembros a su organización por email (Resend + React Email) y el invitado puede aceptar y entrar con el rol asignado
 
 ### App Surfaces
 
@@ -116,9 +116,9 @@ Qué fases cubren qué requirements. Se actualiza durante la creación del roadm
 | DATA-02 | Phase 2 | Complete |
 | DATA-03 | Phase 2 | Complete |
 | DATA-04 | Phase 2 | Complete |
-| AUTH-01 | Phase 3 | Pending |
-| AUTH-02 | Phase 3 | Pending |
-| AUTH-03 | Phase 3 | Pending |
+| AUTH-01 | Phase 3 | Complete |
+| AUTH-02 | Phase 3 | Complete |
+| AUTH-03 | Phase 3 | Complete |
 | APP-01 | Phase 3 | Pending |
 | APP-02 | Phase 3 | Pending |
 | APP-03 | Phase 3 | Pending |
