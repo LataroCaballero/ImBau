@@ -82,4 +82,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-13 — Phase 1 (Monorepo Foundation) complete*
+*Last updated: 2026-06-17 — Phase 2 (Data Layer + RLS) complete. DATA-01..04 validated; tenant isolation demonstrated live on Postgres 16 (cross-tenant absence suite green). Next: Phase 3 (Auth, API & App Surfaces).*
