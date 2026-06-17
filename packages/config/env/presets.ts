@@ -27,3 +27,18 @@ export const dbEnv = {
 export const redisEnv = {
   server: { REDIS_URL: z.string().url() },
 } as const;
+
+// Better Auth runtime secrets + base URL (D-01) plus the transactional-email vars
+// for invitations (AUTH-03). NAMES + Zod schemas only — never values (T-03-04).
+// RESEND_API_KEY/INVITE_FROM are optional because dev logs the invite link to the
+// console when no key is present (D-09); they are required only in staging/prod.
+// The Better Auth Drizzle adapter reads its DB URL from dbEnv.DATABASE_URL (the
+// owner/migration role — A1), so it is NOT redeclared here. Sentry = phase 4.
+export const authEnv = {
+  server: {
+    BETTER_AUTH_SECRET: z.string().min(32), // signing secret; 32+ chars
+    BETTER_AUTH_URL: z.string().url(), // base URL of apps/panel (auth handler host)
+    RESEND_API_KEY: z.string().optional(), // dev console fallback (D-09)
+    INVITE_FROM: z.string().optional(), // verified Resend sender; required only with Resend
+  },
+} as const;
