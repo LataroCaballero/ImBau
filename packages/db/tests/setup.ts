@@ -32,11 +32,12 @@ async function assertUnprivileged(
   const { sql: client, db } = connectAs(url);
   try {
     // current_user as seen by THIS connection (must be the unprivileged role).
+    // db.execute<T>() resolves to a directly-indexable RowList<T[]> — index it without
+    // re-casting (WR-03: no `as unknown as`). The supplied generic IS the row type.
     const whoRows = await db.execute<{ current_user: string }>(
       sql`select current_user`,
     );
-    const actualUser = (whoRows as unknown as { current_user: string }[])[0]
-      ?.current_user;
+    const actualUser = whoRows[0]?.current_user;
     if (actualUser !== expectedUser) {
       throw new Error(
         `Role guard FAILED: connection reports current_user='${String(actualUser)}', expected '${expectedUser}'. The absence tests are meaningless under the wrong role.`,
@@ -49,9 +50,7 @@ async function assertUnprivileged(
     }>(
       sql`select rolsuper, rolbypassrls from pg_roles where rolname = ${expectedUser}`,
     );
-    const attrs = (
-      attrRows as unknown as { rolsuper: boolean; rolbypassrls: boolean }[]
-    )[0];
+    const attrs = attrRows[0];
     if (!attrs) {
       throw new Error(
         `Role guard FAILED: role '${expectedUser}' not found in pg_roles.`,
