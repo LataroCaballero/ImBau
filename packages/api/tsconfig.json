@@ -1,4 +1,4 @@
 {
   "extends": "@imbau/config/tsconfig/base.json",
-  "include": ["src"]
+  "include": ["src", "tests", "vitest.config.ts"]
 }
