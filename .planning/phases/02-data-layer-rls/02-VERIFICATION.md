@@ -1,8 +1,8 @@
 ---
 phase: 02-data-layer-rls
 verified: 2026-06-17T12:00:00Z
-status: human_needed
-score: 8/8 must-haves code-verified; 1 deferred to live CI gate
+status: passed
+score: 8/8 must-haves verified; live gate (DATA-01/02/03/04) confirmed on Postgres 16 via Docker Compose — all 3 items in 02-UAT.md passed. Required migration-ordering fix 1b6a13f (roles created before policies) + a member-INSERT assertion fix.
 overrides_applied: 0
 human_verification:
   - test: "Run `docker compose up -d` from repo root and confirm both services pass healthchecks"
