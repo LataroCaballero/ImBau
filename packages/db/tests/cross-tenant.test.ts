@@ -63,6 +63,31 @@ function countForOrg(
   return rows.filter((r) => r.organizationId === orgId).length;
 }
 
+// Drizzle rethrows the driver error wrapped in a DrizzleQueryError whose top-level `.message`
+// is generic ("Failed query: ..."); the real Postgres failure (SQLSTATE `42501` / "row-level
+// security policy" text) is on `.cause` (possibly nested). Walk the whole cause chain and
+// report whether ANY link is a row-level-security violation — so the cross-tenant write gate
+// asserts on the actual RLS rejection, not the wrapper. (WR-03: no `as unknown as` casts.)
+function rlsViolationInChain(err: unknown): boolean {
+  let current: unknown = err;
+  for (let depth = 0; current != null && depth < 10; depth += 1) {
+    if (typeof current === "object") {
+      const obj = current as { code?: unknown; message?: unknown; cause?: unknown };
+      if (obj.code === "42501") return true;
+      if (
+        typeof obj.message === "string" &&
+        /row-level security|42501/.test(obj.message)
+      ) {
+        return true;
+      }
+      current = obj.cause;
+    } else {
+      break;
+    }
+  }
+  return false;
+}
+
 describe("cross-tenant isolation (DATA-04 exit gate)", () => {
   it("(guard) app/anon connections are unprivileged (current_user + rolbypassrls=false)", async () => {
     // tx.execute<T>() resolves to a directly-indexable RowList<T[]>; index it without any
@@ -173,17 +198,26 @@ describe("cross-tenant isolation (DATA-04 exit gate)", () => {
     // vacuous gate). We further assert the error is a row-level-security / SQLSTATE 42501
     // policy violation, not merely "some throw".
     const uid = await makeUser();
-    await expect(
-      withTenant(s.orgA, async (tx) => {
-        await tx.insert(member).values({
-          id: `m-${Date.now()}`,
-          organizationId: s.orgB,
-          userId: uid,
-          role: "member",
-          createdAt: new Date(),
-        });
-      }),
-    ).rejects.toThrow(/row-level security|42501/);
+    // The thrown error is drizzle's DrizzleQueryError wrapper: its top-level `.message` is the
+    // generic "Failed query: ..." text, while the underlying Postgres error (SQLSTATE 42501,
+    // "new row violates row-level security policy") lives on `.cause`. Walk the cause chain and
+    // assert the RLS code/message is present there — this STRENGTHENS the gate (it proves the
+    // rejection is specifically an RLS withCheck violation, not the FK or any other throw),
+    // rather than matching the wrapper's generic message.
+    let caught: unknown;
+    await withTenant(s.orgA, async (tx) => {
+      await tx.insert(member).values({
+        id: `m-${Date.now()}`,
+        organizationId: s.orgB,
+        userId: uid,
+        role: "member",
+        createdAt: new Date(),
+      });
+    }).catch((e: unknown) => {
+      caught = e;
+    });
+    expect(caught).toBeDefined();
+    expect(rlsViolationInChain(caught)).toBe(true);
   });
 
   it("(c) cross-tenant UPDATE of an org B row affects 0 rows on projects AND member", async () => {

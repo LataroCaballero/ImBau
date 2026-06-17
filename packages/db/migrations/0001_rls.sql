@@ -8,7 +8,11 @@
 -- Contents (everything pgRole/.enableRLS() cannot express):
 --   1. CREATE ROLE app_authenticated / anon with LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB
 --      NOCREATEROLE (D-04). Idempotent (DO/IF NOT EXISTS) so the test-harness re-apply path
---      does not error on a second run.
+--      does not error on a second run. NOTE (ordering fix): the SAME idempotent CREATE ROLE
+--      block is now ALSO prepended to 0000_init.sql, because 0000's generated CREATE POLICY
+--      statements reference these roles and 0000 runs first on a fresh DB. Re-creating here is
+--      a no-op (IF NOT EXISTS); this block's enduring job on the second pass is the DEV-ONLY
+--      env-guarded PASSWORD below, which 0000 deliberately does not set.
 --   2. Scoped GRANTs: app gets DML on projects AND member (member is a tenant table, D-02/D-10)
 --      plus the fixtures it must read; anon gets SELECT-only on projects (Pitfall 5). Never
 --      ownership (D-04).

@@ -1,3 +1,23 @@
+-- ORDERING FIX (hand-prepended, FLAG-2): the CREATE POLICY statements at the bottom of this
+-- generated migration reference roles `app_authenticated` and `anon` (TO "app_authenticated" /
+-- TO "anon"). Those roles are declared `.existing()` in src/schema/roles.ts, so drizzle-kit
+-- never emits a CREATE ROLE for them — the real role DDL lives in 0001_rls.sql, which runs
+-- AFTER this file. On a FRESH database that left 0000 referencing roles that did not yet exist
+-- ("role app_authenticated does not exist"). Roles have no table dependency, so we create them
+-- idempotently HERE, before any policy references them. 0001_rls.sql still owns the GRANTs,
+-- FORCE ROW LEVEL SECURITY, and the env-guarded DEV-ONLY password (it re-runs this same
+-- idempotent block harmlessly). Editing this .sql does NOT change the drizzle snapshot, so
+-- `db:generate` still reports no drift (verified).
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'app_authenticated') THEN
+    CREATE ROLE app_authenticated LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    CREATE ROLE anon LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
+  END IF;
+END
+$$;--> statement-breakpoint
 CREATE TYPE "public"."estado" AS ENUM('borrador', 'publicado', 'archivado');--> statement-breakpoint
 CREATE TABLE "account" (
 	"id" text PRIMARY KEY NOT NULL,
