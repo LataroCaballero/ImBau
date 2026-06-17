@@ -34,11 +34,37 @@ function requireEnv(...names: string[]): string {
   );
 }
 
-export const ownerUrl = () => requireEnv("TEST_DATABASE_URL", "DATABASE_URL");
+// WR-06: the precedence above intentionally allows a fallback to the prod-shaped DATABASE_URL
+// (so phase-4 CI can point a single var set at its service). But the harness runs `migrate()`
+// and seeds fixtures, so it must NEVER target the dev/prod `imbau` DB. Assert the resolved
+// database name ends in `_test` before any connection string is handed out — a misconfigured
+// run (only DATABASE_URL=...//imbau set) then fails loudly instead of silently writing fixture
+// orgs/projects/members/users into real data. We parse the name (never log the value — V7).
+function requireTestDb(url: string): string {
+  let pathname: string;
+  try {
+    pathname = new URL(url).pathname;
+  } catch {
+    throw new Error(
+      "Test DB connection string is not a valid URL; refusing to run migrate/seed.",
+    );
+  }
+  // pathname is "/<dbname>" (possibly with extra segments); take the db name segment.
+  const dbName = pathname.replace(/^\//, "").split("/")[0] ?? "";
+  if (!dbName.endsWith("_test")) {
+    throw new Error(
+      `Refusing to run tests against non-test database "${dbName}": the test DB name must end in "_test" (e.g. imbau_test). Set TEST_DATABASE_URL / TEST_DATABASE_APP_URL / TEST_DATABASE_ANON_URL to a dedicated test database.`,
+    );
+  }
+  return url;
+}
+
+export const ownerUrl = () =>
+  requireTestDb(requireEnv("TEST_DATABASE_URL", "DATABASE_URL"));
 export const appUrl = () =>
-  requireEnv("TEST_DATABASE_APP_URL", "DATABASE_APP_URL");
+  requireTestDb(requireEnv("TEST_DATABASE_APP_URL", "DATABASE_APP_URL"));
 export const anonUrl = () =>
-  requireEnv("TEST_DATABASE_ANON_URL", "DATABASE_ANON_URL");
+  requireTestDb(requireEnv("TEST_DATABASE_ANON_URL", "DATABASE_ANON_URL"));
 
 export type RoleClient = {
   sql: ReturnType<typeof postgres>;
