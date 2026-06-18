@@ -36,7 +36,7 @@ Requirements para el milestone v1 (fase 0). Cada uno mapea a fases del roadmap.
 
 - [x] **APP-01**: `apps/panel` tiene login funcionando y una página que lee datos protegidos por RLS de la organización activa
 - [x] **APP-02**: `apps/web` tiene una página que lee vía rol `anon` y solo ve proyectos en estado `publicado`
-- [ ] **APP-03**: `apps/worker` existe como shell deployable (BullMQ conectado a Redis, sin lógica de jobs)
+- [x] **APP-03**: `apps/worker` existe como shell deployable (BullMQ conectado a Redis, sin lógica de jobs)
 - [x] **APP-04**: Cada app tiene Dockerfile multi-stage con `turbo prune` + Next.js standalone que produce imágenes deployables
 
 ### Infra & Deploy
@@ -121,7 +121,7 @@ Qué fases cubren qué requirements. Se actualiza durante la creación del roadm
 | AUTH-03 | Phase 3 | Complete |
 | APP-01 | Phase 3 | Complete |
 | APP-02 | Phase 3 | Complete |
-| APP-03 | Phase 3 | Pending |
+| APP-03 | Phase 3 | Complete |
 | APP-04 | Phase 3 | Complete |
 | INFRA-01 | Phase 4 | Pending |
 | INFRA-02 | Phase 4 | Pending |
@@ -143,4 +143,4 @@ Qué fases cubren qué requirements. Se actualiza durante la creación del roadm
 
 ---
 *Requirements defined: 2026-06-12*
-*Last updated: 2026-06-12 after roadmap creation (traceability mapped, 24/24 covered)*
+*Last updated: 2026-06-18 — APP-03 marked Complete (worker deployable shell delivered & verified 4/4 in Phase 3)*
