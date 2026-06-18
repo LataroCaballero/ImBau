@@ -31,11 +31,15 @@ RUN pnpm turbo build --filter=@imbau/panel
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+# Drop root (WR-04): run the Next server as the non-root `node` user that already
+# exists in node:22-alpine (uid 1000). --chown on each COPY makes that user own
+# the traced tree so it can read its own files; USER node switches before CMD.
 # Trust the @vercel/nft standalone tracing — copy the traced tree as-is.
 # NEVER re-run a production-only pnpm install here: it breaks the
 # pnpm-symlinked traced node_modules (CLAUDE.md "What NOT to Use", Pitfall 5).
-COPY --from=builder /app/apps/panel/.next/standalone ./
-COPY --from=builder /app/apps/panel/.next/static ./apps/panel/.next/static
-COPY --from=builder /app/apps/panel/public ./apps/panel/public
+COPY --from=builder --chown=node:node /app/apps/panel/.next/standalone ./
+COPY --from=builder --chown=node:node /app/apps/panel/.next/static ./apps/panel/.next/static
+COPY --from=builder --chown=node:node /app/apps/panel/public ./apps/panel/public
+USER node
 EXPOSE 3000
 CMD ["node", "apps/panel/server.js"]

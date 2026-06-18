@@ -33,11 +33,15 @@ RUN pnpm turbo build --filter=@imbau/worker
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+# Drop root (WR-04): run the worker as the non-root `node` user that already
+# exists in node:22-alpine (uid 1000). --chown on each COPY makes that user own
+# the bundle + node_modules so it can read them; USER node switches before CMD.
 # Copy the bundled output. tsup inlines internal @imbau/* packages, so only the
 # external deps (bullmq/ioredis) need to come along — copy the worker's traced
 # node_modules as built. Do NOT re-run a production-only pnpm install here:
 # keep the same no-prod-install discipline used for the Next standalone runners.
-COPY --from=builder /app/apps/worker/dist ./apps/worker/dist
-COPY --from=builder /app/apps/worker/node_modules ./apps/worker/node_modules
-COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder --chown=node:node /app/apps/worker/dist ./apps/worker/dist
+COPY --from=builder --chown=node:node /app/apps/worker/node_modules ./apps/worker/node_modules
+COPY --from=builder --chown=node:node /app/node_modules ./node_modules
+USER node
 CMD ["node", "apps/worker/dist/index.js"]
