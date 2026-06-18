@@ -1,0 +1,3 @@
+# Keep apps/web/public present so the Dockerfile `COPY public` is valid
+# (Docker COPY fails if the source path does not exist). Static assets land
+# here in later phases.
