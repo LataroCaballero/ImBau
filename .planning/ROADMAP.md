@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Monorepo Foundation** - Workspace pnpm + Turborepo, config compartida (tsconfig, ESLint 9, env Zod) y esqueletos de paquetes que compilan (completed 2026-06-13)
 - [x] **Phase 2: Data Layer + RLS** - Postgres 16 + Redis vía Compose, schema base con migraciones Drizzle y aislamiento de tenant verificado por tests de ausencia cross-tenant (completed 2026-06-17)
-- [ ] **Phase 3: Auth, API & App Surfaces** - Better Auth (orgs, roles, invitaciones), costura tRPC y las tres apps (panel, web, worker) leyendo datos con el contexto de tenant correcto
+- [x] **Phase 3: Auth, API & App Surfaces** - Better Auth (orgs, roles, invitaciones), costura tRPC y las tres apps (panel, web, worker) leyendo datos con el contexto de tenant correcto (completed 2026-06-18)
 - [ ] **Phase 4: Staging, Observability & CI/CD** - Topología completa en el VPS detrás de Traefik, observabilidad (Sentry, pino → Loki, Uptime Kuma) y auto-deploy a staging en cada merge a main
 
 ## Phase Details
@@ -89,7 +89,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 03-05-PLAN.md — Multi-stage Dockerfiles for web/panel (Next standalone) + worker (tsup dist), authored only (image build verified in CI Phase 4)
+- [x] 03-05-PLAN.md — Multi-stage Dockerfiles for web/panel (Next standalone) + worker (tsup dist), authored only (image build verified in CI Phase 4)
 
 ### Phase 4: Staging, Observability & CI/CD
 
@@ -114,5 +114,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Monorepo Foundation | 3/3 | Complete    | 2026-06-13 |
 | 2. Data Layer + RLS | 3/3 | Complete    | 2026-06-17 |
-| 3. Auth, API & App Surfaces | 4/5 | In Progress|  |
+| 3. Auth, API & App Surfaces | 5/5 | Complete   | 2026-06-18 |
 | 4. Staging, Observability & CI/CD | 0/TBD | Not started | - |
