@@ -1,0 +1,18 @@
+# Keep dev artifacts and secrets out of the Docker build context (T-03-20).
+# Env is supplied at container boot, never baked into the image.
+node_modules
+**/node_modules
+dist
+**/dist
+.turbo
+**/.turbo
+.git
+.gitignore
+*.log
+.env
+.env.*
+coverage
+test-results
+Dockerfile
+.dockerignore
+README.md
