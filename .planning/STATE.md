@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-06-17T19:50:15.740Z"
+last_updated: "2026-06-18T20:24:10.379Z"
 last_activity: 2026-06-17 -- Phase 3 execution started
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 11
-  completed_plans: 8
+  completed_plans: 10
   percent: 50
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 3 (Auth, API & App Surfaces) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-06-17 -- Phase 3 execution started
 
@@ -55,6 +55,7 @@ Progress: [░░░░░░░░░░] 0%
 *Updated after each plan completion*
 | Phase 03 P01 | 26min | 3 tasks | 13 files |
 | Phase 3 P02 | 5min | 3 tasks | 11 files |
+| Phase 03 P03 | 45min | 4 tasks | 20 files |
 
 ## Accumulated Context
 
@@ -67,6 +68,9 @@ Recent decisions affecting current work:
 - [Roadmap]: DATA-04 (tests de ausencia cross-tenant) es la puerta de salida del milestone; corre en CI contra Postgres real (CI-02)
 - [Phase ?]: A1 locked: Better Auth adapter uses createOwnerDb (owner pool) to write RLS-FORCED organization/member; app data path stays on withTenant/withAnon (03-01)
 - [Phase ?]: Custom Better Auth AC must merge org-plugin defaultStatements; owner gets invitation:[create,cancel] so invite stays owner-only (03-01)
+- [Phase ?]: Panel mirrors access-control to the client via a @imbau/api/access-control subpath so the Better Auth server runtime never bundles into the browser (03-03)
+- [Phase ?]: Auth + tRPC handlers mount ONLY in apps/panel (D-03); apps/web stays anon-only with no auth route (03-03)
+- [Phase ?]: Task-4 human-verify approved: human accepted the green Playwright auth e2e (login persistence + invite/accept vs live Postgres) in lieu of manual click-through (03-03)
 
 ### Pending Todos
 
@@ -87,6 +91,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-17T19:50:15.736Z
+Last session: 2026-06-18T20:24:00.463Z
 Stopped at: Completed 03-01-PLAN.md
 Resume file: None
