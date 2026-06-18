@@ -10,6 +10,7 @@
 // This route lives in the (dashboard) route group, which does not affect the URL: it IS `/`.
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { TRPCError } from "@trpc/server";
 import { createCaller } from "@imbau/api";
 import { TRPCReactProvider } from "../../lib/trpc-client";
 import { InviteForm } from "./invite-form";
@@ -27,10 +28,21 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
   let projects: ProjectRow[];
   try {
     projects = await caller.projects.listForOrg();
-  } catch {
-    // No session or no active org (UNAUTHORIZED) → send to login. A signed-up user lands here
-    // with an active org (signup creates + activates one); an invitee gets one on accept.
-    redirect("/login");
+  } catch (err) {
+    // Narrow the catch (WR-03): only an auth failure means "you must log in" and warrants the
+    // redirect. This is a server-side createCaller, so its rejections are TRPCError (from
+    // @trpc/server) — UNAUTHORIZED = no session / no active org (a signed-up user lands here with
+    // an active org; an invitee gets one on accept), FORBIDDEN = a role/tenant denial that also
+    // routes to login. ANY other error (DB down, driver panic, etc.) MUST surface, not
+    // masquerade as a logout — we re-throw so Next's error boundary (and Sentry in Phase 4)
+    // records it. redirect() throws NEXT_REDIRECT, which is not a TRPCError, so it propagates.
+    if (
+      err instanceof TRPCError &&
+      (err.code === "UNAUTHORIZED" || err.code === "FORBIDDEN")
+    ) {
+      redirect("/login");
+    }
+    throw err;
   }
 
   return (
