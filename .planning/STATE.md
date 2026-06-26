@@ -1,20 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: Fundación (Fase 0)
-current_phase: 0
-status: Awaiting next milestone
-stopped_at: Phase 4 context gathered
-last_updated: "2026-06-26T18:58:35.536Z"
+milestone: v1.1
+milestone_name: Schema + Media + Seed (Fase 1)
+status: planning
+last_updated: "2026-06-26T19:16:49.517Z"
 last_activity: 2026-06-26
-last_activity_desc: Milestone v1.0 completed and archived
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 18
-  completed_plans: 18
-  percent: 100
-current_phase_name: staging-observability-ci-cd
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -28,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-06-26)
 
 ## Current Position
 
-Phase: Milestone v1.0 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-06-26 — Milestone v1.0 completed and archived
+Status: Defining requirements
+Last activity: 2026-06-26 — Milestone v1.1 started
 
 ## Performance Metrics
 

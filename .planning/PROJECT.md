@@ -10,6 +10,17 @@ SaaS multi-tenant para que desarrolladores inmobiliarios argentinos vendan unida
 
 La fundación técnica queda desplegada y operable desde el día uno: cada commit a main termina en software corriendo en staging (`staging.tours.andescode.com.ar`) con aislamiento multi-tenant verificable por RLS — no "funciona en mi máquina".
 
+## Current Milestone: v1.1 Schema + Media + Seed (Fase 1)
+
+**Goal:** Completar el modelo de datos del producto con RLS, montar el pipeline de media (R2 + sharp + blurhash) en el worker, y sembrar el edificio ficticio realista — todo desplegado en staging.
+
+**Target features:**
+- Schema completo de modelo-mvp §3.3 (floors, units, price_lists, unit_prices, payment_plans, cac_index, quotes, brokers, leads, progress_posts, galleries, media, events particionada por mes) con RLS por tenant y migraciones Drizzle versionadas.
+- Pipeline de media: upload a Cloudflare R2 + procesamiento sharp en el worker (BullMQ), variantes AVIF/WebP con srcset, blurhash, keys/dimensiones persistidas en `media`.
+- Seed determinista del edificio ficticio ~13 pisos estilo "Brigos Recoleta" con pisos, unidades, listas de precios, planes de pago y CAC realistas.
+
+**Numeración:** fases GSD reinician en Fase 1 para este milestone; los directorios de fase de v1.0 se archivan.
+
 ## Requirements
 
 ### Validated
@@ -27,7 +38,7 @@ La fundación técnica queda desplegada y operable desde el día uno: cada commi
 
 ### Active
 
-Próximo milestone — **v1.1 Fase 1 (Schema + Media + Seed)**. Se concreta con `/gsd-new-milestone`:
+Milestone actual — **v1.1 Fase 1 (Schema + Media + Seed)**. Requirements detallados en `.planning/REQUIREMENTS.md`:
 
 - [ ] Schema completo de modelo-mvp.md §3.3 (floors, units, price_lists, unit_prices, payment_plans, cac_index, quotes, brokers, leads, progress_posts, galleries, media, events) con RLS y migraciones Drizzle
 - [ ] Pipeline de media: R2 + sharp + blurhash, variantes AVIF/WebP con srcset, procesadas en el worker
@@ -94,4 +105,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-26 after v1.0 Fundación (Fase 0) milestone. 4 phases / 18 plans / 39 tasks shipped; staging vivo y operable en `staging.tours.andescode.com.ar` con RLS multi-tenant verificado en CI. 24/24 requirements validados. Next: v1.1 (Fase 1 — schema + media + seed) vía `/gsd-new-milestone`.*
+*Last updated: 2026-06-26 al iniciar v1.1 Schema + Media + Seed (Fase 1). v1.0 Fundación shipped (4 phases / 18 plans / 39 tasks, 24/24 requirements validados, staging vivo). Numeración GSD reinicia en Fase 1 para v1.1.*
