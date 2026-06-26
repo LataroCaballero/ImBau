@@ -1,0 +1,4 @@
+{
+  "extends": "@imbau/config/tsconfig/node.json",
+  "include": ["src"]
+}
