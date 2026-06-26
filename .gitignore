@@ -24,6 +24,8 @@ next-env.d.ts
 # `.env`/`.env.*` above already cover any decrypted output (e.g. secrets/staging.env);
 # this allow-rule guarantees the encrypted files stay tracked.
 !secrets/*.enc.yaml
+# Any plaintext intermediate the encryption step produces (e.g. *.tmp) must never be committed.
+secrets/*.tmp
 
 # Logs
 *.log
