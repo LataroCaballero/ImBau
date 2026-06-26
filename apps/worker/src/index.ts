@@ -1,13 +1,18 @@
-// Import env FIRST so validation runs at boot and fails closed on bad/missing
+// Import Sentry instrumentation FIRST (OBS-01) — before ./env and any other
+// module — so @sentry/node patches the libraries it instruments as they load.
+import "./instrument";
+// Import env next so validation runs at boot and fails closed on bad/missing
 // vars (MONO-03, D-03), BEFORE any Redis/BullMQ wiring touches process.env.
 import { env } from "./env";
 import IORedis from "ioredis";
 import { Queue, Worker } from "bullmq";
+import { logger } from "@imbau/observability";
 
 // Deployable BullMQ shell (APP-03 / D-16, RESEARCH Pattern 6). This phase the
 // worker only proves it can reach Redis and stand up a Worker — there is NO real
-// job logic (heavy jobs: media variants, PDFs, land with later milestones). No
-// Sentry / pino / OTel here either — observability is phase 4 (scope guard).
+// job logic (heavy jobs: media variants, PDFs, land with later milestones).
+// Observability (phase 4): Sentry is initialized via ./instrument and structured
+// logs go through the shared @imbau/observability pino logger (OBS-01/OBS-02).
 
 // The BullMQ health queue/worker channel name. One channel is enough for the shell.
 const HEALTH_QUEUE = "health";
@@ -42,19 +47,14 @@ export function boot(): {
   const worker = createHealthWorker(connection);
 
   worker.on("ready", () => {
-    console.log(
-      JSON.stringify({
-        msg: "worker connected to Redis, awaiting jobs",
-        node_env: env.NODE_ENV,
-        queue: HEALTH_QUEUE,
-      }),
+    logger.info(
+      { node_env: env.NODE_ENV, queue: HEALTH_QUEUE },
+      "worker connected to Redis, awaiting jobs",
     );
   });
 
   // Preserve the env-first boot log so deploy smoke checks still see it.
-  console.log(
-    JSON.stringify({ msg: "worker boot ok", node_env: env.NODE_ENV }),
-  );
+  logger.info({ node_env: env.NODE_ENV }, "worker boot ok");
 
   return { connection, queue, worker };
 }
