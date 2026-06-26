@@ -11,4 +11,11 @@ export default defineConfig({
   outDir: "dist",
   clean: true,
   noExternal: [/^@imbau\//],
+  // pino + pino-loki arrive transitively via @imbau/observability (noExternal),
+  // but they MUST stay external: pino does CJS `require()` internally and the
+  // pino-loki transport runs in a worker thread that resolves the target as a
+  // real module FILE — neither survives being inlined into a single ESM bundle
+  // ("Dynamic require of os is not supported" / unresolvable transport). The
+  // runner image carries node_modules (see Dockerfile), so these resolve at runtime.
+  external: ["pino", "pino-loki", "pino-pretty"],
 });
