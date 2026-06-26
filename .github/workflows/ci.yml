@@ -59,6 +59,10 @@ jobs:
       DATABASE_ANON_URL: postgres://anon:dev@localhost:5432/imbau_test
       # Live Redis for the apps/worker BullMQ smoke test (published port 6380).
       REDIS_URL: redis://localhost:6380
+      # packages/api integration tests build auth env via @t3-oss/env-core
+      # (BETTER_AUTH_SECRET min 32 chars + BETTER_AUTH_URL). Clearly-fake CI test values.
+      BETTER_AUTH_SECRET: test-better-auth-secret-0123456789-abcdef
+      BETTER_AUTH_URL: http://localhost:3001
 
     steps:
       - uses: actions/checkout@v4
@@ -74,6 +78,11 @@ jobs:
       - uses: dtinth/setup-github-actions-caching-for-turbo@v1
 
       - run: pnpm install --frozen-lockfile
+
+      # Apply the migration journal (creates app_authenticated/anon roles + tables)
+      # to imbau_test BEFORE the parallel turbo test run, which has no ordering.
+      - name: Migrate test database
+        run: pnpm --filter @imbau/db run db:migrate:deploy
 
       # globalSetup migrates the service + role-guards, then lint/typecheck/test run.
       - run: pnpm turbo run lint typecheck test

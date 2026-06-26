@@ -27,7 +27,9 @@
         "DATABASE_APP_URL",
         "DATABASE_ANON_URL",
         "REDIS_URL",
-        "NODE_ENV"
+        "NODE_ENV",
+        "BETTER_AUTH_SECRET",
+        "BETTER_AUTH_URL"
       ]
     },
     "dev": {
