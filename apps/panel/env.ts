@@ -1,6 +1,6 @@
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
-import { authEnv, baseEnv, dbEnv } from "@imbau/config/env/presets";
+import { authEnv, baseEnv, dbEnv, sentryEnv, lokiEnv } from "@imbau/config/env/presets";
 
 // panel env validation (D-01/D-03). The panel is the ONLY surface that mounts the Better Auth
 // handler + the tRPC route handler, so it composes:
@@ -21,12 +21,22 @@ export const env = createEnv({
     ...baseEnv.server,
     ...authEnv.server,
     ...dbEnv.server,
+    // Observability (OBS-01/OBS-02): server Sentry DSN + Loki shipping target.
+    // All optional — with no DSN/LOKI_URL the SDK + logger are local no-ops, so
+    // dev still boots with zero external deps.
+    ...sentryEnv.server,
+    ...lokiEnv.server,
   },
   client: {
     NEXT_PUBLIC_APP_ENV: z.enum(["development", "staging", "production"]),
+    // Public browser Sentry DSN (OBS-01) — kept under `client` so t3-env's split
+    // guards server-only secrets from the browser bundle (T-4-CLIENTLEAK accept).
+    ...sentryEnv.client,
   },
   experimental__runtimeEnv: {
     NEXT_PUBLIC_APP_ENV: process.env.NEXT_PUBLIC_APP_ENV,
+    // Next inlines NEXT_PUBLIC_* at build, so each must be wired explicitly.
+    NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
   },
   skipValidation: process.env.SKIP_ENV_VALIDATION === "1",
 });
