@@ -43,7 +43,7 @@ Requirements para el milestone v1 (fase 0). Cada uno mapea a fases del roadmap.
 
 - [x] **INFRA-01**: Docker Compose completo corre en el VPS de staging detrás de Traefik con TLS: web, panel, worker, Postgres, Redis, Loki/Grafana, Uptime Kuma en `staging.tours.andescode.com.ar`
 - [x] **INFRA-02**: Cada merge a main deploya automáticamente a staging (build → registry → VPS), con migraciones corridas antes del swap de contenedores
-- [ ] **INFRA-03**: Los secrets viven cifrados en el repo (SOPS/age) con separación por entorno; nada sensible en texto plano
+- [x] **INFRA-03**: Los secrets viven cifrados en el repo (SOPS/age) con separación por entorno; nada sensible en texto plano
 
 ### CI
 
@@ -125,7 +125,7 @@ Qué fases cubren qué requirements. Se actualiza durante la creación del roadm
 | APP-04 | Phase 3 | Complete |
 | INFRA-01 | Phase 4 | Complete |
 | INFRA-02 | Phase 4 | Complete |
-| INFRA-03 | Phase 4 | Pending |
+| INFRA-03 | Phase 4 | Complete |
 | CI-01 | Phase 4 | Complete |
 | CI-02 | Phase 4 | Complete |
 | CI-03 | Phase 4 | Pending |
