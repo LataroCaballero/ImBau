@@ -41,8 +41,8 @@ Requirements para el milestone v1 (fase 0). Cada uno mapea a fases del roadmap.
 
 ### Infra & Deploy
 
-- [ ] **INFRA-01**: Docker Compose completo corre en el VPS de staging detrás de Traefik con TLS: web, panel, worker, Postgres, Redis, Loki/Grafana, Uptime Kuma en `staging.tours.andescode.com.ar`
-- [ ] **INFRA-02**: Cada merge a main deploya automáticamente a staging (build → registry → VPS), con migraciones corridas antes del swap de contenedores
+- [x] **INFRA-01**: Docker Compose completo corre en el VPS de staging detrás de Traefik con TLS: web, panel, worker, Postgres, Redis, Loki/Grafana, Uptime Kuma en `staging.tours.andescode.com.ar`
+- [x] **INFRA-02**: Cada merge a main deploya automáticamente a staging (build → registry → VPS), con migraciones corridas antes del swap de contenedores
 - [ ] **INFRA-03**: Los secrets viven cifrados en el repo (SOPS/age) con separación por entorno; nada sensible en texto plano
 
 ### CI
@@ -54,8 +54,8 @@ Requirements para el milestone v1 (fase 0). Cada uno mapea a fases del roadmap.
 ### Observabilidad
 
 - [ ] **OBS-01**: Los errores de web, panel y worker llegan a Sentry con contexto (incl. `onRequestError` para errores de RSC)
-- [ ] **OBS-02**: Las tres apps loguean estructurado con pino y los logs llegan a Grafana/Loki en staging
-- [ ] **OBS-03**: Uptime Kuma monitorea la disponibilidad de los servicios de staging
+- [x] **OBS-02**: Las tres apps loguean estructurado con pino y los logs llegan a Grafana/Loki en staging
+- [x] **OBS-03**: Uptime Kuma monitorea la disponibilidad de los servicios de staging
 
 ## v2 Requirements
 
@@ -123,15 +123,15 @@ Qué fases cubren qué requirements. Se actualiza durante la creación del roadm
 | APP-02 | Phase 3 | Complete |
 | APP-03 | Phase 3 | Complete |
 | APP-04 | Phase 3 | Complete |
-| INFRA-01 | Phase 4 | Pending |
-| INFRA-02 | Phase 4 | Pending |
+| INFRA-01 | Phase 4 | Complete |
+| INFRA-02 | Phase 4 | Complete |
 | INFRA-03 | Phase 4 | Pending |
 | CI-01 | Phase 4 | Pending |
 | CI-02 | Phase 4 | Pending |
 | CI-03 | Phase 4 | Pending |
 | OBS-01 | Phase 4 | Pending |
-| OBS-02 | Phase 4 | Pending |
-| OBS-03 | Phase 4 | Pending |
+| OBS-02 | Phase 4 | Complete |
+| OBS-03 | Phase 4 | Complete |
 
 **Coverage:**
 
