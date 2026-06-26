@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Monorepo Foundation** - Workspace pnpm + Turborepo, config compartida (tsconfig, ESLint 9, env Zod) y esqueletos de paquetes que compilan (completed 2026-06-13)
 - [x] **Phase 2: Data Layer + RLS** - Postgres 16 + Redis vía Compose, schema base con migraciones Drizzle y aislamiento de tenant verificado por tests de ausencia cross-tenant (completed 2026-06-17)
 - [x] **Phase 3: Auth, API & App Surfaces** - Better Auth (orgs, roles, invitaciones), costura tRPC y las tres apps (panel, web, worker) leyendo datos con el contexto de tenant correcto (completed 2026-06-18)
-- [ ] **Phase 4: Staging, Observability & CI/CD** - Topología completa en el VPS detrás de Traefik, observabilidad (Sentry, pino → Loki, Uptime Kuma) y auto-deploy a staging en cada merge a main
+- [x] **Phase 4: Staging, Observability & CI/CD** - Topología completa en el VPS detrás de Traefik, observabilidad (Sentry, pino → Loki, Uptime Kuma) y auto-deploy a staging en cada merge a main (completed 2026-06-26)
 
 ## Phase Details
 
@@ -105,7 +105,7 @@ Plans:
 
 > Nota: el criterio 1/3 dice "detrás de Traefik" — SUPERSEDED por D-01 (nginx host + certbot, bloqueo real del box compartido con prod). El pipeline se entrega con nginx host; el patrón Traefik queda diferido a un box dedicado.
 
-**Plans**: 6/7 plans executed
+**Plans**: 7/7 plans complete
 Plans:
 **Wave 1**
 
@@ -121,7 +121,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2)*
 
-- [ ] 04-07-PLAN.md — Staging operational bring-up + end-to-end phase gate: DNS (⚠ TWO A records), nginx+certbot webroot, staged compose, TLS/Sentry/Loki/Kuma/RAM/migrate-fail verification — VPS-gated (depends 04-01/02/03/05/06) (INFRA-01/02, OBS-01/02/03)
+- [x] 04-07-PLAN.md — Staging operational bring-up + end-to-end phase gate: DNS (⚠ TWO A records), nginx+certbot webroot, staged compose, TLS/Sentry/Loki/Kuma/RAM/migrate-fail verification — VPS-gated (depends 04-01/02/03/05/06) (INFRA-01/02, OBS-01/02/03)
 
 ## Progress
 
@@ -133,4 +133,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Monorepo Foundation | 3/3 | Complete    | 2026-06-13 |
 | 2. Data Layer + RLS | 3/3 | Complete    | 2026-06-17 |
 | 3. Auth, API & App Surfaces | 5/5 | Complete   | 2026-06-18 |
-| 4. Staging, Observability & CI/CD | 6/7 | In Progress|  |
+| 4. Staging, Observability & CI/CD | 7/7 | Complete    | 2026-06-26 |
