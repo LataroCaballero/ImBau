@@ -4,9 +4,9 @@
 #
 # GUARDRAILS (the box also runs prod sites — D-01/D-02/D-04):
 #   - Postgres + Redis are INTERNAL-ONLY: no `ports:` at all. Never published to the host.
-#   - web/panel publish on LOOPBACK only (127.0.0.1:8090 / 127.0.0.1:8091). The host nginx
+#   - web/panel publish on LOOPBACK only (127.0.0.1:8092 / 127.0.0.1:8093). The host nginx
 #     (deploy/nginx/*.conf) is the sole public ingress and proxies to these loopback ports.
-#     The `127.0.0.1:` prefix is MANDATORY — a bare `8090:3000` would publish on all interfaces.
+#     The `127.0.0.1:` prefix is MANDATORY — a bare `8092:3000` would publish on all interfaces.
 #   - Every RAM-consuming service carries a `mem_limit` so a runaway container cannot starve the
 #     co-tenant prod stack (T-4-PROD-DOS).
 #   - Observability (loki/grafana/uptime-kuma) sits behind `profiles: ["observability"]` for a
@@ -73,7 +73,7 @@ services:
       APP_NAME: web # -> pino-loki label (Pattern 6)
     networks: [internal]
     ports:
-      - "127.0.0.1:8090:3000" # loopback ONLY — host nginx proxies here (D-01)
+      - "127.0.0.1:8092:3000" # loopback ONLY — host nginx proxies here (D-01)
     depends_on:
       postgres:
         condition: service_healthy
@@ -87,7 +87,7 @@ services:
       APP_NAME: panel
     networks: [internal]
     ports:
-      - "127.0.0.1:8091:3000" # loopback ONLY (D-01)
+      - "127.0.0.1:8093:3000" # loopback ONLY (D-01)
     depends_on:
       postgres:
         condition: service_healthy
