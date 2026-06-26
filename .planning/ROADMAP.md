@@ -103,7 +103,25 @@ Plans:
   3. Cada merge a main buildea las imágenes Docker de las tres apps (cache de Turborepo), las pushea al registry y deploya a staging corriendo las migraciones antes del swap de contenedores
   4. Los errores de web, panel y worker llegan a Sentry con contexto (incl. `onRequestError` para RSC), los logs estructurados de pino llegan a Grafana/Loki, y Uptime Kuma monitorea la disponibilidad de los servicios de staging
 
-**Plans**: TBD
+> Nota: el criterio 1/3 dice "detrás de Traefik" — SUPERSEDED por D-01 (nginx host + certbot, bloqueo real del box compartido con prod). El pipeline se entrega con nginx host; el patrón Traefik queda diferido a un box dedicado.
+
+**Plans**: 7 plans
+Plans:
+**Wave 1**
+
+- [ ] 04-01-PLAN.md — Observability foundation: pin+install Sentry SDKs (legitimacy gate) + shared @imbau/observability pino/pino-loki logger + sentryEnv/lokiEnv presets + turbo passThroughEnv (OBS-01/02)
+- [ ] 04-03-PLAN.md — CI quality gate: .github/workflows/ci.yml (lint+typecheck+test, postgres:16 service reusing the fase-2 RLS harness, Turbo cache) + branch-protection (CI-01/02, D-08)
+- [ ] 04-04-PLAN.md — Secrets: SOPS+age (.sops.yaml + staging.env.example key contract + encrypted staging.enc.yaml + gitignore discipline) (INFRA-03, D-09)
+- [ ] 04-05-PLAN.md — Staging runtime artifacts: programmatic migrate.ts + migrate.Dockerfile, compose.staging.yml (internal net, loopback 8090/8091, profiles, mem_limits, imbau.env=production), loki-config.yml, host-nginx vhost (INFRA-01/02, OBS-02/03)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 04-02-PLAN.md — Observability wiring: Sentry (incl. onRequestError RSC) + pino into web/panel/worker (depends 04-01) (OBS-01/02)
+- [ ] 04-06-PLAN.md — Deploy pipeline: deploy-staging.yml (GHCR build+push 4 images, Turbo+Docker caches) + deploy.sh (migrate-before-swap, staged bring-up, free -m) + bootstrap-roles.sql staging role-passwords (Pattern 4) (depends 04-04, 04-05) (CI-03, INFRA-02, D-05/06/07)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 04-07-PLAN.md — Staging operational bring-up + end-to-end phase gate: DNS (⚠ TWO A records), nginx+certbot webroot, staged compose, TLS/Sentry/Loki/Kuma/RAM/migrate-fail verification — VPS-gated (depends 04-01/02/03/05/06) (INFRA-01/02, OBS-01/02/03)
 
 ## Progress
 
@@ -115,4 +133,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Monorepo Foundation | 3/3 | Complete    | 2026-06-13 |
 | 2. Data Layer + RLS | 3/3 | Complete    | 2026-06-17 |
 | 3. Auth, API & App Surfaces | 5/5 | Complete   | 2026-06-18 |
-| 4. Staging, Observability & CI/CD | 0/TBD | Not started | - |
+| 4. Staging, Observability & CI/CD | 0/7 | Not started | - |
