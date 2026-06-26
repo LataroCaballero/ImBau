@@ -105,7 +105,7 @@ Plans:
 
 > Nota: el criterio 1/3 dice "detrás de Traefik" — SUPERSEDED por D-01 (nginx host + certbot, bloqueo real del box compartido con prod). El pipeline se entrega con nginx host; el patrón Traefik queda diferido a un box dedicado.
 
-**Plans**: 4/7 plans executed
+**Plans**: 5/7 plans executed
 Plans:
 **Wave 1**
 
@@ -116,7 +116,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 04-02-PLAN.md — Observability wiring: Sentry (incl. onRequestError RSC) + pino into web/panel/worker (depends 04-01) (OBS-01/02)
+- [x] 04-02-PLAN.md — Observability wiring: Sentry (incl. onRequestError RSC) + pino into web/panel/worker (depends 04-01) (OBS-01/02)
 - [ ] 04-06-PLAN.md — Deploy pipeline: deploy-staging.yml (GHCR build+push 4 images, Turbo+Docker caches) + deploy.sh (migrate-before-swap, staged bring-up, free -m) + bootstrap-roles.sql staging role-passwords (Pattern 4) (depends 04-04, 04-05) (CI-03, INFRA-02, D-05/06/07)
 
 **Wave 3** *(blocked on Wave 2)*
@@ -133,4 +133,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 1. Monorepo Foundation | 3/3 | Complete    | 2026-06-13 |
 | 2. Data Layer + RLS | 3/3 | Complete    | 2026-06-17 |
 | 3. Auth, API & App Surfaces | 5/5 | Complete   | 2026-06-18 |
-| 4. Staging, Observability & CI/CD | 4/7 | In Progress|  |
+| 4. Staging, Observability & CI/CD | 5/7 | In Progress|  |
