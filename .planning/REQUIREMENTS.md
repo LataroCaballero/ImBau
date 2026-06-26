@@ -68,33 +68,33 @@ Explícitamente excluido de v1.1. Documentado para prevenir scope creep.
 
 ## Traceability
 
-Qué fases cubren qué requirements. Se completa durante la creación del roadmap.
+Qué fases cubren qué requirements. Completado durante la creación del roadmap (2026-06-26).
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SCHEMA-01 | TBD | Pending |
-| SCHEMA-02 | TBD | Pending |
-| SCHEMA-03 | TBD | Pending |
-| SCHEMA-04 | TBD | Pending |
-| SCHEMA-05 | TBD | Pending |
-| SCHEMA-06 | TBD | Pending |
-| SCHEMA-07 | TBD | Pending |
-| SCHEMA-08 | TBD | Pending |
-| MEDIA-01 | TBD | Pending |
-| MEDIA-02 | TBD | Pending |
-| MEDIA-03 | TBD | Pending |
-| MEDIA-04 | TBD | Pending |
-| MEDIA-05 | TBD | Pending |
-| SEED-01 | TBD | Pending |
-| SEED-02 | TBD | Pending |
-| SEED-03 | TBD | Pending |
-| SEED-04 | TBD | Pending |
+| SCHEMA-01 | Phase 1 | Pending |
+| SCHEMA-02 | Phase 1 | Pending |
+| SCHEMA-03 | Phase 1 | Pending |
+| SCHEMA-04 | Phase 1 | Pending |
+| SCHEMA-05 | Phase 1 | Pending |
+| SCHEMA-06 | Phase 1 | Pending |
+| SCHEMA-07 | Phase 1 | Pending |
+| SCHEMA-08 | Phase 1 | Pending |
+| MEDIA-01 | Phase 2 | Pending |
+| MEDIA-02 | Phase 2 | Pending |
+| MEDIA-03 | Phase 2 | Pending |
+| MEDIA-04 | Phase 2 | Pending |
+| MEDIA-05 | Phase 2 | Pending |
+| SEED-01 | Phase 3 | Pending |
+| SEED-02 | Phase 3 | Pending |
+| SEED-03 | Phase 3 | Pending |
+| SEED-04 | Phase 3 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 17 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 17 ⚠️
+- Mapped to phases: 17 ✓ (Phase 1: 8 · Phase 2: 5 · Phase 3: 4)
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-06-26*
-*Last updated: 2026-06-26 after initial definition*
+*Last updated: 2026-06-26 — traceability completada al crear el roadmap (3 fases, 17/17 mapeados)*
