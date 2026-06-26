@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 Phase: 04 (staging-observability-ci-cd) — EXECUTING
 Plan: 7 of 7
 Status: Ready to execute
-Last activity: 2026-06-26 — Phase 04 execution started
+Last activity: 2026-06-26 — Phase 04 executed 6/7 (04-07 deferred); quick task 260626-f90 fixes red CI
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -99,6 +99,13 @@ None yet.
 
 - [Phase 2/3]: APIs relativamente nuevas (Drizzle `pgPolicy`/`pgRole`, Better Auth org plugin) — re-verificar contra versiones pineadas en planning; reconciliar `member` (org plugin) vs `memberships`
 - [Control de fase 0]: si el milestone supera 1 semana, recalibrar todo el plan antes de seguir (regla del doc maestro; estimación 3-4 días con Fable)
+- [CI roja → merge bloqueado]: branch protection sobre `main` exige `quality` (enforce_admins); quick task 260626-f90 arregla el root cause (turbo strict-env stripping + falta de redis service). Verificar verde antes del merge de PR #1.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260626-f90 | Fix red CI — pass test DB/Redis env through Turbo strict mode + add Redis service | 2026-06-26 | d537fed | [260626-f90-fix-red-ci-pass-test-db-redis-env-throug](./quick/260626-f90-fix-red-ci-pass-test-db-redis-env-throug/) |
 
 ## Deferred Items
 
