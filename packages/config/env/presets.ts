@@ -42,3 +42,29 @@ export const authEnv = {
     INVITE_FROM: z.string().optional(), // verified Resend sender; required only with Resend
   },
 } as const;
+
+// Sentry runtime DSNs (OBS-01). NAMES + Zod schemas only — never values (T-4-SC).
+// All optional: with no DSN the Sentry SDK is a no-op, so dev/test run without it.
+// The build-time vars (SENTRY_ORG / SENTRY_PROJECT / SENTRY_AUTH_TOKEN) are CI-only
+// for source-map upload and live in `turbo.json` passThroughEnv, NOT this runtime
+// schema (RESEARCH Pattern 5). Apps compose this preset via createEnv in plan 04-02.
+export const sentryEnv = {
+  server: {
+    SENTRY_DSN: z.string().url().optional(), // server/worker DSN
+  },
+  client: {
+    NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(), // browser DSN
+  },
+} as const;
+
+// Loki log-shipping target for @imbau/observability (OBS-02, D-04). Optional: when
+// LOKI_URL is unset the shared logger emits plain stdout JSON. The SAME names point
+// at local http://loki:3100 OR a Grafana Cloud push URL by swapping the value.
+// LOKI_BASIC_AUTH is a JSON string parsed by pino-loki — read from env/SOPS, never
+// hardcoded (T-4-LOGLEAK).
+export const lokiEnv = {
+  server: {
+    LOKI_URL: z.string().url().optional(), // internal http://loki:3100 OR Grafana Cloud
+    LOKI_BASIC_AUTH: z.string().optional(), // JSON string, parsed by pino-loki
+  },
+} as const;
