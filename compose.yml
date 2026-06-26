@@ -1,0 +1,38 @@
+# Local data-layer infra (Phase 2, DATA-01): one-command Postgres 16 + Redis 7.
+# `docker compose up -d` brings both services up with healthchecks.
+#
+# Service names `postgres`/`redis` are stable on purpose — Phase 4 (INFRA-01)
+# extends THIS file with Traefik / Loki / Grafana / Uptime-Kuma for staging.
+# Do NOT rename them. No dev seed mount here (D-12: the "Brigos Recoleta" seed
+# is SEED-01, a future milestone); test orgs/projects come from the Vitest
+# fixtures in plan 02-03.
+services:
+  postgres:
+    image: postgres:16-alpine # pinned — never float to 17/18 (CLAUDE.md)
+    environment:
+      POSTGRES_USER: imbau # owner/migration role (DDL); app/anon roles are created by the RLS migration
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev} # placeholder default; real secret via .env (SOPS is phase 4)
+      POSTGRES_DB: imbau
+    ports:
+      - "5432:5432" # host 5432 confirmed free
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U imbau -d imbau"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  redis:
+    image: redis:7-alpine # container only this phase — no app code touches Redis until later phases
+    # Host port remap: host 6379 is OCCUPIED by a local Homebrew redis-server,
+    # so the container's 6379 is published on host 6380 to avoid the clash.
+    # Container-internal port stays 6379. (Resolves Assumption A4.)
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+volumes:
+  pgdata:

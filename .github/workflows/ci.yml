@@ -1,0 +1,88 @@
+name: CI
+
+# Quality gate: lint + typecheck + test on every PR and every push to main.
+# The fase-2 RLS cross-tenant isolation suite runs UNCHANGED against a real
+# postgres:16-alpine service — the harness is endpoint-parametrizable, so CI only
+# points its TEST_DATABASE_* env at the Actions Postgres service (CI-01, CI-02, D-08).
+on:
+  pull_request: {}
+  push:
+    branches: [main]
+
+# Cancel superseded runs on the same ref to save CI minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: imbau_test
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U postgres -d imbau_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - "6380:6379"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # Owner/superuser runs migrate() + CREATE ROLE; the harness then sets the
+      # app/anon ":dev" passwords because imbau.env is unset in CI (0001_rls.sql).
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/imbau_test
+      # App/anon connect as the UNPRIVILEGED roles — never the superuser (Pitfall 5).
+      # The harness role-guard asserts rolbypassrls=false / rolsuper=false, so RLS
+      # isolation cannot pass for the wrong reason.
+      TEST_DATABASE_APP_URL: postgres://app_authenticated:dev@localhost:5432/imbau_test
+      TEST_DATABASE_ANON_URL: postgres://anon:dev@localhost:5432/imbau_test
+      # @imbau/db validates the PLAIN DATABASE_* vars at import time (env.ts /
+      # createEnv). Point them at the SAME CI test DB (name ends in _test, so the
+      # suite's non-test-DB safety guard still passes). turbo passThroughEnv forwards them.
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/imbau_test
+      DATABASE_APP_URL: postgres://app_authenticated:dev@localhost:5432/imbau_test
+      DATABASE_ANON_URL: postgres://anon:dev@localhost:5432/imbau_test
+      # Live Redis for the apps/worker BullMQ smoke test (published port 6380).
+      REDIS_URL: redis://localhost:6380
+      # packages/api integration tests build auth env via @t3-oss/env-core
+      # (BETTER_AUTH_SECRET min 32 chars + BETTER_AUTH_URL). Clearly-fake CI test values.
+      BETTER_AUTH_SECRET: test-better-auth-secret-0123456789-abcdef
+      BETTER_AUTH_URL: http://localhost:3001
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4 # reads packageManager pnpm@11.6.0 from package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Restore the Turbo cache via the GitHub Actions cache BEFORE the task run.
+      - uses: dtinth/setup-github-actions-caching-for-turbo@v1
+
+      - run: pnpm install --frozen-lockfile
+
+      # Apply the migration journal (creates app_authenticated/anon roles + tables)
+      # to imbau_test BEFORE the parallel turbo test run, which has no ordering.
+      - name: Migrate test database
+        run: pnpm --filter @imbau/db run db:migrate:deploy
+
+      # globalSetup migrates the service + role-guards, then lint/typecheck/test run.
+      - run: pnpm turbo run lint typecheck test

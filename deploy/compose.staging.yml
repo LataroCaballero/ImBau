@@ -1,0 +1,155 @@
+# deploy/compose.staging.yml — full staging topology for the shared andescode.com.ar VPS.
+# Brought up by hand / deploy.sh in plans 04-06 (deploy pipeline) and 04-07 (VPS bring-up).
+# Distinct from the repo-root compose.yml (local dev). Source of truth: 04-RESEARCH.md Pattern 2.
+#
+# GUARDRAILS (the box also runs prod sites — D-01/D-02/D-04):
+#   - Postgres + Redis are INTERNAL-ONLY: no `ports:` at all. Never published to the host.
+#   - web/panel publish on LOOPBACK only (127.0.0.1:8092 / 127.0.0.1:8093). The host nginx
+#     (deploy/nginx/*.conf) is the sole public ingress and proxies to these loopback ports.
+#     The `127.0.0.1:` prefix is MANDATORY — a bare `8092:3000` would publish on all interfaces.
+#   - Every RAM-consuming service carries a `mem_limit` so a runaway container cannot starve the
+#     co-tenant prod stack (T-4-PROD-DOS).
+#   - Observability (loki/grafana/uptime-kuma) sits behind `profiles: ["observability"]` for a
+#     STAGED bring-up (check `free -m` headroom before enabling it). Grafana/Uptime-Kuma are NOT
+#     host-published — reach them via SSH tunnel only (T-4-ADMIN).
+#   - The one-off `migrate` runner is behind `profiles: ["deploy"]` — run via
+#     `docker compose -f deploy/compose.staging.yml run --rm migrate`, never long-running.
+#
+# Postgres runs in PRODUCTION mode (`-c imbau.env=production`) so 0001_rls.sql SKIPS the dev
+# password block — the real app_authenticated/anon passwords are provisioned out-of-band from
+# SOPS (Pattern 4, plan 04-06). Without this the dev ':dev' passwords would be set on a prod box.
+#
+# DEFERRED (recorded here on purpose):
+#   - Postgres backups (pgBackRest/wal-g) — FOUND-01. `pgdata` is a NAMED volume so it survives
+#     restarts, but staging is reconstructible from migrations (+future seed); no PITR yet.
+#   - Edge rate-limit for events/leads — a COMMENTED limit_req placeholder lives in the nginx
+#     vhost; activated when those tables land (future milestone).
+#
+# STAGED BRING-UP ORDER (04-07):
+#   1. docker compose -f deploy/compose.staging.yml up -d postgres redis
+#   2. docker compose -f deploy/compose.staging.yml run --rm migrate        # migrate-before-swap gate
+#   3. docker compose -f deploy/compose.staging.yml up -d web panel worker
+#   4. docker compose -f deploy/compose.staging.yml --profile observability up -d
+name: imbau-staging
+
+networks:
+  internal: {}
+
+services:
+  postgres:
+    image: postgres:16-alpine # pinned — never float to 17/18 (CLAUDE.md)
+    # PRODUCTION GUC: accepted at startup so 0001_rls.sql skips the dev-password block (Pattern 4).
+    command: ["postgres", "-c", "imbau.env=production"]
+    environment:
+      POSTGRES_USER: imbau # owner/migration role (DDL + CREATE ROLE); app/anon are made by the RLS migration
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD} # real value from the decrypted .env (SOPS, plan 04-06)
+      POSTGRES_DB: imbau
+    networks: [internal] # NO ports: — internal-only, never published to host (D-02)
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U imbau -d imbau"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    mem_limit: 512m
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine # pinned to Redis 7 (BullMQ expectation)
+    networks: [internal] # NO ports: — internal-only (D-02)
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    mem_limit: 128m
+    restart: unless-stopped
+
+  web:
+    image: ghcr.io/latarocaballero/imbau-web:${IMAGE_TAG:-latest}
+    env_file: [.env] # decrypted by deploy.sh (plan 04-06)
+    environment:
+      APP_NAME: web # -> pino-loki label (Pattern 6)
+    networks: [internal]
+    ports:
+      - "127.0.0.1:8092:3000" # loopback ONLY — host nginx proxies here (D-01)
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 512m
+    restart: unless-stopped
+
+  panel:
+    image: ghcr.io/latarocaballero/imbau-panel:${IMAGE_TAG:-latest}
+    env_file: [.env]
+    environment:
+      APP_NAME: panel
+    networks: [internal]
+    ports:
+      - "127.0.0.1:8093:3000" # loopback ONLY (D-01)
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 512m
+    restart: unless-stopped
+
+  worker:
+    image: ghcr.io/latarocaballero/imbau-worker:${IMAGE_TAG:-latest}
+    env_file: [.env]
+    environment:
+      APP_NAME: worker
+    networks: [internal] # no host port — internal jobs only
+    depends_on:
+      redis:
+        condition: service_healthy
+    mem_limit: 384m
+    restart: unless-stopped
+
+  migrate:
+    # One-off owner-role migrator (deploy/migrate.Dockerfile). Run via:
+    #   docker compose -f deploy/compose.staging.yml run --rm migrate
+    image: ghcr.io/latarocaballero/imbau-migrate:${IMAGE_TAG:-latest}
+    env_file: [.env] # needs DATABASE_URL (owner) only
+    networks: [internal]
+    profiles: ["deploy"] # never part of `up -d`; explicit one-off only
+    restart: "no"
+    mem_limit: 256m
+
+  loki:
+    image: grafana/loki:3.5
+    command: -config.file=/etc/loki/loki-config.yml
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - lokidata:/loki
+    networks: [internal] # internal push target for the in-app pino-loki transport (no Promtail)
+    profiles: ["observability"]
+    mem_limit: 256m
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.6.0
+    environment:
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false" # NOT publicly exposed — SSH tunnel only (T-4-ADMIN)
+    volumes:
+      - grafanadata:/var/lib/grafana
+    networks: [internal] # no host port — reach via SSH tunnel (04-07)
+    profiles: ["observability"]
+    mem_limit: 256m
+    restart: unless-stopped
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    volumes:
+      - kumadata:/app/data
+    networks: [internal] # no host port — SSH tunnel only (T-4-ADMIN)
+    profiles: ["observability"]
+    mem_limit: 128m
+    restart: unless-stopped
+
+volumes:
+  pgdata: {} # named — survives restarts; backups DEFERRED (FOUND-01)
+  lokidata: {}
+  grafanadata: {}
+  kumadata: {}

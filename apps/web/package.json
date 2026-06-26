@@ -1,0 +1,33 @@
+{
+  "name": "@imbau/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@imbau/api": "workspace:*",
+    "@imbau/config": "workspace:*",
+    "@imbau/observability": "workspace:*",
+    "@imbau/ui": "workspace:*",
+    "@sentry/nextjs": "10.61.0",
+    "@t3-oss/env-nextjs": "0.13.11",
+    "next": "16.2.9",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@t3-oss/env-core": "0.13.11",
+    "@types/node": "22.18.13",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "typescript": "5.9.3"
+  }
+}

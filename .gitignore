@@ -1,3 +1,38 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+.next/
+dist/
+.turbo/
+
+# Playwright e2e artifacts (regenerated on every run — never commit)
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Next.js generated type shim (regenerated on every build — never commit)
+next-env.d.ts
+
+# Environment files — secrets must never be committed (V14)
+.env
+.env.*
+!.env.example
+
+# SOPS+age secrets (INFRA-03): the ENCRYPTED secrets/*.enc.yaml ARE committed,
+# but the decrypted runtime .env produced by deploy.sh (04-06) must NEVER be.
+# `.env`/`.env.*` above already cover any decrypted output (e.g. secrets/staging.env);
+# this allow-rule guarantees the encrypted files stay tracked.
+!secrets/*.enc.yaml
+# Any plaintext intermediate the encryption step produces (e.g. *.tmp) must never be committed.
+secrets/*.tmp
+
+# Logs
+*.log
+
+# OS / editor cruft
+.DS_Store
+
 # Local Claude Code settings (machine-specific; never commit)
 .claude/settings.local.json
 

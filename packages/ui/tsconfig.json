@@ -1,0 +1,4 @@
+{
+  "extends": "@imbau/config/tsconfig/next.json",
+  "include": ["src"]
+}
