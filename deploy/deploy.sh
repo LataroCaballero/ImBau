@@ -85,9 +85,16 @@ echo ">> running migrations (migrate-before-swap gate)"
 ${COMPOSE} run --rm migrate
 
 # --- 7. provision app/anon role passwords (Pattern 4) ---------------------------
-# (wired in Task 3) AFTER migrate (the roles now exist) and BEFORE the app swap.
-# Without real passwords the app/anon pools fail scram-sha-256 auth and boot-fail.
-# << BOOTSTRAP_ROLES_PLACEHOLDER >>
+# AFTER migrate (the roles now exist) and BEFORE the app swap. Without real
+# passwords the app/anon pools fail scram-sha-256 auth and boot-fail.
+# Run as the owner role `imbau` inside the internal network; passwords are passed
+# via psql `-v` from the decrypted .env and never echoed (no -a/-e).
+echo ">> provisioning app/anon role passwords (Pattern 4)"
+${COMPOSE} exec -T postgres \
+  psql -U imbau -d imbau --no-psqlrc \
+    -v app_pw="${APP_DB_PASSWORD}" \
+    -v anon_pw="${ANON_DB_PASSWORD}" \
+    -f - < deploy/bootstrap-roles.sql
 
 # --- 8. swap app containers -----------------------------------------------------
 echo ">> swapping app containers (web, panel, worker)"
