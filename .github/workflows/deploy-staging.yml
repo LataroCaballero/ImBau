@@ -1,0 +1,107 @@
+name: Deploy Staging
+
+# Build → GHCR → VPS deploy pipeline (CI-03 / INFRA-02).
+#
+# On every merge to `main` (and on manual `workflow_dispatch` — the hook the future
+# prod deploy reuses) this:
+#   1. builds the 4 staging images (web/panel/worker apps + the one-off migrate runner)
+#      with Buildx + a per-image GitHub Actions Docker layer cache (D-05), and pushes
+#      them to GHCR tagged by commit SHA + `latest`;
+#   2. SSHes into the staging VPS as root@ with the deploy key (D-06), resets the repo
+#      to the just-built SHA, and runs `deploy/deploy.sh` with IMAGE_TAG=<sha> so the
+#      box pulls the EXACT images this run produced (sops decrypt → migrate-before-swap
+#      gate → role bootstrap → staged bring-up — D-07).
+#
+# The separate Turbo task cache (lint/typecheck/test) lives in the CI quality job
+# (ci.yml, plan 04-03); this workflow only carries the Docker layer cache.
+#
+# Required secrets (see 04-06 user_setup):
+#   VPS_SSH_KEY        — id_vps_andescode private key (root@ the staging VPS)
+#   SOPS_AGE_KEY       — age private key (decrypts secrets/staging.enc.yaml on the VPS keyfile)
+#   SENTRY_AUTH_TOKEN  — optional, build-time source-map upload
+# GHCR push uses the built-in GITHUB_TOKEN (no PAT needed in CI).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+# Cancel superseded deploys on the same ref.
+concurrency:
+  group: deploy-staging-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        # Each entry maps an image name to the Dockerfile CI builds UNCHANGED.
+        # web/panel/worker reuse the existing apps/<app>/Dockerfile; migrate is the
+        # one-off owner-role runner from plan 04-05.
+        include:
+          - { image: imbau-web, dockerfile: apps/web/Dockerfile }
+          - { image: imbau-panel, dockerfile: apps/panel/Dockerfile }
+          - { image: imbau-worker, dockerfile: apps/worker/Dockerfile }
+          - { image: imbau-migrate, dockerfile: deploy/migrate.Dockerfile }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # GHCR auth via the workflow's own token (packages:write).
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # metadata-action lowercases the image name automatically, so a mixed-case
+      # repository_owner (LataroCaballero) still yields a valid lowercase GHCR ref.
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
+          tags: |
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Per-image GitHub Actions Docker layer cache (D-05). Scoped so the 4
+          # images do not clobber one another's cache.
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+          # Optional source-map upload during the Next build; harmlessly ignored by
+          # Dockerfiles that do not declare the ARG when the secret is unset.
+          build-args: |
+            SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      # SSH into the staging VPS, fast-forward the checkout to the exact SHA just
+      # built, and run the deploy orchestration with that SHA as IMAGE_TAG so the
+      # box pulls precisely the images this run pushed (not a stale `latest`).
+      - name: SSH deploy to staging VPS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: 31.97.175.128
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd /opt/imbau
+            git fetch origin main
+            git reset --hard origin/main
+            IMAGE_TAG=${{ github.sha }} bash deploy/deploy.sh
