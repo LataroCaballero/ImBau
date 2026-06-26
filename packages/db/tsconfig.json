@@ -1,4 +1,4 @@
 {
   "extends": "@imbau/config/tsconfig/base.json",
-  "include": ["src", "drizzle.config.ts", "auth.ts", "tests", "vitest.config.ts"]
+  "include": ["src", "drizzle.config.ts", "auth.ts", "migrate.ts", "tests", "vitest.config.ts"]
 }

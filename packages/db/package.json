@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "db:migrate:deploy": "node --experimental-strip-types migrate.ts"
   },
   "dependencies": {
     "@imbau/config": "workspace:*",
