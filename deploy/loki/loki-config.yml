@@ -1,0 +1,43 @@
+# deploy/loki/loki-config.yml — single-binary, filesystem-backed Loki for staging (OBS-02).
+# Source of truth: 04-RESEARCH.md Pattern 6. Mounted read-only into the loki container by
+# deploy/compose.staging.yml (profiles: ["observability"]).
+#
+# RAM-trimmed for the shared VPS (T-4-PROD-DOS): inmemory ring, filesystem chunks, 7-day
+# retention. Logs are PUSHED by the in-app pino-loki transport (APP_NAME label per service) —
+# there is NO Promtail/Alloy scraper, which keeps the footprint minimal and stays symmetric with
+# a future Grafana Cloud push endpoint (just swap LOKI_URL).
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+
+common:
+  ring:
+    kvstore:
+      store: inmemory
+  replication_factor: 1
+  path_prefix: /loki
+
+schema_config:
+  configs:
+    - from: 2024-01-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+storage_config:
+  filesystem:
+    directory: /loki/chunks
+
+limits_config:
+  retention_period: 168h # 7 days — tight box (T-4-PROD-DOS)
+  ingestion_rate_mb: 4
+  ingestion_burst_size_mb: 8
+
+compactor:
+  retention_enabled: true
+  working_directory: /loki/compactor
+  delete_request_store: filesystem
