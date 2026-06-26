@@ -47,8 +47,8 @@ Requirements para el milestone v1 (fase 0). Cada uno mapea a fases del roadmap.
 
 ### CI
 
-- [ ] **CI-01**: Cada PR corre lint + type-check + tests en GitHub Actions; CI roja = no se mergea
-- [ ] **CI-02**: Los tests de aislamiento RLS corren en CI contra un Postgres service real
+- [x] **CI-01**: Cada PR corre lint + type-check + tests en GitHub Actions; CI roja = no se mergea
+- [x] **CI-02**: Los tests de aislamiento RLS corren en CI contra un Postgres service real
 - [ ] **CI-03**: CI buildea las imágenes Docker de las tres apps con cache de Turborepo y las pushea al registry
 
 ### Observabilidad
@@ -126,8 +126,8 @@ Qué fases cubren qué requirements. Se actualiza durante la creación del roadm
 | INFRA-01 | Phase 4 | Complete |
 | INFRA-02 | Phase 4 | Complete |
 | INFRA-03 | Phase 4 | Pending |
-| CI-01 | Phase 4 | Pending |
-| CI-02 | Phase 4 | Pending |
+| CI-01 | Phase 4 | Complete |
+| CI-02 | Phase 4 | Complete |
 | CI-03 | Phase 4 | Pending |
 | OBS-01 | Phase 4 | Complete |
 | OBS-02 | Phase 4 | Complete |
