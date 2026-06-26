@@ -1,13 +1,13 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-milestone_name: milestone
-current_phase: 04
-status: executing
+milestone_name: Fundación (Fase 0)
+current_phase: 0
+status: Awaiting next milestone
 stopped_at: Phase 4 context gathered
-last_updated: "2026-06-26T18:41:57.763Z"
+last_updated: "2026-06-26T18:58:35.536Z"
 last_activity: 2026-06-26
-last_activity_desc: Phase 04 complete
+last_activity_desc: Milestone v1.0 completed and archived
 progress:
   total_phases: 4
   completed_phases: 4
@@ -21,19 +21,17 @@ current_phase_name: staging-observability-ci-cd
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-12)
+See: .planning/PROJECT.md (updated 2026-06-26)
 
 **Core value:** La fundación técnica queda desplegada y operable desde el día uno: cada commit a main termina en software corriendo en staging con aislamiento multi-tenant verificable por RLS.
-**Current focus:** Phase 04 — staging-observability-ci-cd
+**Current focus:** v1.0 Fundación SHIPPED — planificando próximo milestone (Fase 1: schema + media + seed)
 
 ## Current Position
 
-Phase: 04
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-26 — Phase 04 complete
-
-Progress: [░░░░░░░░░░] 0%
+Phase: Milestone v1.0 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-26 — Milestone v1.0 completed and archived
 
 ## Performance Metrics
 
@@ -110,14 +108,20 @@ None yet.
 
 ## Deferred Items
 
-Items acknowledged and carried forward from previous milestone close:
+Items acknowledged and deferred at the v1.0 milestone close on 2026-06-26 (override_closeout):
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
-| *(none)* | | | |
+| verification | phase-03 live re-runs: Playwright auth e2e (login persistence, invite→accept) + worker Redis smoke | human_needed (4/4 must-haves verified by code; SUMMARYs green during execution) | 2026-06-26 |
+
+**Detail:** Phase 03 verification sits at `human_needed` only because the Playwright e2e and worker smoke tests require a live Next.js + Postgres + Redis stack to re-execute; static verification confirmed all 4 must-haves. Re-run `pnpm --filter @imbau/panel test:e2e` and `pnpm --filter @imbau/worker test -t "worker connects"` with the Compose stack up to clear.
 
 ## Session Continuity
 
 Last session: 2026-06-26T13:21:52.038Z
 Stopped at: Phase 4 context gathered
 Resume file: .planning/phases/04-staging-observability-ci-cd/04-CONTEXT.md
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone
