@@ -43,13 +43,15 @@ Directorios archivados en `milestones/v1.0-phases/`. Full detail: [milestones/v1
   3. La suite de aislamiento cross-tenant, extendida a todas las tablas nuevas, pasa verde en CI contra Postgres 16 real con roles sin BYPASSRLS: org A no lee ni escribe filas de org B. (SCHEMA-08)
   4. Un test verifica que, con el rol `anon`, la web pública solo lee filas pertenecientes a proyectos `publicado` en todas las tablas de catálogo/contenido. (SCHEMA-07)
   5. `events` está particionada por mes, y tanto `events` como `leads` aceptan insert anónimo validado por Zod (analytics y captación de leads), con RLS por tenant en ambas. (SCHEMA-04, SCHEMA-06)
-**Plans**: TBD
+**Plans**: 6 plans (4 waves)
 
 Plans:
-- [ ] 01-01: Catálogo — floors + units (tipología, m2, orientación, estado, polígono SVG, orden), RLS FORCE por tenant + migración Drizzle (SCHEMA-01)
-- [ ] 01-02: Pricing + quotes — price_lists, unit_prices, payment_plans (refuerzos JSONB, ajuste CAC), cac_index (dinero entero/decimal) y quotes (snapshot JSONB, pdf key), RLS (SCHEMA-02, SCHEMA-03)
-- [ ] 01-03: Brokers/leads + contenido + events — brokers, leads (insert anónimo Zod), progress_posts, galleries, media, events particionada por mes, RLS (SCHEMA-04, SCHEMA-05, SCHEMA-06)
-- [ ] 01-04: Policy `anon` published-only + suite de aislamiento cross-tenant extendida a todas las tablas, verde en CI (SCHEMA-07, SCHEMA-08)
+- [ ] 01-01-PLAN.md — Foundation + catálogo: 5 enums, JSONB Zod contracts, drizzle-zod, `projects` UNIQUE, floors + units (SCHEMA-01) [wave 1]
+- [ ] 01-02-PLAN.md — Pricing + quotes: price_lists, unit_prices (FLAG-D project_id), payment_plans (refuerzos JSONB), cac_index (tenant-private), quotes (versioned snapshot) (SCHEMA-02, SCHEMA-03) [wave 2]
+- [ ] 01-03-PLAN.md — Content + events types: brokers, leads (anon INSERT-only), progress_posts, galleries, media, events.ts (FLAG-A/B types-only) (SCHEMA-04, SCHEMA-05, SCHEMA-06) [wave 2]
+- [ ] 01-04-PLAN.md — Register + generate 0002 + hand 0003 (FORCE RLS, anon GRANTs, events partition DDL) + [BLOCKING] `pnpm db:migrate` from zero (SCHEMA-06, SCHEMA-07) [wave 3]
+- [ ] 01-05-PLAN.md — Worker events-partition maintenance job (skeleton, idempotent) (SCHEMA-06) [wave 4]
+- [ ] 01-06-PLAN.md — Exit gate: cross-tenant isolation suite + anon published-only over all new tables, green in CI (SCHEMA-07, SCHEMA-08) [wave 4]
 
 ### Phase 2: Pipeline de media (R2 + sharp + blurhash)
 **Goal**: El pipeline de media opera de punta a punta — una imagen subida a Cloudflare R2 se procesa en el worker generando variantes AVIF/WebP en múltiples tamaños y un placeholder, con keys/dimensiones/blurhash persistidos en `media` y resolubles por web y panel; el job es idempotente, con reintentos y errores observables.
@@ -90,6 +92,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 1. Schema completo + RLS | v1.1 | 0/4 | Not started | - |
+| 1. Schema completo + RLS | v1.1 | 0/6 | Not started | - |
 | 2. Pipeline de media | v1.1 | 0/3 | Not started | - |
 | 3. Seed del edificio ficticio | v1.1 | 0/2 | Not started | - |

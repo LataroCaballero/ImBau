@@ -29,9 +29,9 @@ See: .planning/PROJECT.md (updated 2026-06-26)
 ## Current Position
 
 Phase: 1 of 3 (Schema completo + RLS)
-Plan: — of ~4 (sin planear)
-Status: Ready to plan
-Last activity: 2026-06-26 — Roadmap v1.1 creado (3 fases, 17/17 requirements mapeados)
+Plan: 0 of 6 (planeado — 6 planes, 4 olas, listo para ejecutar)
+Status: Ready to execute
+Last activity: 2026-06-26 — Phase 1 planeado (6 planes/4 olas; FLAG-A/B/D + cac_index tenant-private + lead_estado ASCII resueltos)
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -46,7 +46,7 @@ Progress: [░░░░░░░░░░] 0%
 
 | Phase | Plans | Status |
 |-------|-------|--------|
-| 1. Schema completo + RLS | 0/~4 | Not started |
+| 1. Schema completo + RLS | 0/6 | Planned |
 | 2. Pipeline de media | 0/~3 | Not started |
 | 3. Seed del edificio ficticio | 0/~2 | Not started |
 
