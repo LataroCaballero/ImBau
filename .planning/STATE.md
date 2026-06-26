@@ -6,15 +6,15 @@ current_phase: 04
 current_phase_name: staging-observability-ci-cd
 status: executing
 stopped_at: Phase 4 context gathered
-last_updated: "2026-06-26T04:03:00.581Z"
+last_updated: "2026-06-26T04:12:55.641Z"
 last_activity: 2026-06-26
 last_activity_desc: Phase 04 execution started
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 18
-  completed_plans: 12
-  percent: 67
+  completed_plans: 13
+  percent: 72
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-06-12)
 ## Current Position
 
 Phase: 04 (staging-observability-ci-cd) — EXECUTING
-Plan: 2 of 7
+Plan: 3 of 7
 Status: Ready to execute
 Last activity: 2026-06-26 — Phase 04 execution started
 
@@ -61,6 +61,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 03 P03 | 45min | 4 tasks | 20 files |
 | Phase 03 P05 | 5min | 2 tasks | 8 files |
 | Phase 04 P05 | 18min | 3 tasks | 7 files |
+| Phase 04 P01 | 12m | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,8 @@ Recent decisions affecting current work:
 - [Phase ?]: [04-05]: staging Postgres runs -c imbau.env=production so 0001_rls.sql skips :dev passwords; real app/anon passwords provisioned out-of-band from SOPS (Pattern 4, 04-06)
 - [Phase ?]: [04-05]: staging topology = internal-only pg/redis (no host ports), web/panel loopback 8090/8091 behind host nginx, observability under profiles + per-service mem_limit; Grafana/Kuma SSH-tunnel only
 - [Phase ?]: [04-05]: two DNS A records for one SAN cert (staging.tours + panel.staging.tours -> 31.97.175.128); cert via certbot --webroot never --nginx (04-07)
+- [Phase 04]: pino-loki transport over Promtail (refines D-03): zero extra container, fallback-symmetric with D-04 via LOKI_URL swap
+- [Phase 04]: Allow @sentry/cli native build (pnpm allowBuilds:true) — binary required for CI source-map upload (OBS-01)
 
 ### Pending Todos
 
@@ -101,6 +104,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-26T04:02:32.717Z
+Last session: 2026-06-26T04:12:34.110Z
 Stopped at: Phase 4 context gathered
 Resume file: .planning/phases/04-staging-observability-ci-cd/04-CONTEXT.md

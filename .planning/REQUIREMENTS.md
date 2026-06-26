@@ -53,7 +53,7 @@ Requirements para el milestone v1 (fase 0). Cada uno mapea a fases del roadmap.
 
 ### Observabilidad
 
-- [ ] **OBS-01**: Los errores de web, panel y worker llegan a Sentry con contexto (incl. `onRequestError` para errores de RSC)
+- [x] **OBS-01**: Los errores de web, panel y worker llegan a Sentry con contexto (incl. `onRequestError` para errores de RSC)
 - [x] **OBS-02**: Las tres apps loguean estructurado con pino y los logs llegan a Grafana/Loki en staging
 - [x] **OBS-03**: Uptime Kuma monitorea la disponibilidad de los servicios de staging
 
@@ -129,7 +129,7 @@ Qué fases cubren qué requirements. Se actualiza durante la creación del roadm
 | CI-01 | Phase 4 | Pending |
 | CI-02 | Phase 4 | Pending |
 | CI-03 | Phase 4 | Pending |
-| OBS-01 | Phase 4 | Pending |
+| OBS-01 | Phase 4 | Complete |
 | OBS-02 | Phase 4 | Complete |
 | OBS-03 | Phase 4 | Complete |
 
