@@ -286,6 +286,9 @@ importers:
       drizzle-orm:
         specifier: 0.45.2
         version: 0.45.2(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.10.1)(kysely@0.29.2)(pg@8.21.0)(postgres@3.4.9)
+      drizzle-zod:
+        specifier: 0.8.3
+        version: 0.8.3(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.10.1)(kysely@0.29.2)(pg@8.21.0)(postgres@3.4.9))(zod@4.4.3)
       postgres:
         specifier: 3.4.9
         version: 3.4.9
@@ -3163,6 +3166,12 @@ packages:
         optional: true
       sqlite3:
         optional: true
+
+  drizzle-zod@0.8.3:
+    resolution: {integrity: sha512-66yVOuvGhKJnTdiqj1/Xaaz9/qzOdRJADpDa68enqS6g3t0kpNkwNYjUuaeXgZfO/UWuIM9HIhSlJ6C5ZraMww==}
+    peerDependencies:
+      drizzle-orm: '>=0.36.0'
+      zod: ^3.25.0 || ^4.0.0
 
   electron-to-chromium@1.5.372:
     resolution: {integrity: sha512-M3yhbAlilnwqC8D21t28UCDGHyitShTmmLRU/H+b74P6Ski16Nb9HONYEaVpMj/pwC7BEo5B95FpjODLCWbtfA==}
@@ -6816,6 +6825,11 @@ snapshots:
       kysely: 0.29.2
       pg: 8.21.0
       postgres: 3.4.9
+
+  drizzle-zod@0.8.3(drizzle-orm@0.45.2(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.10.1)(kysely@0.29.2)(pg@8.21.0)(postgres@3.4.9))(zod@4.4.3):
+    dependencies:
+      drizzle-orm: 0.45.2(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.10.1)(kysely@0.29.2)(pg@8.21.0)(postgres@3.4.9)
+      zod: 4.4.3
 
   electron-to-chromium@1.5.372: {}
 
