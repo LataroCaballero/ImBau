@@ -159,6 +159,11 @@ None - no external service configuration required.
 - RLS behavior assertions (anon cannot read quotes/cac_index; tenant isolation; published pricing visible) are queued for plan 01-06 after migrate.
 - Boundary validators `paymentPlanInsertSchema` and `quoteInsertSchema` are exported for the Fase-3/Fase-4 API to consume.
 
+## Self-Check: PASSED
+- All 5 schema files present (price-lists, unit-prices, payment-plans, cac-index, quotes).
+- All 4 commits present in git log (96efeac, a867206, dba684e, 1ed4016).
+- `typecheck` + `lint` exit 0; structural acceptance greps satisfied.
+
 ---
 *Phase: 01-schema-completo-rls*
 *Completed: 2026-06-27*
