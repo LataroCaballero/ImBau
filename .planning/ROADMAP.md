@@ -46,7 +46,7 @@ Directorios archivados en `milestones/v1.0-phases/`. Full detail: [milestones/v1
   4. Un test verifica que, con el rol `anon`, la web pública solo lee filas pertenecientes a proyectos `publicado` en todas las tablas de catálogo/contenido. (SCHEMA-07)
   5. `events` está particionada por mes, y tanto `events` como `leads` aceptan insert anónimo validado por Zod (analytics y captación de leads), con RLS por tenant en ambas. (SCHEMA-04, SCHEMA-06)
 
-**Plans**: 1/6 plans executed
+**Plans**: 3/6 plans executed
 
 Plans:
 **Wave 1**
@@ -55,8 +55,8 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 01-02-PLAN.md — Pricing + quotes: price_lists, unit_prices (FLAG-D project_id), payment_plans (refuerzos JSONB), cac_index (tenant-private), quotes (versioned snapshot) (SCHEMA-02, SCHEMA-03) [wave 2]
-- [ ] 01-03-PLAN.md — Content + events types: brokers, leads (anon INSERT-only), progress_posts, galleries, media, events.ts (FLAG-A/B types-only) (SCHEMA-04, SCHEMA-05, SCHEMA-06) [wave 2]
+- [x] 01-02-PLAN.md — Pricing + quotes: price_lists, unit_prices (FLAG-D project_id), payment_plans (refuerzos JSONB), cac_index (tenant-private), quotes (versioned snapshot) (SCHEMA-02, SCHEMA-03) [wave 2]
+- [x] 01-03-PLAN.md — Content + events types: brokers, leads (anon INSERT-only), progress_posts, galleries, media, events.ts (FLAG-A/B types-only) (SCHEMA-04, SCHEMA-05, SCHEMA-06) [wave 2]
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -114,6 +114,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 1. Schema completo + RLS | v1.1 | 1/6 | In Progress|  |
+| 1. Schema completo + RLS | v1.1 | 3/6 | In Progress|  |
 | 2. Pipeline de media | v1.1 | 0/3 | Not started | - |
 | 3. Seed del edificio ficticio | v1.1 | 0/2 | Not started | - |
