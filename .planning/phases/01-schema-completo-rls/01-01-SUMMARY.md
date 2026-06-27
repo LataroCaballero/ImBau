@@ -152,6 +152,11 @@ None - no external service configuration required.
 - `floors` + `units` compile as faithful RLS clones; behavior (RLS isolation, anon-published) is proven downstream by the migrate-from-zero gate (01-04) and the cross-tenant isolation suite (01-06).
 - Not yet wired into `index.ts` / `drizzle.config.ts` (by design — plan 01-04 registers all new tables and generates the migration).
 
+## Self-Check: PASSED
+
+- All 4 created schema files + SUMMARY.md verified present on disk.
+- Both task commits (79c31ad, 8040857) verified in git log.
+
 ---
 *Phase: 01-schema-completo-rls*
 *Completed: 2026-06-27*
