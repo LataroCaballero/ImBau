@@ -4,7 +4,7 @@
 // see member-rls.ts). It carries organization_id (FK → organization.id, the canonical
 // tenant — D-01) and gets BOTH a tenant policy (app role, GUC-filtered) and an anon
 // published-only policy (D-06/D-11). RESEARCH Pattern 2 is the source of truth.
-import { pgTable, uuid, text, pgEnum, pgPolicy } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, pgEnum, pgPolicy, unique } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { organization } from "./auth-schema";
 import { appAuthenticated, anonRole } from "./roles";
@@ -28,6 +28,11 @@ export const projects = pgTable(
     estado: estadoEnum("estado").notNull().default("borrador"),
   },
   (t) => [
+    // Parent UNIQUE for composite FKs (D-02 / Pitfall 7): every child table org-pins its
+    // denormalized organization_id by referencing the pair (id, organization_id). A composite
+    // FK requires a matching UNIQUE on the parent. Additive — drizzle-kit emits the ALTER in
+    // plan 01-04; non-breaking on existing rows (no backfill).
+    unique().on(t.id, t.organizationId),
     // Tenant policy (D-04/D-05): app role only sees/writes rows of the active org.
     // D-05 reconciliation: the GUC is cast `::text` (NOT the literal `::uuid` D-05 wrote)
     // because organization.id is TEXT — a ::uuid cast against text ids never matches and
