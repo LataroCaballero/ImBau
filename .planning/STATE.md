@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Schema + Media + Seed
-current_phase: 1
-current_phase_name: Schema completo + RLS
-status: planning
+current_phase: 01
+current_phase_name: schema-completo-rls
+status: executing
 stopped_at: Phase 1 context gathered
-last_updated: "2026-06-26T19:41:17.399Z"
-last_activity: 2026-06-26
-last_activity_desc: Roadmap v1.1 creado (3 fases, 17/17 requirements mapeados)
+last_updated: "2026-06-27T20:09:48.241Z"
+last_activity: 2026-06-27
+last_activity_desc: Phase 01 execution started
 progress:
   total_phases: 3
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 6
+  completed_plans: 1
   percent: 0
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-26)
 
 **Core value:** La fundación técnica queda desplegada y operable desde el día uno: cada commit a main termina en software corriendo en staging con aislamiento multi-tenant verificable por RLS.
-**Current focus:** v1.1 Fase 1 — Phase 1: Schema completo + RLS (roadmap creado, listo para planear)
+**Current focus:** Phase 01 — schema-completo-rls
 
 ## Current Position
 
-Phase: 1 of 3 (Schema completo + RLS)
-Plan: 0 of 6 (planeado — 6 planes, 4 olas, listo para ejecutar)
-Status: Ready to execute
-Last activity: 2026-06-26 — Phase 1 planeado (6 planes/4 olas; FLAG-A/B/D + cac_index tenant-private + lead_estado ASCII resueltos)
+Phase: 01 (schema-completo-rls) — EXECUTING
+Plan: 1 of 6
+Status: Executing Phase 01
+Last activity: 2026-06-27 — Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
 

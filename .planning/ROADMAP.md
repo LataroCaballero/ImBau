@@ -46,12 +46,12 @@ Directorios archivados en `milestones/v1.0-phases/`. Full detail: [milestones/v1
   4. Un test verifica que, con el rol `anon`, la web pública solo lee filas pertenecientes a proyectos `publicado` en todas las tablas de catálogo/contenido. (SCHEMA-07)
   5. `events` está particionada por mes, y tanto `events` como `leads` aceptan insert anónimo validado por Zod (analytics y captación de leads), con RLS por tenant en ambas. (SCHEMA-04, SCHEMA-06)
 
-**Plans**: 6 plans (4 waves)
+**Plans**: 1/6 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 01-01-PLAN.md — Foundation + catálogo: 5 enums, JSONB Zod contracts, drizzle-zod, `projects` UNIQUE, floors + units (SCHEMA-01) [wave 1]
+- [x] 01-01-PLAN.md — Foundation + catálogo: 5 enums, JSONB Zod contracts, drizzle-zod, `projects` UNIQUE, floors + units (SCHEMA-01) [wave 1]
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -114,6 +114,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 1. Schema completo + RLS | v1.1 | 0/6 | Not started | - |
+| 1. Schema completo + RLS | v1.1 | 1/6 | In Progress|  |
 | 2. Pipeline de media | v1.1 | 0/3 | Not started | - |
 | 3. Seed del edificio ficticio | v1.1 | 0/2 | Not started | - |
