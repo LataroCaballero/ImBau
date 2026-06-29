@@ -18,6 +18,24 @@ export default defineConfig({
     "./src/schema/projects.ts",
     "./src/schema/member-rls.ts",
     "./src/schema/organization-rls.ts",
+    // Domain modules (01-01/02/03). events.ts is DELIBERATELY ABSENT (FLAG-B): drizzle-kit has
+    // no PARTITION BY support, so listing it would emit a plain non-partitioned `CREATE TABLE
+    // "events"` that collides with the hand-written partition DDL in 0003_rls_domain.sql. ALL
+    // events DDL (partitions, composite FK, FORCE RLS, both policies) is hand-authored there.
+    "./src/schema/enums.ts",
+    "./src/schema/json-schemas.ts",
+    "./src/schema/floors.ts",
+    "./src/schema/units.ts",
+    "./src/schema/price-lists.ts",
+    "./src/schema/unit-prices.ts",
+    "./src/schema/payment-plans.ts",
+    "./src/schema/cac-index.ts",
+    "./src/schema/quotes.ts",
+    "./src/schema/brokers.ts",
+    "./src/schema/leads.ts",
+    "./src/schema/progress-posts.ts",
+    "./src/schema/galleries.ts",
+    "./src/schema/media.ts",
   ],
   out: "./migrations",
   entities: {
