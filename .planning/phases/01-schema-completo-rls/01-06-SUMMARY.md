@@ -159,6 +159,10 @@ None - no external service configuration required.
 - Wave/phase merge expectation: `pnpm test && pnpm typecheck && pnpm lint` green; the CI `quality` gate (real Postgres service, NOBYPASSRLS roles) is the final gate before `/gsd-verify-work`.
 - No blockers. Later phases (explorador/ficha, cotizador, panel) can build queries on `withTenant`/`withAnon` knowing isolation and publish-gating are enforced and tested.
 
+## Self-Check: PASSED
+- Files verified present: `packages/db/tests/helpers.ts`, `packages/db/tests/cross-tenant.test.ts`, `.planning/phases/01-schema-completo-rls/01-06-SUMMARY.md`
+- Commits verified in history: `324012c`, `9057156`, `961ddb6`
+
 ---
 *Phase: 01-schema-completo-rls*
 *Completed: 2026-06-29*
