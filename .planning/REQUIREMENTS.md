@@ -11,14 +11,14 @@ Requirements de este milestone (v1.1 = Fase 1 del modelo-mvp). Cada uno mapea a 
 
 Modelo de datos completo de modelo-mvp §3.3, con RLS por tenant y migraciones Drizzle versionadas. Dinero en enteros/decimal (nunca floats); USD para precios, ARS para cuotas; UTC en DB.
 
-- [ ] **SCHEMA-01**: floors + units (project, floor, identificador, tipología, m2, orientación, ambientes, plano, estado [disponible|reservado|vendido], polígono SVG, orden) con RLS por tenant y migración Drizzle versionada
-- [ ] **SCHEMA-02**: pricing — price_lists (nombre, moneda), unit_prices (precio + vigencia), payment_plans (anticipo %, cuotas, ajuste [CAC|fijo], refuerzos JSONB, notas legales) y cac_index (período, valor) — dinero en enteros, RLS por tenant
-- [ ] **SCHEMA-03**: quotes (project, unit, payment_plan, snapshot JSONB del cálculo, pdf storage key, lead opcional) — schema listo para que el cotizador (Fase 3) lo consuma; RLS por tenant. El motor de cálculo NO se construye en este milestone
-- [ ] **SCHEMA-04**: brokers (nombre, slug del link, whatsapp, email) + leads (unit?, broker?, quote?, nombre, contacto, origen, estado [nuevo|contactado|negociación|cerrado], timeline de notas); leads acepta insert anónimo validado (Zod); RLS por tenant
-- [ ] **SCHEMA-05**: contenido — progress_posts (fecha, título, media), galleries (sección [amenities|exteriores|interiores], imágenes, pano360s) y media (original + variantes R2, dimensiones, blurhash) con RLS por tenant
-- [ ] **SCHEMA-06**: events particionada por mes (project, tipo, unit?, broker?, session_id, ts), acepta insert anónimo (analytics) con rate-limit en el edge; RLS por tenant
-- [ ] **SCHEMA-07**: policy `anon` — la web pública (rol anon, sin BYPASSRLS) solo lee filas pertenecientes a proyectos `publicado` en todas las tablas de catálogo/contenido; verificado por test
-- [ ] **SCHEMA-08**: suite de aislamiento cross-tenant extendida a todas las tablas nuevas (org A no lee ni escribe datos de org B), verde en CI contra Postgres 16 real con roles sin privilegios
+- [x] **SCHEMA-01**: floors + units (project, floor, identificador, tipología, m2, orientación, ambientes, plano, estado [disponible|reservado|vendido], polígono SVG, orden) con RLS por tenant y migración Drizzle versionada
+- [x] **SCHEMA-02**: pricing — price_lists (nombre, moneda), unit_prices (precio + vigencia), payment_plans (anticipo %, cuotas, ajuste [CAC|fijo], refuerzos JSONB, notas legales) y cac_index (período, valor) — dinero en enteros, RLS por tenant
+- [x] **SCHEMA-03**: quotes (project, unit, payment_plan, snapshot JSONB del cálculo, pdf storage key, lead opcional) — schema listo para que el cotizador (Fase 3) lo consuma; RLS por tenant. El motor de cálculo NO se construye en este milestone
+- [x] **SCHEMA-04**: brokers (nombre, slug del link, whatsapp, email) + leads (unit?, broker?, quote?, nombre, contacto, origen, estado [nuevo|contactado|negociación|cerrado], timeline de notas); leads acepta insert anónimo validado (Zod); RLS por tenant
+- [x] **SCHEMA-05**: contenido — progress_posts (fecha, título, media), galleries (sección [amenities|exteriores|interiores], imágenes, pano360s) y media (original + variantes R2, dimensiones, blurhash) con RLS por tenant
+- [x] **SCHEMA-06**: events particionada por mes (project, tipo, unit?, broker?, session_id, ts), acepta insert anónimo (analytics) con rate-limit en el edge; RLS por tenant
+- [x] **SCHEMA-07**: policy `anon` — la web pública (rol anon, sin BYPASSRLS) solo lee filas pertenecientes a proyectos `publicado` en todas las tablas de catálogo/contenido; verificado por test
+- [x] **SCHEMA-08**: suite de aislamiento cross-tenant extendida a todas las tablas nuevas (org A no lee ni escribe datos de org B), verde en CI contra Postgres 16 real con roles sin privilegios
 
 ### Media
 
@@ -72,14 +72,14 @@ Qué fases cubren qué requirements. Completado durante la creación del roadmap
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SCHEMA-01 | Phase 1 | Pending |
-| SCHEMA-02 | Phase 1 | Pending |
-| SCHEMA-03 | Phase 1 | Pending |
-| SCHEMA-04 | Phase 1 | Pending |
-| SCHEMA-05 | Phase 1 | Pending |
-| SCHEMA-06 | Phase 1 | Pending |
-| SCHEMA-07 | Phase 1 | Pending |
-| SCHEMA-08 | Phase 1 | Pending |
+| SCHEMA-01 | Phase 1 | Complete |
+| SCHEMA-02 | Phase 1 | Complete |
+| SCHEMA-03 | Phase 1 | Complete |
+| SCHEMA-04 | Phase 1 | Complete |
+| SCHEMA-05 | Phase 1 | Complete |
+| SCHEMA-06 | Phase 1 | Complete |
+| SCHEMA-07 | Phase 1 | Complete |
+| SCHEMA-08 | Phase 1 | Complete |
 | MEDIA-01 | Phase 2 | Pending |
 | MEDIA-02 | Phase 2 | Pending |
 | MEDIA-03 | Phase 2 | Pending |
@@ -91,6 +91,7 @@ Qué fases cubren qué requirements. Completado durante la creación del roadmap
 | SEED-04 | Phase 3 | Pending |
 
 **Coverage:**
+
 - v1.1 requirements: 17 total
 - Mapped to phases: 17 ✓ (Phase 1: 8 · Phase 2: 5 · Phase 3: 4)
 - Unmapped: 0 ✓
