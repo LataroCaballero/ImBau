@@ -155,3 +155,10 @@ None. All tables, policies, grants, and partitions are fully realized in the mig
 
 ## Threat Flags
 None. The grant/policy surface matches the plan's threat register exactly (T-01-12 FORCE RLS, T-01-13 scoped anon grants, T-01-14 migrate-only single journal, T-01-15 events_default partition); no new security surface was introduced beyond what the plan specified.
+
+## Self-Check: PASSED
+
+All created files exist on disk and all task/summary commits are present in git history:
+- Files: 0002_domain.sql, 0003_rls_domain.sql, meta/0002_snapshot.json, 01-04-SUMMARY.md
+- Commits: 5837811 (Task 1), 801eb17 (Task 2), e870261 (Task 3 + fixes), cb96c80 (summary)
+- Journal contains the 0003_rls_domain entry.
