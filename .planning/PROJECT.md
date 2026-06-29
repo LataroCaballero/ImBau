@@ -105,4 +105,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-26 al iniciar v1.1 Schema + Media + Seed (Fase 1). v1.0 Fundación shipped (4 phases / 18 plans / 39 tasks, 24/24 requirements validados, staging vivo). Numeración GSD reinicia en Fase 1 para v1.1.*
+*Last updated: 2026-06-29 — Phase 1 (Schema completo + RLS) completa: modelo de datos §3.3 en migraciones Drizzle versionadas (0002_domain + 0003_rls_domain), 13 tablas nuevas con FORCE ROW LEVEL SECURITY y policy por tenant, anon (sin BYPASSRLS) published-only / insert-only / sin-SELECT en tenant-private, events particionada + job de mantenimiento, suite cross-tenant 14/14 verde. SCHEMA-01..08 validados. Próximo: Phase 2 (pipeline de media R2 + sharp + blurhash). v1.0 Fundación shipped (4 phases / 18 plans / 39 tasks, staging vivo).*
