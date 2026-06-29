@@ -46,7 +46,7 @@ Directorios archivados en `milestones/v1.0-phases/`. Full detail: [milestones/v1
   4. Un test verifica que, con el rol `anon`, la web pública solo lee filas pertenecientes a proyectos `publicado` en todas las tablas de catálogo/contenido. (SCHEMA-07)
   5. `events` está particionada por mes, y tanto `events` como `leads` aceptan insert anónimo validado por Zod (analytics y captación de leads), con RLS por tenant en ambas. (SCHEMA-04, SCHEMA-06)
 
-**Plans**: 3/6 plans executed
+**Plans**: 4/6 plans executed
 
 Plans:
 **Wave 1**
@@ -60,7 +60,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 01-04-PLAN.md — Register + generate 0002 + hand 0003 (FORCE RLS, anon GRANTs, events partition DDL) + [BLOCKING] `pnpm db:migrate` from zero (SCHEMA-06, SCHEMA-07) [wave 3]
+- [x] 01-04-PLAN.md — Register + generate 0002 + hand 0003 (FORCE RLS, anon GRANTs, events partition DDL) + [BLOCKING] `pnpm db:migrate` from zero (SCHEMA-06, SCHEMA-07) [wave 3]
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
@@ -114,6 +114,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 1. Schema completo + RLS | v1.1 | 3/6 | In Progress|  |
+| 1. Schema completo + RLS | v1.1 | 4/6 | In Progress|  |
 | 2. Pipeline de media | v1.1 | 0/3 | Not started | - |
 | 3. Seed del edificio ficticio | v1.1 | 0/2 | Not started | - |
