@@ -151,3 +151,7 @@ None - no external service configuration required. (At runtime the worker contai
 ---
 *Phase: 01-schema-completo-rls*
 *Completed: 2026-06-29*
+
+## Self-Check: PASSED
+- Files verified on disk: apps/worker/src/partitions.ts, apps/worker/src/partitions.test.ts, apps/worker/src/index.ts, .planning/phases/01-schema-completo-rls/01-05-SUMMARY.md
+- Commits verified: dea6e9d (Task 1), c19dbb6 (Task 2), 7314713 (SUMMARY)
