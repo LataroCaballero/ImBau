@@ -17,38 +17,149 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { sql, eq } from "drizzle-orm";
 import { withTenant, withAnon } from "../src/with-tenant";
-import { projects, member, organization } from "../src/schema";
+import {
+  projects,
+  member,
+  organization,
+  floors,
+  units,
+  priceLists,
+  unitPrices,
+  paymentPlans,
+  cacIndex,
+  quotes,
+  brokers,
+  leads,
+  progressPosts,
+  galleries,
+  media,
+  events,
+} from "../src/schema";
 import {
   makeOrg,
   makeProject,
   makeMember,
   makeUser,
+  makeFloor,
+  makeUnit,
+  makePriceList,
+  makeUnitPrice,
+  makePaymentPlan,
+  makeCacIndex,
+  makeQuote,
+  makeBroker,
+  makeLead,
+  makeProgressPost,
+  makeGallery,
+  makeMedia,
+  makeEvent,
   closeFixtures,
+  type Estado,
 } from "./helpers";
+
+// Transaction types of the sanctioned access helpers — derived from the helper signatures so the
+// descriptor-driven cases below stay fully typed (no `any`). withTenant<T>(orgId, fn) and
+// withAnon<T>(fn) bind T to unknown under Parameters, exposing the AppTx/AnonTx params.
+type AppTx = Parameters<Parameters<typeof withTenant>[1]>[0];
+type AnonTx = Parameters<Parameters<typeof withAnon>[0]>[0];
+
+// One published + one borrador "bundle" per org: a project plus one row of EVERY project-scoped
+// new table, seeded via the OWNER. The absence/anon/events cases assert over these rows as the
+// unprivileged role. ids are tracked so the anon-published case can prove a SPECIFIC publicado
+// row is visible and a SPECIFIC borrador row is absent (robust against accumulated DB state).
+type Bundle = {
+  projectId: string;
+  floorId: string;
+  unitId: string;
+  priceListId: string;
+  unitPriceId: string;
+  paymentPlanId: string;
+  quoteId: string;
+  brokerId: string;
+  leadId: string;
+  progressPostId: string;
+  galleryId: string;
+  mediaId: string;
+  eventId: string;
+};
+
+// Seed a full project bundle for `orgId` in `estado` (owner connection — setup only).
+async function seedBundle(orgId: string, estado: Estado): Promise<Bundle> {
+  const projectId = await makeProject(orgId, estado);
+  const floorId = await makeFloor(orgId, projectId);
+  const unitId = await makeUnit(orgId, projectId, floorId);
+  const priceListId = await makePriceList(orgId, projectId);
+  const unitPriceId = await makeUnitPrice(orgId, projectId, unitId, priceListId);
+  const paymentPlanId = await makePaymentPlan(orgId, projectId);
+  const quoteId = await makeQuote(orgId, projectId, unitId, paymentPlanId);
+  const brokerId = await makeBroker(orgId, projectId);
+  const leadId = await makeLead(orgId, projectId);
+  const progressPostId = await makeProgressPost(orgId, projectId);
+  const galleryId = await makeGallery(orgId, projectId);
+  const mediaId = await makeMedia(orgId, projectId);
+  const eventId = await makeEvent(orgId, projectId);
+  return {
+    projectId,
+    floorId,
+    unitId,
+    priceListId,
+    unitPriceId,
+    paymentPlanId,
+    quoteId,
+    brokerId,
+    leadId,
+    progressPostId,
+    galleryId,
+    mediaId,
+    eventId,
+  };
+}
 
 type Scenario = {
   orgA: string;
   orgB: string;
   projectA: string;
   projectB: string;
+  // Full per-(org, estado) bundles for the domain-wide gate (SCHEMA-07/08).
+  aPub: Bundle;
+  aBor: Bundle;
+  bPub: Bundle;
+  bBor: Bundle;
+  // cac_index is ORG-scoped (no project) — one private row per org.
+  cacA: string;
+  cacB: string;
 };
 
 // One shared scenario for the suite: org A and org B each with a publicado + a borrador
-// project AND a member row (seeded via the owner). Fresh unique ids mean no rollback needed.
+// project bundle (one row of every new table) AND a member row, seeded via the owner. Fresh
+// unique ids mean no rollback needed. projectA/projectB keep the original (a)-(d) cases working.
 let s: Scenario;
 
 beforeAll(async () => {
   const orgA = await makeOrg();
   const orgB = await makeOrg();
-  // org A: a publicado (visible to anon) + a borrador (never visible to anon) project.
-  const projectA = await makeProject(orgA, "publicado");
-  await makeProject(orgA, "borrador");
+  // org A: a publicado (visible to anon) + a borrador (never visible to anon) bundle + a member.
+  const aPub = await seedBundle(orgA, "publicado");
+  const aBor = await seedBundle(orgA, "borrador");
+  const cacA = await makeCacIndex(orgA);
   await makeMember(orgA);
   // org B: likewise.
-  const projectB = await makeProject(orgB, "publicado");
-  await makeProject(orgB, "borrador");
+  const bPub = await seedBundle(orgB, "publicado");
+  const bBor = await seedBundle(orgB, "borrador");
+  const cacB = await makeCacIndex(orgB);
   await makeMember(orgB);
-  s = { orgA, orgB, projectA, projectB };
+  s = {
+    orgA,
+    orgB,
+    projectA: aPub.projectId,
+    projectB: bPub.projectId,
+    aPub,
+    aBor,
+    bPub,
+    bBor,
+    cacA,
+    cacB,
+  };
 });
 
 afterAll(async () => {
@@ -256,5 +367,297 @@ describe("cross-tenant isolation (DATA-04 exit gate)", () => {
     // ABSENCE: anon must never see a borrador row, across ANY org.
     expect(rows.filter((r) => r.estado === "borrador").length).toBe(0);
     expect(rows.every((r) => r.estado === "publicado")).toBe(true);
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────────────────
+// Domain-wide RLS exit gate (SCHEMA-07 / SCHEMA-08). Extends the absence/anon/write coverage to
+// EVERY new tenant table plus the events partition. Same rules as above: every assertion runs as
+// the unprivileged app/anon role through withTenant/withAnon; a failure means a schema/migration
+// fix in 01-01..01-04 — NEVER weaken a check or switch to the owner role. The file-level beforeAll
+// (which seeds the org-A/org-B publicado+borrador bundles) runs before this describe too.
+
+// ABSENCE descriptors — one per new tenant table. `read` selects only organization_id (typed
+// string) so a single generic loop asserts ZERO rows of the other org per table.
+type AbsenceCase = {
+  name: string;
+  read: (tx: AppTx) => Promise<{ organizationId: string }[]>;
+};
+const absenceCases: AbsenceCase[] = [
+  { name: "floors", read: (tx) => tx.select({ organizationId: floors.organizationId }).from(floors) },
+  { name: "units", read: (tx) => tx.select({ organizationId: units.organizationId }).from(units) },
+  { name: "price_lists", read: (tx) => tx.select({ organizationId: priceLists.organizationId }).from(priceLists) },
+  { name: "unit_prices", read: (tx) => tx.select({ organizationId: unitPrices.organizationId }).from(unitPrices) },
+  { name: "payment_plans", read: (tx) => tx.select({ organizationId: paymentPlans.organizationId }).from(paymentPlans) },
+  { name: "cac_index", read: (tx) => tx.select({ organizationId: cacIndex.organizationId }).from(cacIndex) },
+  { name: "quotes", read: (tx) => tx.select({ organizationId: quotes.organizationId }).from(quotes) },
+  { name: "brokers", read: (tx) => tx.select({ organizationId: brokers.organizationId }).from(brokers) },
+  { name: "leads", read: (tx) => tx.select({ organizationId: leads.organizationId }).from(leads) },
+  { name: "progress_posts", read: (tx) => tx.select({ organizationId: progressPosts.organizationId }).from(progressPosts) },
+  { name: "galleries", read: (tx) => tx.select({ organizationId: galleries.organizationId }).from(galleries) },
+  { name: "media", read: (tx) => tx.select({ organizationId: media.organizationId }).from(media) },
+  { name: "events", read: (tx) => tx.select({ organizationId: events.organizationId }).from(events) },
+];
+
+// WRITE descriptors — one per new tenant table. `insertClaimingB` inserts a row CLAIMING org B
+// while scoped to org A (the parent FKs point at org B's REAL rows, so the ONLY possible rejection
+// is the tenant withCheck — 42501, not an FK violation). `updateOrgB` updates an org-B row by id
+// while scoped to org A; the tenant USING clause hides it, so 0 rows are returned.
+type WriteCase = {
+  name: string;
+  insertClaimingB: (tx: AppTx) => Promise<unknown>;
+  updateOrgB: (tx: AppTx) => Promise<{ id: string }[]>;
+};
+const writeCases: WriteCase[] = [
+  {
+    name: "floors",
+    insertClaimingB: (tx) =>
+      tx.insert(floors).values({ organizationId: s.orgB, projectId: s.bPub.projectId, numero: 1 }),
+    updateOrgB: (tx) =>
+      tx.update(floors).set({ nombre: "hijacked" }).where(eq(floors.id, s.bPub.floorId)).returning({ id: floors.id }),
+  },
+  {
+    name: "units",
+    insertClaimingB: (tx) =>
+      tx.insert(units).values({ organizationId: s.orgB, projectId: s.bPub.projectId, floorId: s.bPub.floorId, identificador: "x" }),
+    updateOrgB: (tx) =>
+      tx.update(units).set({ tipologia: "hijacked" }).where(eq(units.id, s.bPub.unitId)).returning({ id: units.id }),
+  },
+  {
+    name: "price_lists",
+    insertClaimingB: (tx) =>
+      tx.insert(priceLists).values({ organizationId: s.orgB, projectId: s.bPub.projectId, nombre: "x", moneda: "USD" }),
+    updateOrgB: (tx) =>
+      tx.update(priceLists).set({ nombre: "hijacked" }).where(eq(priceLists.id, s.bPub.priceListId)).returning({ id: priceLists.id }),
+  },
+  {
+    name: "unit_prices",
+    insertClaimingB: (tx) =>
+      tx.insert(unitPrices).values({ organizationId: s.orgB, projectId: s.bPub.projectId, unitId: s.bPub.unitId, priceListId: s.bPub.priceListId, precio: 1, vigencia: new Date() }),
+    updateOrgB: (tx) =>
+      tx.update(unitPrices).set({ precio: 1 }).where(eq(unitPrices.id, s.bPub.unitPriceId)).returning({ id: unitPrices.id }),
+  },
+  {
+    name: "payment_plans",
+    insertClaimingB: (tx) =>
+      tx.insert(paymentPlans).values({ organizationId: s.orgB, projectId: s.bPub.projectId, nombre: "x", anticipoPct: "10", cuotas: 1, ajuste: "CAC" }),
+    updateOrgB: (tx) =>
+      tx.update(paymentPlans).set({ nombre: "hijacked" }).where(eq(paymentPlans.id, s.bPub.paymentPlanId)).returning({ id: paymentPlans.id }),
+  },
+  {
+    name: "cac_index",
+    insertClaimingB: (tx) =>
+      tx.insert(cacIndex).values({ organizationId: s.orgB, periodo: `X-${Date.now()}-${Math.random()}`, valor: "1" }),
+    updateOrgB: (tx) =>
+      tx.update(cacIndex).set({ valor: "1" }).where(eq(cacIndex.id, s.cacB)).returning({ id: cacIndex.id }),
+  },
+  {
+    name: "quotes",
+    insertClaimingB: (tx) =>
+      tx.insert(quotes).values({ organizationId: s.orgB, projectId: s.bPub.projectId, unitId: s.bPub.unitId, paymentPlanId: s.bPub.paymentPlanId, snapshot: { version: 1 } }),
+    updateOrgB: (tx) =>
+      tx.update(quotes).set({ pdfKey: "hijacked" }).where(eq(quotes.id, s.bPub.quoteId)).returning({ id: quotes.id }),
+  },
+  {
+    name: "brokers",
+    insertClaimingB: (tx) =>
+      tx.insert(brokers).values({ organizationId: s.orgB, projectId: s.bPub.projectId, nombre: "x", slug: `x-${Date.now()}-${Math.random()}` }),
+    updateOrgB: (tx) =>
+      tx.update(brokers).set({ nombre: "hijacked" }).where(eq(brokers.id, s.bPub.brokerId)).returning({ id: brokers.id }),
+  },
+  {
+    name: "leads",
+    insertClaimingB: (tx) =>
+      tx.insert(leads).values({ organizationId: s.orgB, projectId: s.bPub.projectId, nombre: "x", contacto: "x" }),
+    updateOrgB: (tx) =>
+      tx.update(leads).set({ nombre: "hijacked" }).where(eq(leads.id, s.bPub.leadId)).returning({ id: leads.id }),
+  },
+  {
+    name: "progress_posts",
+    insertClaimingB: (tx) =>
+      tx.insert(progressPosts).values({ organizationId: s.orgB, projectId: s.bPub.projectId, fecha: new Date(), titulo: "x" }),
+    updateOrgB: (tx) =>
+      tx.update(progressPosts).set({ titulo: "hijacked" }).where(eq(progressPosts.id, s.bPub.progressPostId)).returning({ id: progressPosts.id }),
+  },
+  {
+    name: "galleries",
+    insertClaimingB: (tx) =>
+      tx.insert(galleries).values({ organizationId: s.orgB, projectId: s.bPub.projectId, seccion: "amenities" }),
+    updateOrgB: (tx) =>
+      tx.update(galleries).set({ seccion: "exteriores" }).where(eq(galleries.id, s.bPub.galleryId)).returning({ id: galleries.id }),
+  },
+  {
+    name: "media",
+    insertClaimingB: (tx) =>
+      tx.insert(media).values({ organizationId: s.orgB, projectId: s.bPub.projectId, originalKey: "x" }),
+    updateOrgB: (tx) =>
+      tx.update(media).set({ originalKey: "hijacked" }).where(eq(media.id, s.bPub.mediaId)).returning({ id: media.id }),
+  },
+  {
+    name: "events",
+    insertClaimingB: (tx) =>
+      tx.insert(events).values({ organizationId: s.orgB, projectId: s.bPub.projectId, tipo: "x" }),
+    updateOrgB: (tx) =>
+      tx.update(events).set({ tipo: "hijacked" }).where(eq(events.id, s.bPub.eventId)).returning({ id: events.id }),
+  },
+];
+
+// no-anon descriptors — tenant-private tables anon has NO grant on. An anon SELECT must raise
+// 42501 (insufficient_privilege — covers BOTH grant-denial here and RLS withCheck elsewhere; the
+// shared rlsViolationInChain keys on code 42501).
+type NoAnonCase = { name: string; read: (tx: AnonTx) => Promise<unknown> };
+const noAnonCases: NoAnonCase[] = [
+  { name: "quotes", read: (tx) => tx.select().from(quotes) },
+  { name: "cac_index", read: (tx) => tx.select().from(cacIndex) },
+  { name: "leads", read: (tx) => tx.select().from(leads) },
+  { name: "events", read: (tx) => tx.select().from(events) },
+];
+
+describe("domain-wide RLS exit gate (SCHEMA-07/08)", () => {
+  it("(1) read isolation A->B and B->A: zero rows of the other org on every new tenant table", async () => {
+    // A->B: scoped to org A, each table shows ONLY org-A rows and ZERO org-B rows (absence).
+    const rowsA = await withTenant(s.orgA, async (tx) => {
+      const out: Record<string, { organizationId: string }[]> = {};
+      for (const c of absenceCases) out[c.name] = await c.read(tx);
+      return out;
+    });
+    for (const c of absenceCases) {
+      const rows = rowsA[c.name] ?? [];
+      expect(rows.length, `${c.name} A->B has org-A rows`).toBeGreaterThan(0);
+      expect(rows.every((r) => r.organizationId === s.orgA), `${c.name} A->B all org A`).toBe(true);
+      expect(rows.filter((r) => r.organizationId === s.orgB).length, `${c.name} A->B zero org B`).toBe(0);
+    }
+
+    // Mirror B->A: scoped to org B, each table shows ONLY org-B rows and ZERO org-A rows.
+    const rowsB = await withTenant(s.orgB, async (tx) => {
+      const out: Record<string, { organizationId: string }[]> = {};
+      for (const c of absenceCases) out[c.name] = await c.read(tx);
+      return out;
+    });
+    for (const c of absenceCases) {
+      const rows = rowsB[c.name] ?? [];
+      expect(rows.length, `${c.name} B->A has org-B rows`).toBeGreaterThan(0);
+      expect(rows.every((r) => r.organizationId === s.orgB), `${c.name} B->A all org B`).toBe(true);
+      expect(rows.filter((r) => r.organizationId === s.orgA).length, `${c.name} B->A zero org A`).toBe(0);
+    }
+  });
+
+  it("(2) cross-tenant INSERT raises 42501 on every new tenant table (withCheck)", async () => {
+    for (const c of writeCases) {
+      let caught: unknown;
+      await withTenant(s.orgA, (tx) => c.insertClaimingB(tx)).catch((e: unknown) => {
+        caught = e;
+      });
+      expect(caught, `${c.name} insert threw`).toBeDefined();
+      expect(rlsViolationInChain(caught), `${c.name} insert is 42501`).toBe(true);
+    }
+  });
+
+  it("(2) cross-tenant UPDATE of an org-B row affects 0 rows on every new tenant table (using)", async () => {
+    for (const c of writeCases) {
+      const updated = await withTenant(s.orgA, (tx) => c.updateOrgB(tx));
+      expect(updated.length, `${c.name} update 0 rows`).toBe(0);
+    }
+  });
+
+  it("(3) anon sees ONLY publicado-project rows on catalog/content tables, zero borrador", async () => {
+    // Per catalog/content table: a SPECIFIC publicado row is visible, a SPECIFIC borrador row is not.
+    type AnonPublishedCase = {
+      name: string;
+      read: (tx: AnonTx) => Promise<{ id: string }[]>;
+      pubRowId: string;
+      borRowId: string;
+    };
+    const anonPublishedCases: AnonPublishedCase[] = [
+      { name: "floors", read: (tx) => tx.select({ id: floors.id }).from(floors), pubRowId: s.aPub.floorId, borRowId: s.aBor.floorId },
+      { name: "units", read: (tx) => tx.select({ id: units.id }).from(units), pubRowId: s.aPub.unitId, borRowId: s.aBor.unitId },
+      { name: "price_lists", read: (tx) => tx.select({ id: priceLists.id }).from(priceLists), pubRowId: s.aPub.priceListId, borRowId: s.aBor.priceListId },
+      { name: "unit_prices", read: (tx) => tx.select({ id: unitPrices.id }).from(unitPrices), pubRowId: s.aPub.unitPriceId, borRowId: s.aBor.unitPriceId },
+      { name: "payment_plans", read: (tx) => tx.select({ id: paymentPlans.id }).from(paymentPlans), pubRowId: s.aPub.paymentPlanId, borRowId: s.aBor.paymentPlanId },
+      { name: "brokers", read: (tx) => tx.select({ id: brokers.id }).from(brokers), pubRowId: s.aPub.brokerId, borRowId: s.aBor.brokerId },
+      { name: "progress_posts", read: (tx) => tx.select({ id: progressPosts.id }).from(progressPosts), pubRowId: s.aPub.progressPostId, borRowId: s.aBor.progressPostId },
+      { name: "galleries", read: (tx) => tx.select({ id: galleries.id }).from(galleries), pubRowId: s.aPub.galleryId, borRowId: s.aBor.galleryId },
+      { name: "media", read: (tx) => tx.select({ id: media.id }).from(media), pubRowId: s.aPub.mediaId, borRowId: s.aBor.mediaId },
+    ];
+    for (const c of anonPublishedCases) {
+      const ids = new Set(
+        (await withAnon((tx) => c.read(tx))).map((r) => r.id),
+      );
+      expect(ids.has(c.pubRowId), `${c.name} publicado row visible`).toBe(true);
+      expect(ids.has(c.borRowId), `${c.name} borrador row absent`).toBe(false);
+    }
+  });
+
+  it("(4) anon SELECT on tenant-private tables (quotes, cac_index, leads, events) raises 42501", async () => {
+    for (const c of noAnonCases) {
+      let caught: unknown;
+      await withAnon((tx) => c.read(tx)).catch((e: unknown) => {
+        caught = e;
+      });
+      expect(caught, `${c.name} anon select threw`).toBeDefined();
+      expect(rlsViolationInChain(caught), `${c.name} anon select is 42501`).toBe(true);
+    }
+  });
+
+  it("(5) anon INSERT into leads/events: publicado succeeds, borrador rejected (42501)", async () => {
+    // leads — publicado project: the leads_anon_insert withCheck (EXISTS publicado) passes.
+    await expect(
+      withAnon((tx) =>
+        tx.insert(leads).values({ organizationId: s.orgA, projectId: s.aPub.projectId, nombre: "anon", contacto: "x" }),
+      ),
+    ).resolves.not.toThrow();
+    // leads — borrador project: withCheck fails → 42501.
+    let caughtLead: unknown;
+    await withAnon((tx) =>
+      tx.insert(leads).values({ organizationId: s.orgA, projectId: s.aBor.projectId, nombre: "anon", contacto: "x" }),
+    ).catch((e: unknown) => {
+      caughtLead = e;
+    });
+    expect(caughtLead, "leads borrador insert threw").toBeDefined();
+    expect(rlsViolationInChain(caughtLead), "leads borrador insert is 42501").toBe(true);
+
+    // events — publicado project: the events_anon_insert withCheck passes.
+    await expect(
+      withAnon((tx) =>
+        tx.insert(events).values({ organizationId: s.orgA, projectId: s.aPub.projectId, tipo: "view" }),
+      ),
+    ).resolves.not.toThrow();
+    // events — borrador project: withCheck fails → 42501.
+    let caughtEvent: unknown;
+    await withAnon((tx) =>
+      tx.insert(events).values({ organizationId: s.orgA, projectId: s.aBor.projectId, tipo: "view" }),
+    ).catch((e: unknown) => {
+      caughtEvent = e;
+    });
+    expect(caughtEvent, "events borrador insert threw").toBeDefined();
+    expect(rlsViolationInChain(caughtEvent), "events borrador insert is 42501").toBe(true);
+  });
+
+  it("(6) events: far-future ts routes to DEFAULT partition + readable by tenant; org-B event absent from parent", async () => {
+    // An out-of-range ts has no monthly partition → it MUST land in events_default (no error) and
+    // be read back by its tenant through the parent table.
+    const farFuture = new Date("2999-01-15T00:00:00Z");
+    const inserted = await withTenant(s.orgA, (tx) =>
+      tx
+        .insert(events)
+        .values({ organizationId: s.orgA, projectId: s.aPub.projectId, tipo: "default-part", ts: farFuture })
+        .returning({ id: events.id }),
+    );
+    const eventId = inserted[0]?.id;
+    if (!eventId) throw new Error("far-future event insert returned no id");
+
+    const readBack = await withTenant(s.orgA, (tx) =>
+      tx.select({ id: events.id }).from(events).where(eq(events.id, eventId)),
+    );
+    expect(readBack.length, "far-future event readable by tenant").toBe(1);
+
+    // Parent isolation (Pitfall 6): querying the events PARENT as org A yields ZERO org-B rows —
+    // RLS on the partitioned parent propagates to every partition (monthly + default).
+    const parentRows = await withTenant(s.orgA, (tx) =>
+      tx.select({ organizationId: events.organizationId }).from(events),
+    );
+    expect(parentRows.length, "events parent has org-A rows").toBeGreaterThan(0);
+    expect(parentRows.every((r) => r.organizationId === s.orgA), "events parent all org A").toBe(true);
+    expect(parentRows.filter((r) => r.organizationId === s.orgB).length, "events parent zero org B").toBe(0);
   });
 });
