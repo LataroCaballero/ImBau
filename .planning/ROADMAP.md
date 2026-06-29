@@ -27,7 +27,7 @@ Directorios archivados en `milestones/v1.0-phases/`. Full detail: [milestones/v1
 
 **Milestone Goal:** Completar el modelo de datos del producto (modelo-mvp §3.3) con RLS por tenant, montar el pipeline de media (R2 + sharp + blurhash) en el worker, y sembrar el edificio ficticio realista — todo en migraciones Drizzle versionadas y verificado en CI/staging. Numeración GSD reinicia en Phase 1; directorios `01-*`, `02-*`, `03-*`.
 
-- [ ] **Phase 1: Schema completo + RLS** - Modelo de datos §3.3 en migraciones Drizzle con RLS FORCE por tenant, policy anon published-only y suite de aislamiento cross-tenant verde en CI
+- [x] **Phase 1: Schema completo + RLS** - Modelo de datos §3.3 en migraciones Drizzle con RLS FORCE por tenant, policy anon published-only y suite de aislamiento cross-tenant verde en CI (completed 2026-06-29)
 - [ ] **Phase 2: Pipeline de media (R2 + sharp + blurhash)** - Upload a R2 → procesamiento sharp en el worker (variantes AVIF/WebP srcset + blurhash/dims) persistido en `media` y resoluble por web/panel
 - [ ] **Phase 3: Seed del edificio ficticio** - Seed determinista e idempotente de "Brigos Recoleta" (~13 pisos) poblando todas las tablas + media procesada
 
@@ -46,7 +46,7 @@ Directorios archivados en `milestones/v1.0-phases/`. Full detail: [milestones/v1
   4. Un test verifica que, con el rol `anon`, la web pública solo lee filas pertenecientes a proyectos `publicado` en todas las tablas de catálogo/contenido. (SCHEMA-07)
   5. `events` está particionada por mes, y tanto `events` como `leads` aceptan insert anónimo validado por Zod (analytics y captación de leads), con RLS por tenant en ambas. (SCHEMA-04, SCHEMA-06)
 
-**Plans**: 4/6 plans executed
+**Plans**: 6/6 plans complete
 
 Plans:
 **Wave 1**
@@ -64,8 +64,8 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 01-05-PLAN.md — Worker events-partition maintenance job (skeleton, idempotent) (SCHEMA-06) [wave 4]
-- [ ] 01-06-PLAN.md — Exit gate: cross-tenant isolation suite + anon published-only over all new tables, green in CI (SCHEMA-07, SCHEMA-08) [wave 4]
+- [x] 01-05-PLAN.md — Worker events-partition maintenance job (skeleton, idempotent) (SCHEMA-06) [wave 4]
+- [x] 01-06-PLAN.md — Exit gate: cross-tenant isolation suite + anon published-only over all new tables, green in CI (SCHEMA-07, SCHEMA-08) [wave 4]
 
 ### Phase 2: Pipeline de media (R2 + sharp + blurhash)
 
@@ -114,6 +114,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 1. Schema completo + RLS | v1.1 | 4/6 | In Progress|  |
+| 1. Schema completo + RLS | v1.1 | 6/6 | Complete   | 2026-06-29 |
 | 2. Pipeline de media | v1.1 | 0/3 | Not started | - |
 | 3. Seed del edificio ficticio | v1.1 | 0/2 | Not started | - |
