@@ -1,7 +1,8 @@
 -- 0003_rls_domain.sql — hand-written RLS/partition/grant DDL that drizzle-kit CANNOT emit for the
 -- full §3.3 domain schema (clone of the 0001_rls.sql idempotent style: DO / IF NOT EXISTS guards,
--- `--> statement-breakpoint` separators). It carries everything 0002_domain.sql (generated) leaves
--- out:
+-- statement-breakpoint separators between statements). NOTE: the drizzle-orm migrator splits this
+-- file on the literal breakpoint marker even inside comments, so this header deliberately does NOT
+-- write that marker verbatim. It carries everything 0002_domain.sql (generated) leaves out:
 --   1. GRANT USAGE on the 5 new domain enums (so app/anon can use the enum types).
 --   2. Scoped table GRANTs: app gets full DML on every new tenant table; anon gets SELECT-only on
 --      the catalog/content tables (D-06/Pitfall 5), INSERT-only on leads (D-08, NO SELECT), and NO

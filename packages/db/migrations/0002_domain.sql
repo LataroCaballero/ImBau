@@ -152,6 +152,12 @@ CREATE TABLE "media" (
 );
 --> statement-breakpoint
 ALTER TABLE "media" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+-- ORDERING FIX (hand-reordered, like 0000_init.sql's hand-prepended role block): drizzle-kit emits
+-- this parent UNIQUE on the pre-existing `projects` table AFTER the child composite FKs that depend
+-- on it, so a fresh apply failed ("no unique constraint matching given keys for referenced table
+-- projects"). Moved here, before the first composite FK. Editing the .sql does NOT change the
+-- 0002 snapshot, so `db:generate` still reports no drift (verified).
+ALTER TABLE "projects" ADD CONSTRAINT "projects_id_organization_id_unique" UNIQUE("id","organization_id");--> statement-breakpoint
 ALTER TABLE "floors" ADD CONSTRAINT "floors_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "floors" ADD CONSTRAINT "floors_project_id_organization_id_projects_id_organization_id_fk" FOREIGN KEY ("project_id","organization_id") REFERENCES "public"."projects"("id","organization_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "units" ADD CONSTRAINT "units_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -182,7 +188,6 @@ ALTER TABLE "galleries" ADD CONSTRAINT "galleries_organization_id_organization_i
 ALTER TABLE "galleries" ADD CONSTRAINT "galleries_project_id_organization_id_projects_id_organization_id_fk" FOREIGN KEY ("project_id","organization_id") REFERENCES "public"."projects"("id","organization_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "media" ADD CONSTRAINT "media_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "media" ADD CONSTRAINT "media_project_id_organization_id_projects_id_organization_id_fk" FOREIGN KEY ("project_id","organization_id") REFERENCES "public"."projects"("id","organization_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "projects" ADD CONSTRAINT "projects_id_organization_id_unique" UNIQUE("id","organization_id");--> statement-breakpoint
 CREATE POLICY "floors_tenant" ON "floors" AS PERMISSIVE FOR ALL TO "app_authenticated" USING ("floors"."organization_id" = current_setting('app.current_organization_id', true)::text) WITH CHECK ("floors"."organization_id" = current_setting('app.current_organization_id', true)::text);--> statement-breakpoint
 CREATE POLICY "floors_anon_published" ON "floors" AS PERMISSIVE FOR SELECT TO "anon" USING (exists (select 1 from "projects" p where p.id = "floors"."project_id" and p.estado = 'publicado'));--> statement-breakpoint
 CREATE POLICY "units_tenant" ON "units" AS PERMISSIVE FOR ALL TO "app_authenticated" USING ("units"."organization_id" = current_setting('app.current_organization_id', true)::text) WITH CHECK ("units"."organization_id" = current_setting('app.current_organization_id', true)::text);--> statement-breakpoint
