@@ -7,7 +7,9 @@ import { env } from "./env";
 import IORedis from "ioredis";
 import { Queue, Worker } from "bullmq";
 import { logger } from "@imbau/observability";
+import { MEDIA_QUEUE, type MediaJobData } from "@imbau/storage";
 import { PARTITIONS_QUEUE, runPartitionMaintenance } from "./partitions";
+import { processMedia } from "./media";
 
 // Deployable BullMQ shell (APP-03 / D-16, RESEARCH Pattern 6). This phase the
 // worker only proves it can reach Redis and stand up a Worker — there is NO real
@@ -55,6 +57,22 @@ export function createPartitionWorker(connection: IORedis): Worker {
   });
 }
 
+// Build the BullMQ Worker that runs the media pipeline (MEDIA-02/03). The processor delegates
+// to processMedia (media.ts), which downloads the original once, renders AVIF/WebP variants +
+// blurhash, uploads them to deterministic R2 keys, and writes everything back in one withTenant
+// UPDATE. concurrency 2 keeps a couple of jobs in flight without unbounded memory (Pitfall 6 —
+// each job processes its variants sequentially). The `failed` handler (Sentry + pino) is wired
+// in 02-03; here the Worker is functional but errors only propagate to BullMQ's default retry
+// (mediaJobOptions: attempts 5 / exponential backoff, set by the producer in 02-01).
+export function createMediaWorker(connection: IORedis): Worker {
+  // Parameterize the Worker with MediaJobData so the processor's `job` is typed Job<MediaJobData>
+  // (matching processMedia) instead of Job<any> — keeps the payload access type-safe.
+  return new Worker<MediaJobData>(MEDIA_QUEUE, (job) => processMedia(job), {
+    connection,
+    concurrency: 2,
+  });
+}
+
 // Boot the shell: open the connection, register the (idle) health queue + the
 // repeatable events-partition maintenance schedule (D-06), stand up both workers, and
 // log a structured JSON line once Redis is reached. Returns the handles so a caller
@@ -66,6 +84,8 @@ export async function boot(): Promise<{
   worker: Worker;
   partitionsQueue: Queue;
   partitionWorker: Worker;
+  mediaQueue: Queue;
+  mediaWorker: Worker;
 }> {
   const connection = createConnection();
   const queue = new Queue(HEALTH_QUEUE, { connection });
@@ -91,10 +111,26 @@ export async function boot(): Promise<{
   );
   const partitionWorker = createPartitionWorker(connection);
 
+  // Media pipeline (MEDIA-02/03): the worker is the CONSUMER of MEDIA_QUEUE. We declare the
+  // Queue here on the shared connection (the producer is @imbau/api, which enqueues with the
+  // jobId/attempts/backoff of mediaJobOptions — 02-01) and stand up the media Worker that runs
+  // processMedia. Unlike the partition cron there is NO upsertJobScheduler — media jobs are
+  // event-driven (one per confirmed upload), not repeatable.
+  const mediaQueue = new Queue(MEDIA_QUEUE, { connection });
+  const mediaWorker = createMediaWorker(connection);
+
   // Preserve the env-first boot log so deploy smoke checks still see it.
   logger.info({ node_env: env.NODE_ENV }, "worker boot ok");
 
-  return { connection, queue, worker, partitionsQueue, partitionWorker };
+  return {
+    connection,
+    queue,
+    worker,
+    partitionsQueue,
+    partitionWorker,
+    mediaQueue,
+    mediaWorker,
+  };
 }
 
 // Auto-boot ONLY when this module is the process entrypoint (i.e. `node dist/index.js`
