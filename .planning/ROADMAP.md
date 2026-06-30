@@ -80,12 +80,19 @@ Plans:
   4. El job de procesamiento es idempotente y con reintentos: un fallo se reporta a Sentry + pino (nunca se silencia) y nunca deja la media en estado inconsistente. (MEDIA-04)
   5. Un helper/API resuelve una `media` a su set completo de variantes (srcset + blurhash + dimensiones), consumible desde web y panel. (MEDIA-05)
 
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
+**Wave 1**
 
 - [ ] 02-01: Upload a R2 (API/presigned) + registro de la fila en `media` + helper resolver de variantes (MEDIA-01, MEDIA-05)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 02-02: Worker sharp — variantes AVIF/WebP srcset en R2 + blurhash/dimensiones persistidos en `media` (MEDIA-02, MEDIA-03)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 02-03: Idempotencia, reintentos y errores observables (Sentry + pino) del job de media (MEDIA-04)
 
 ### Phase 3: Seed del edificio ficticio
