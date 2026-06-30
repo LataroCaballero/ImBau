@@ -1,14 +1,16 @@
 ---
 phase: 02-pipeline-de-media-r2-sharp-blurhash
 verified: 2026-06-30T16:55:00Z
-status: human_needed
+status: passed
 score: 5/5 must-haves verified
 behavior_unverified: 0
 overrides_applied: 0
 human_verification:
+
   - test: "Live Cloudflare R2 end-to-end smoke — upload a real image via createUpload/confirmUpload (or registerAndEnqueue), confirm the original lands under originals/… in R2, the worker writes variants under variants/{mediaId}/{width}.{avif|webp}, the media row shows variants/blurhash/width/height populated, and variants are served publicly via R2_PUBLIC_BASE_URL (resolveMedia round-trip for web/panel)."
     expected: "Original object present in R2 bucket. Variant objects present. media row fully populated. Public CDN URL resolves the image bytes."
     why_human: "Requires provisioned Cloudflare R2 bucket + API token + public domain + CORS. CI uses an in-memory mock S3; no live R2 contact is made in any automated test. This is deferred by explicit user decision (documented in 02-03-SUMMARY.md D6, human_judgment:true)."
+
   - test: "Force a live failure (e.g. temporarily invalid R2 token) in staging and confirm: (a) the error reaches Sentry and the pino log stream, (b) the media row stays variants={} (recoverable), never showing a partial map."
     expected: "Sentry event captured. Structured pino log line present with err/mediaId/queue. Row variants column is {} after the failed job."
     why_human: "Requires live Sentry project wired to staging + a real failed R2 operation. The automated spy test proves the reportMediaFailure code path but cannot confirm real Sentry delivery."
