@@ -9,7 +9,7 @@ import { Queue, Worker } from "bullmq";
 import { logger } from "@imbau/observability";
 import { MEDIA_QUEUE, type MediaJobData } from "@imbau/storage";
 import { PARTITIONS_QUEUE, runPartitionMaintenance } from "./partitions";
-import { processMedia } from "./media";
+import { processMedia, reportMediaFailure } from "./media";
 
 // Deployable BullMQ shell (APP-03 / D-16, RESEARCH Pattern 6). This phase the
 // worker only proves it can reach Redis and stand up a Worker — there is NO real
@@ -61,10 +61,11 @@ export function createPartitionWorker(connection: IORedis): Worker {
 // to processMedia (media.ts), which downloads the original once, renders AVIF/WebP variants +
 // blurhash, uploads them to deterministic R2 keys, and writes everything back in one withTenant
 // UPDATE. concurrency 2 keeps a couple of jobs in flight without unbounded memory (Pitfall 6 —
-// each job processes its variants sequentially). The `failed` handler (Sentry + pino) is wired
-// in 02-03; here the Worker is functional but errors only propagate to BullMQ's default retry
-// (mediaJobOptions: attempts 5 / exponential backoff, set by the producer in 02-01).
-export function createMediaWorker(connection: IORedis): Worker {
+// each job processes its variants sequentially). The `failed` handler (Sentry + pino, via
+// reportMediaFailure) is wired in boot(); on the FINAL retry the failure becomes a durable
+// observable trace. Retries themselves come from the producer (mediaJobOptions: jobId=mediaId
+// dedup + attempts 5 / exponential backoff, set in 02-01) — the worker never reconfigures them.
+export function createMediaWorker(connection: IORedis): Worker<MediaJobData> {
   // Parameterize the Worker with MediaJobData so the processor's `job` is typed Job<MediaJobData>
   // (matching processMedia) instead of Job<any> — keeps the payload access type-safe.
   return new Worker<MediaJobData>(MEDIA_QUEUE, (job) => processMedia(job), {
@@ -85,7 +86,7 @@ export async function boot(): Promise<{
   partitionsQueue: Queue;
   partitionWorker: Worker;
   mediaQueue: Queue;
-  mediaWorker: Worker;
+  mediaWorker: Worker<MediaJobData>;
 }> {
   const connection = createConnection();
   const queue = new Queue(HEALTH_QUEUE, { connection });
@@ -118,6 +119,18 @@ export async function boot(): Promise<{
   // event-driven (one per confirmed upload), not repeatable.
   const mediaQueue = new Queue(MEDIA_QUEUE, { connection });
   const mediaWorker = createMediaWorker(connection);
+
+  // Observable failure handling (MEDIA-04 / T-02-11): when a media job exhausts its retries (or
+  // fails on any attempt) BullMQ emits `failed`. Route it to reportMediaFailure → Sentry +
+  // structured pino, carrying the mediaId (from the typed payload) and attemptsMade. The error is
+  // NEVER swallowed (CLAUDE.md). `job` can be undefined if BullMQ could not load it, so access is
+  // optional-chained.
+  mediaWorker.on("failed", (job, err) => {
+    reportMediaFailure(err, {
+      mediaId: job?.data.mediaId,
+      attempts: job?.attemptsMade,
+    });
+  });
 
   // Preserve the env-first boot log so deploy smoke checks still see it.
   logger.info({ node_env: env.NODE_ENV }, "worker boot ok");
