@@ -4,4 +4,6 @@
 // package: raw .ts re-exports; `export type` for any type-only surface (verbatimModuleSyntax).
 export { withTenant, withAnon } from "./with-tenant";
 export { appDb, anonDb, createOwnerDb } from "./client";
+export { resolveMedia } from "./resolve-media";
+export type { ResolvedMedia } from "./resolve-media";
 export * as schema from "./schema";
