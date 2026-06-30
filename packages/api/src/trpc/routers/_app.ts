@@ -3,18 +3,21 @@
 //   org.list / org.setActive
 //   member.invite
 //   invitation.accept
+//   media.createUpload / media.confirmUpload
 // AppRouter is the type the panel/web clients import for end-to-end type safety (no codegen).
 import { router } from "../init";
 import { projectsRouter } from "./projects";
 import { orgRouter } from "./org";
 import { memberRouter } from "./member";
 import { invitationRouter } from "./invitation";
+import { mediaRouter } from "./media";
 
 export const appRouter = router({
   projects: projectsRouter,
   org: orgRouter,
   member: memberRouter,
   invitation: invitationRouter,
+  media: mediaRouter,
 });
 
 export type AppRouter = typeof appRouter;

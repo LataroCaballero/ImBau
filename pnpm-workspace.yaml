@@ -56,6 +56,7 @@ minimumReleaseAgeExclude:
   - '@aws-sdk/token-providers@3.1076.0'
   - '@aws-sdk/types@3.973.14'
   - '@aws-sdk/xml-builder@3.972.32'
+  - '@aws-sdk/s3-request-presigner@3.1076.0'
 # Resolution fix: @better-auth/core@1.6.18 declares a peer of better-call@1.3.6
 # (which exports kAPIErrorHeaderSymbol). When @better-auth/cli@1.4.21 (1.4.x line,
 # FLAG-1) and the runtime better-auth@1.6.18 share one tree, pnpm linked one
