@@ -98,7 +98,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 02-03: Idempotencia, reintentos y errores observables (Sentry + pino) del job de media (MEDIA-04)
+- [x] 02-03: Idempotencia, reintentos y errores observables (Sentry + pino) del job de media (MEDIA-04)
 
 ### Phase 3: Seed del edificio ficticio
 
