@@ -24,11 +24,11 @@ Modelo de datos completo de modelo-mvp §3.3, con RLS por tenant y migraciones D
 
 Pipeline de media: upload a Cloudflare R2, procesamiento sharp en el worker (BullMQ), variantes responsive y placeholders. Errores observables, nunca silenciados.
 
-- [ ] **MEDIA-01**: upload de imágenes a Cloudflare R2 (vía API/presigned) con registro de la entidad en la tabla media (project, key del original)
-- [ ] **MEDIA-02**: el worker procesa cada imagen con sharp generando variantes AVIF/WebP en múltiples tamaños (srcset) almacenadas en R2 y referenciadas desde media
-- [ ] **MEDIA-03**: blurhash + dimensiones (width/height) calculados y persistidos en media para placeholders LQIP
-- [ ] **MEDIA-04**: el job de procesamiento de media es idempotente, con reintentos y errores observables (Sentry + pino); un fallo no deja media en estado inconsistente
-- [ ] **MEDIA-05**: helper/API que resuelve una media a su set de variantes (srcset + blurhash + dimensiones), consumible por web y panel
+- [x] **MEDIA-01**: upload de imágenes a Cloudflare R2 (vía API/presigned) con registro de la entidad en la tabla media (project, key del original)
+- [x] **MEDIA-02**: el worker procesa cada imagen con sharp generando variantes AVIF/WebP en múltiples tamaños (srcset) almacenadas en R2 y referenciadas desde media
+- [x] **MEDIA-03**: blurhash + dimensiones (width/height) calculados y persistidos en media para placeholders LQIP
+- [x] **MEDIA-04**: el job de procesamiento de media es idempotente, con reintentos y errores observables (Sentry + pino); un fallo no deja media en estado inconsistente
+- [x] **MEDIA-05**: helper/API que resuelve una media a su set de variantes (srcset + blurhash + dimensiones), consumible por web y panel
 
 ### Seed
 
@@ -80,11 +80,11 @@ Qué fases cubren qué requirements. Completado durante la creación del roadmap
 | SCHEMA-06 | Phase 1 | Complete |
 | SCHEMA-07 | Phase 1 | Complete |
 | SCHEMA-08 | Phase 1 | Complete |
-| MEDIA-01 | Phase 2 | Pending |
-| MEDIA-02 | Phase 2 | Pending |
-| MEDIA-03 | Phase 2 | Pending |
-| MEDIA-04 | Phase 2 | Pending |
-| MEDIA-05 | Phase 2 | Pending |
+| MEDIA-01 | Phase 2 | Complete |
+| MEDIA-02 | Phase 2 | Complete |
+| MEDIA-03 | Phase 2 | Complete |
+| MEDIA-04 | Phase 2 | Complete |
+| MEDIA-05 | Phase 2 | Complete |
 | SEED-01 | Phase 3 | Pending |
 | SEED-02 | Phase 3 | Pending |
 | SEED-03 | Phase 3 | Pending |

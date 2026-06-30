@@ -35,13 +35,13 @@ La fundación técnica queda desplegada y operable desde el día uno: cada commi
 - ✓ Observabilidad desde el primer deploy: Sentry (incl. `onRequestError` RSC), pino → Grafana/Loki, Uptime Kuma — v1.0 (OBS-01/02/03).
 - ✓ App surfaces: panel (login + dashboard RLS), web (anon published-only), worker (BullMQ shell), Dockerfiles multi-stage — v1.0 (APP-01/02/03/04).
 - ✓ Secrets cifrados en repo (SOPS/age) con separación por entorno — v1.0 (INFRA-03).
+- ✓ Schema completo de modelo-mvp.md §3.3 (13 tablas nuevas) con RLS FORCE por tenant y migraciones Drizzle versionadas (0002_domain + 0003_rls_domain), events particionada, suite cross-tenant verde en CI — v1.1 Phase 1 (SCHEMA-01..08).
+- ✓ Pipeline de media: upload a R2 + worker sharp (variantes AVIF/WebP srcset + blurhash/dims) persistido en `media`, idempotente con reintentos y errores observables (Sentry + pino), resoluble por web/panel — v1.1 Phase 2 (MEDIA-01..05). 68/68 tests automatizados verde; round-trip live-R2 + observabilidad de fallo confirmados en UAT staging (2026-06-30).
 
 ### Active
 
 Milestone actual — **v1.1 Fase 1 (Schema + Media + Seed)**. Requirements detallados en `.planning/REQUIREMENTS.md`:
 
-- [ ] Schema completo de modelo-mvp.md §3.3 (floors, units, price_lists, unit_prices, payment_plans, cac_index, quotes, brokers, leads, progress_posts, galleries, media, events) con RLS y migraciones Drizzle
-- [ ] Pipeline de media: R2 + sharp + blurhash, variantes AVIF/WebP con srcset, procesadas en el worker
 - [ ] Seed del edificio ficticio ~13 pisos estilo "Brigos Recoleta" con unidades, listas de precios y planes de pago realistas
 
 ### Out of Scope
@@ -86,6 +86,7 @@ Milestone actual — **v1.1 Fase 1 (Schema + Media + Seed)**. Requirements detal
 | RLS: GUC transaction-scoped (`SET LOCAL`) + roles app/anon sin BYPASSRLS, owner pool separado para Better Auth (A1) | Aislamiento impuesto por DB, no por código de app; pooling-safe; el adapter de auth escribe tablas RLS-FORCED vía owner pool | ✓ Good — v1.0 probado por suite de ausencia cross-tenant verde en CI contra Postgres real |
 | Staging detrás de nginx-host + certbot en vez de Traefik (D-01) | VPS de staging comparte caja con prod (`andescode.com.ar`), cuyo nginx ya posee :80/:443; Traefik habría arriesgado la config de prod | ⚠️ Revisit — funciona para staging; reevaluar Traefik en box dedicado para prod / dominios custom por CNAME |
 | pino-loki transport en vez de Promtail (D-03/04) | Cero contenedor extra, fallback-simétrico vía swap de `LOKI_URL` | ✓ Good — logs del worker llegando a Loki en staging |
+| Media pipeline: R2 con `WHEN_REQUIRED` checksum opt-out + mock-S3 in-memory en CI, live-R2 como gate humano (Phase 2 / D6) | R2 rechaza los checksums por defecto del SDK S3; CI no toca infra real (sin secrets en repo), pero el round-trip live se verifica en UAT staging | ✓ Good — 68/68 tests verde con mock; UAT live-R2 + observabilidad de fallo confirmados 2026-06-30 |
 
 ## Evolution
 
@@ -105,4 +106,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-29 — Phase 1 (Schema completo + RLS) completa: modelo de datos §3.3 en migraciones Drizzle versionadas (0002_domain + 0003_rls_domain), 13 tablas nuevas con FORCE ROW LEVEL SECURITY y policy por tenant, anon (sin BYPASSRLS) published-only / insert-only / sin-SELECT en tenant-private, events particionada + job de mantenimiento, suite cross-tenant 14/14 verde. SCHEMA-01..08 validados. Próximo: Phase 2 (pipeline de media R2 + sharp + blurhash). v1.0 Fundación shipped (4 phases / 18 plans / 39 tasks, staging vivo).*
+*Last updated: 2026-06-30 — Phase 2 (Pipeline de media R2 + sharp + blurhash) completa: upload a R2 → worker sharp con variantes AVIF/WebP srcset + blurhash/dims persistidas en `media`, job idempotente con reintentos y errores observables (Sentry + pino), helper `resolveMedia` para web/panel. MEDIA-01..05 validados (68/68 tests automatizados verde; UAT staging live-R2 + observabilidad de fallo confirmados). Próximo: Phase 3 (Seed del edificio ficticio "Brigos Recoleta"). v1.0 Fundación shipped; v1.1 a 2/3 fases (67%).*

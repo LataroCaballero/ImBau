@@ -2,52 +2,52 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Schema + Media + Seed
-current_phase: 2
-current_phase_name: R2 + sharp + blurhash
-status: executing
-stopped_at: Phase 1 context gathered
-last_updated: "2026-06-30T00:44:23.664Z"
-last_activity: 2026-06-29
-last_activity_desc: Phase 01 complete, transitioned to Phase 2
+current_phase: 3
+current_phase_name: Seed del edificio ficticio
+status: ready_to_plan
+stopped_at: Phase 2 complete, ready to plan Phase 3
+last_updated: "2026-06-30T20:12:41.190Z"
+last_activity: 2026-06-30
+last_activity_desc: Phase 2 complete, transitioned to Phase 3
 progress:
   total_phases: 3
-  completed_phases: 1
-  total_plans: 6
-  completed_plans: 6
-  percent: 33
+  completed_phases: 2
+  total_plans: 9
+  completed_plans: 9
+  percent: 67
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-26)
+See: .planning/PROJECT.md (updated 2026-06-30)
 
 **Core value:** La fundación técnica queda desplegada y operable desde el día uno: cada commit a main termina en software corriendo en staging con aislamiento multi-tenant verificable por RLS.
-**Current focus:** Phase 01 — schema-completo-rls
+**Current focus:** Phase 3 — seed-del-edificio-ficticio
 
 ## Current Position
 
-Phase: 2 — Pipeline de media (R2 + sharp + blurhash)
+Phase: 3 — Seed del edificio ficticio
 Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-29 — Phase 01 complete, transitioned to Phase 2
+Status: Ready to plan
+Last activity: 2026-06-30 — Phase 2 complete (UAT 2/2 passed), transitioned to Phase 3
 
-Progress: [░░░░░░░░░░] 0%
+Progress (v1.1 plans ejecutados): [████████████████████] 9/9 plans (100%)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed (proyecto): 18 (v1.0 shipped)
-- v1.1 plans completed: 0 of ~9
+- Total plans completed (proyecto): 27 (v1.0: 18 + v1.1: 9)
+- v1.1 plans completed: 9 of ~11
 
 **By Phase (v1.1):**
 
 | Phase | Plans | Status |
 |-------|-------|--------|
-| 1. Schema completo + RLS | 0/6 | Planned |
-| 2. Pipeline de media | 0/~3 | Not started |
+| 1. Schema completo + RLS | 6/6 | Complete |
+| 2. Pipeline de media | 3/3 | Complete |
 | 3. Seed del edificio ficticio | 0/~2 | Not started |
 
 *Updated after each plan completion*
@@ -70,9 +70,9 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Phase 1]: re-verificar APIs pineadas (Drizzle `pgPolicy`/`pgRole`, particionado de `events` por mes) contra versiones del planning; reconciliar nombres `member` (org plugin) vs tablas nuevas con tenant.
-- [Phase 2]: pipeline de media depende de credenciales/buckets R2 reales para verificación end-to-end en staging (no solo mock en CI).
-- [Control de fase 1]: si el milestone supera ~1 semana, recalibrar (regla del doc maestro; estimación 2-3 días con Fable).
+- [Phase 3]: el seed de contenido (SEED-03) depende de media procesada — galleries con variantes + blurhash. Reusar el path `registerAndEnqueue` del worker (Phase 2) o sembrar filas `media` ya pobladas de forma determinista; definir cuál en el plan de Phase 3.
+- ~~[Phase 2]: pipeline de media depende de credenciales/buckets R2 reales para verificación end-to-end en staging~~ — **RESUELTO 2026-06-30**: UAT confirmó round-trip live-R2 + observabilidad de fallo (Sentry + pino + row recuperable) en staging.
+- ~~[Phase 1]: re-verificar APIs pineadas + reconciliar nombres `member` vs tablas nuevas~~ — resuelto en Phase 1 (suite cross-tenant verde).
 
 ## Deferred Items
 
@@ -86,10 +86,11 @@ Items acknowledged and deferred at the v1.0 milestone close on 2026-06-26 (overr
 
 ## Session Continuity
 
-Last session: 2026-06-26T19:41:17.393Z
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-schema-completo-rls/01-CONTEXT.md
+Last session: 2026-06-30
+Stopped at: Phase 2 complete (UAT passed 2/2), ready to plan Phase 3
+Resume file: None
 
 ## Operator Next Steps
 
-- Revisar el roadmap y planear la primera fase con `/gsd-plan-phase 1`
+- `/gsd-discuss-phase 3` — juntar contexto del seed antes de planear (depende de Phase 1 schema + Phase 2 media procesada)
+- O directo: `/gsd-plan-phase 3`

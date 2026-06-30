@@ -127,5 +127,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 1. Schema completo + RLS | v1.1 | 6/6 | Complete    | 2026-06-29 |
-| 2. Pipeline de media | v1.1 | 3/3 | Complete   | 2026-06-30 |
+| 2. Pipeline de media | v1.1 | 3/3 | Complete    | 2026-06-30 |
 | 3. Seed del edificio ficticio | v1.1 | 0/2 | Not started | - |
