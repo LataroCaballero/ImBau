@@ -80,12 +80,12 @@ Plans:
   4. El job de procesamiento es idempotente y con reintentos: un fallo se reporta a Sentry + pino (nunca se silencia) y nunca deja la media en estado inconsistente. (MEDIA-04)
   5. Un helper/API resuelve una `media` a su set completo de variantes (srcset + blurhash + dimensiones), consumible desde web y panel. (MEDIA-05)
 
-**Plans**: 1/3 plans executed
+**Plans**: 2/3 plans executed
 
 Plans:
 
 - [x] 02-01-PLAN.md
-- [ ] 02-02-PLAN.md
+- [x] 02-02-PLAN.md
 - [ ] 02-03-PLAN.md
 
 **Wave 1**
@@ -127,5 +127,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 1. Schema completo + RLS | v1.1 | 6/6 | Complete    | 2026-06-29 |
-| 2. Pipeline de media | v1.1 | 1/3 | In Progress|  |
+| 2. Pipeline de media | v1.1 | 2/3 | In Progress|  |
 | 3. Seed del edificio ficticio | v1.1 | 0/2 | Not started | - |
