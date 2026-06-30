@@ -11,7 +11,8 @@
 import sharp from "sharp";
 import { encode as blurhashEncode } from "blurhash";
 import type { Job } from "bullmq";
-import { variantKey, type MediaJobData } from "@imbau/storage";
+import * as Sentry from "@sentry/node";
+import { variantKey, MEDIA_QUEUE, type MediaJobData } from "@imbau/storage";
 import { logger } from "@imbau/observability";
 import { pickWidths, QUALITY } from "./media-variants";
 import { getOriginal, putVariant } from "./media-runtime";
@@ -143,5 +144,34 @@ export async function processMedia(job: Job<MediaJobData>): Promise<void> {
   logger.info(
     { mediaId, organizationId, variants: uploads.length, width, height },
     "media processed (variants + blurhash persisted)",
+  );
+}
+
+/**
+ * Observable failure reporting for the media pipeline (MEDIA-04 / T-02-11). A media job that
+ * throws (sharp decode, an R2 Get/Put, or the withTenant write-back) is marked failed by BullMQ;
+ * the worker wires `mediaWorker.on("failed", …)` to delegate here. This routes the error to BOTH
+ * Sentry (captureException with the mediaId/attempts as searchable context) AND the structured
+ * pino logger — the error is NEVER swallowed (CLAUDE.md: errors observable, never silenced).
+ *
+ * It does NOT re-throw or swallow: it only reports. BullMQ owns the retry policy (jobId=mediaId
+ * dedup + attempts/exponential backoff, set by the producer's mediaJobOptions in 02-01); after
+ * the final attempt the job stays failed and this report is the durable trace. Factored as a
+ * pure-of-reported-effects function (no Redis/Worker dependency) so it is unit-testable with
+ * spies — the `failed` handler is just a thin adapter that pulls mediaId/attempts off the Job.
+ *
+ * Only structured fields (mediaId, attempts, queue) are emitted — never a secret or the raw
+ * payload value (V7 / T-02-09).
+ */
+export function reportMediaFailure(
+  err: unknown,
+  ctx: { mediaId?: string; attempts?: number },
+): void {
+  Sentry.captureException(err, {
+    extra: { mediaId: ctx.mediaId, attempts: ctx.attempts },
+  });
+  logger.error(
+    { err, mediaId: ctx.mediaId, queue: MEDIA_QUEUE },
+    "media job failed",
   );
 }
