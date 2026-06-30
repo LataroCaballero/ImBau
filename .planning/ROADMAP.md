@@ -28,7 +28,7 @@ Directorios archivados en `milestones/v1.0-phases/`. Full detail: [milestones/v1
 **Milestone Goal:** Completar el modelo de datos del producto (modelo-mvp §3.3) con RLS por tenant, montar el pipeline de media (R2 + sharp + blurhash) en el worker, y sembrar el edificio ficticio realista — todo en migraciones Drizzle versionadas y verificado en CI/staging. Numeración GSD reinicia en Phase 1; directorios `01-*`, `02-*`, `03-*`.
 
 - [x] **Phase 1: Schema completo + RLS** - Modelo de datos §3.3 en migraciones Drizzle con RLS FORCE por tenant, policy anon published-only y suite de aislamiento cross-tenant verde en CI (completed 2026-06-29)
-- [ ] **Phase 2: Pipeline de media (R2 + sharp + blurhash)** - Upload a R2 → procesamiento sharp en el worker (variantes AVIF/WebP srcset + blurhash/dims) persistido en `media` y resoluble por web/panel
+- [x] **Phase 2: Pipeline de media (R2 + sharp + blurhash)** - Upload a R2 → procesamiento sharp en el worker (variantes AVIF/WebP srcset + blurhash/dims) persistido en `media` y resoluble por web/panel (completed 2026-06-30)
 - [ ] **Phase 3: Seed del edificio ficticio** - Seed determinista e idempotente de "Brigos Recoleta" (~13 pisos) poblando todas las tablas + media procesada
 
 ## Phase Details
@@ -80,13 +80,13 @@ Plans:
   4. El job de procesamiento es idempotente y con reintentos: un fallo se reporta a Sentry + pino (nunca se silencia) y nunca deja la media en estado inconsistente. (MEDIA-04)
   5. Un helper/API resuelve una `media` a su set completo de variantes (srcset + blurhash + dimensiones), consumible desde web y panel. (MEDIA-05)
 
-**Plans**: 2/3 plans executed
+**Plans**: 3/3 plans complete
 
 Plans:
 
 - [x] 02-01-PLAN.md
 - [x] 02-02-PLAN.md
-- [ ] 02-03-PLAN.md
+- [x] 02-03-PLAN.md
 
 **Wave 1**
 
@@ -94,7 +94,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 02-02: Worker sharp — variantes AVIF/WebP srcset en R2 + blurhash/dimensiones persistidos en `media` (MEDIA-02, MEDIA-03)
+- [x] 02-02: Worker sharp — variantes AVIF/WebP srcset en R2 + blurhash/dimensiones persistidos en `media` (MEDIA-02, MEDIA-03)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -127,5 +127,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 1. Schema completo + RLS | v1.1 | 6/6 | Complete    | 2026-06-29 |
-| 2. Pipeline de media | v1.1 | 2/3 | In Progress|  |
+| 2. Pipeline de media | v1.1 | 3/3 | Complete   | 2026-06-30 |
 | 3. Seed del edificio ficticio | v1.1 | 0/2 | Not started | - |
