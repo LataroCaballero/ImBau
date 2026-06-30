@@ -192,3 +192,6 @@ _TDD note: the three tasks were `tdd="true"`; the pure helpers (keys, resolveMed
 ---
 *Phase: 02-pipeline-de-media-r2-sharp-blurhash*
 *Completed: 2026-06-30*
+
+## Self-Check: PASSED
+All 12 created files verified present; all 4 commits (4c5c40e, e47f765, b4b6cb4, ea1bb1a) verified in git log.
