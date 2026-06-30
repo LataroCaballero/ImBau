@@ -26,7 +26,11 @@ export default mergeConfig(
   rootConfig,
   defineConfig({
     test: {
-      include: ["src/**/*.test.ts"],
+      // src/** = pure + mocked suites; tests/** = the MEDIA-04 integration suite (PG16 + mock S3).
+      include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
+      // globalSetup (tests/setup.ts) migrates the shared @imbau/db journal once and runs the
+      // app_authenticated role guard before any test — REQUIRED for the integration suite (A8).
+      globalSetup: ["./tests/setup.ts"],
       env: {
         // R2: dummy non-empty values; media-runtime is always mocked, so these are never used
         // to contact R2 — they only satisfy env.ts's import-time Zod validation.
