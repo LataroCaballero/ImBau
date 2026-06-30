@@ -28,6 +28,25 @@ export const redisEnv = {
   server: { REDIS_URL: z.string().url() },
 } as const;
 
+// Cloudflare R2 (S3-compatible) credentials + bucket + public serving base URL for the
+// media pipeline (MEDIA-01/MEDIA-05, phase 2). NAMES + Zod schemas only — never values
+// (T-4-LOGLEAK): these are secrets read from SOPS/CI env, never logged or hardcoded.
+// R2_ACCOUNT_ID/R2_ACCESS_KEY_ID/R2_SECRET_ACCESS_KEY build the S3Client (makeR2Client);
+// R2_BUCKET is the target bucket for Put/Head; R2_PUBLIC_BASE_URL is the public-serving
+// origin (custom domain or r2.dev) prepended to stored keys by resolveMedia — decision A6
+// (public serving, no signed GET). The api composes the full preset (presign + enqueue);
+// the worker composes it in plan 02-02 for get/put. Each value is justified by a locked
+// decision — not speculative.
+export const r2Env = {
+  server: {
+    R2_ACCOUNT_ID: z.string().min(1), // Cloudflare account id → R2 S3 endpoint host
+    R2_ACCESS_KEY_ID: z.string().min(1), // R2 API token access key
+    R2_SECRET_ACCESS_KEY: z.string().min(1), // R2 API token secret
+    R2_BUCKET: z.string().min(1), // target bucket for PutObject/HeadObject
+    R2_PUBLIC_BASE_URL: z.string().url(), // public serving origin for variant URLs (A6)
+  },
+} as const;
+
 // Better Auth runtime secrets + base URL (D-01) plus the transactional-email vars
 // for invitations (AUTH-03). NAMES + Zod schemas only — never values (T-03-04).
 // RESEND_API_KEY/INVITE_FROM are optional because dev logs the invite link to the
