@@ -4,9 +4,9 @@ milestone: v1.1
 milestone_name: Schema + Media + Seed
 current_phase: 03
 current_phase_name: seed-del-edificio-ficticio
-status: executing
+status: verifying
 stopped_at: Phase 3 context gathered
-last_updated: "2026-07-01T16:57:51.670Z"
+last_updated: "2026-07-01T17:04:25.820Z"
 last_activity: 2026-07-01
 last_activity_desc: Phase 03 execution started
 progress:
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-06-30)
 
 Phase: 03 (seed-del-edificio-ficticio) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-01 — Phase 03 execution started
 
 Progress (v1.1 plans ejecutados): [████████████████████] 9/9 plans (100%)
@@ -53,6 +53,7 @@ Progress (v1.1 plans ejecutados): [███████████████
 *Updated after each plan completion*
 | Phase 03 P01 | 40min | 3 tasks | 12 files |
 | Phase 03 P02 | 35min | 3 tasks | 8 files |
+| Phase 03 P03 | 20min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,7 @@ Recent decisions affecting current work:
 - [Phase ?]: [Seed 03-01]: idempotencia = seedId(name)=uuidv5(name, SEED_NS) + onConflictDoNothing en cada insert; cac_index conflicta por clave natural (org_id, periodo); db:seed corre via tsx; owner pool solo para org root + DDL particiones, resto via withTenant.
 - [Phase ?]: Seed media is cycle-safe: composes @imbau/storage + bullmq/ioredis/@aws-sdk directly with deterministic mediaId + onConflictDoNothing, not @imbau/api registerAndEnqueue (03-02)
 - [Phase ?]: seedContentRows derives media ids via mediaSeedId so galleries/progress stay coherent under skipMedia; live-R2 media resolvability deferred to UAT (03-02)
+- [Phase ?]: SEED-04 proven by an always-on run-twice count-invariance gate (skipMedia) + RLS-correctness (anon reads publicado rows, foreign-tenant GUC reads zero seeded rows); media invariance kept env-gated.
 
 ### Pending Todos
 
@@ -91,7 +93,7 @@ Items acknowledged and deferred at the v1.0 milestone close on 2026-06-26 (overr
 
 ## Session Continuity
 
-Last session: 2026-07-01T16:57:23.516Z
+Last session: 2026-07-01T17:03:52.448Z
 Stopped at: Phase 3 context gathered
 Resume file: .planning/phases/03-seed-del-edificio-ficticio/03-CONTEXT.md
 
