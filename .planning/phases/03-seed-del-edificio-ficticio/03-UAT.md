@@ -1,21 +1,14 @@
 ---
-status: testing
+status: complete
 phase: 03-seed-del-edificio-ficticio
 source: [03-VERIFICATION.md]
 started: 2026-07-01T17:15:15Z
-updated: 2026-07-01T17:15:15Z
+updated: 2026-07-01T19:20:00Z
 ---
 
 ## Current Test
 
-number: 1
-name: Prueba end-to-end del pipeline de media con R2 + worker reales
-expected: |
-  Corriendo el seed completo con credenciales R2 reales y el worker activo, cada fila
-  de la tabla `media` sembrada por `mediaSeedId()` resuelve con `resolveMedia().isReady === true`:
-  arrays srcset AVIF y WebP no vacíos, `blurhash` no vacío, y `width`/`height` > 0. Una segunda
-  corrida completa del seed deja el conteo de filas de `media` sin cambios (idempotencia live-R2).
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -32,15 +25,27 @@ steps: |
   4. Verificar: `pnpm --filter @imbau/db test -- --run seed.media` corre las 2 aserciones del
      bloque `describe.skipIf` (ya NO se saltean) y pasan; o consultar las filas `media` y llamar
      `resolveMedia(row, { publicBaseUrl })` en cada una.
-result: [pending]
+result: pass
+evidence: |
+  Ejecutado 2026-07-01 por Claude con credenciales R2 reales (apps/worker/.env) contra
+  imbau_test + worker local (tsx apps/worker/src/index.ts, Redis :6380):
+  - `vitest run seed.media` → 2/2 passed (88.6s): (1) toda media sembrada resuelve
+    resolveMedia().isReady === true con srcset AVIF/WebP no vacíos, blurhash y dims > 0;
+    (2) segunda corrida completa de runSeed() dejó el conteo de filas media sin cambios.
+  - DB: la org del seed (bb9867e6-8b0d-5509-adf3-54298e3547ba) tiene exactamente 13 filas
+    de media, 13/13 con variants != '{}' (8–12 variantes c/u), blurhash poblado y
+    width/height > 0 (800×600 y 1600×1067).
+  - Worker log: 13 × "media processed (variants + blurhash persisted)".
 
 ## Summary
 
 total: 1
-passed: 0
+passed: 1
 issues: 0
-pending: 1
+pending: 0
 skipped: 0
 blocked: 0
 
 ## Gaps
+
+[none]
