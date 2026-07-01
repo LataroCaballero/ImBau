@@ -112,12 +112,20 @@ Plans:
   3. El seed puebla contenido de ejemplo — progress_posts, galleries con media procesada (variantes + blurhash), brokers y algunos leads/events — suficiente para poblar panel y métricas. (SEED-03)
   4. `pnpm db:seed` es idempotente: re-ejecutarlo no duplica filas en corridas sucesivas, y el comando está documentado en el README/comandos. (SEED-04)
 
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
+**Wave 1**
 
-- [ ] 03-01: Seed del edificio — org + proyecto publicado + floors/units realistas + pricing (price_lists, unit_prices, payment_plans CAC, cac_index histórico) (SEED-01, SEED-02)
-- [ ] 03-02: Seed de contenido (progress_posts, galleries con media procesada, brokers, leads/events) + idempotencia + documentación de `pnpm db:seed` (SEED-03, SEED-04)
+- [ ] 03-01-PLAN.md — Fundación determinista + building + pricing: deps (uuid@11.1.1 pin), `ids.ts` (seedId UUIDv5 + mulberry32), fail-fast prereq guard (D-05), `seed.ts` owner scaffold (org + proyecto publicado + pre-create de particiones mensuales), floors/units con curva de venta pozo, price_lists (Contado/Financiado) + unit_prices (USD enteros) + payment_plans CAC/Refuerzo[] + cac_index 12-24 meses (SEED-01, SEED-02) [wave 1]
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 03-02-PLAN.md — Contenido + media por el pipeline REAL R2+worker: assets de stock libre + LICENSES, content-rows (brokers, 10-20 leads en 4 estados con timeline, progress_posts, galleries, events cruzando ≥2 particiones mensuales), media determinista cycle-safe (compone primitivas `@imbau/storage`, NO `registerAndEnqueue`, NO import de `@imbau/api`; mediaId determinístico + onConflictDoNothing + waiter fail-fast) (SEED-03) [wave 2]
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 03-03-PLAN.md — Gate de idempotencia (row-count invariance corriendo el seed dos veces) + aislamiento RLS (anon published-only + tenant foráneo 0 filas) + documentación de `pnpm db:seed` con prerequisitos (SEED-04) [wave 3]
 
 ## Progress
 
@@ -128,4 +136,4 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|-----------|----------------|--------|-----------|
 | 1. Schema completo + RLS | v1.1 | 6/6 | Complete    | 2026-06-29 |
 | 2. Pipeline de media | v1.1 | 3/3 | Complete    | 2026-06-30 |
-| 3. Seed del edificio ficticio | v1.1 | 0/2 | Not started | - |
+| 3. Seed del edificio ficticio | v1.1 | 0/3 | Not started | - |
