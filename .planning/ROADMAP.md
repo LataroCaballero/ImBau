@@ -29,7 +29,7 @@ Directorios archivados en `milestones/v1.0-phases/`. Full detail: [milestones/v1
 
 - [x] **Phase 1: Schema completo + RLS** - Modelo de datos §3.3 en migraciones Drizzle con RLS FORCE por tenant, policy anon published-only y suite de aislamiento cross-tenant verde en CI (completed 2026-06-29)
 - [x] **Phase 2: Pipeline de media (R2 + sharp + blurhash)** - Upload a R2 → procesamiento sharp en el worker (variantes AVIF/WebP srcset + blurhash/dims) persistido en `media` y resoluble por web/panel (completed 2026-06-30)
-- [ ] **Phase 3: Seed del edificio ficticio** - Seed determinista e idempotente de "Brigos Recoleta" (~13 pisos) poblando todas las tablas + media procesada
+- [x] **Phase 3: Seed del edificio ficticio** - Seed determinista e idempotente de "Brigos Recoleta" (~13 pisos) poblando todas las tablas + media procesada (completed 2026-07-01)
 
 ## Phase Details
 
@@ -125,7 +125,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 03-03-PLAN.md — Gate de idempotencia (row-count invariance corriendo el seed dos veces) + aislamiento RLS (anon published-only + tenant foráneo 0 filas) + documentación de `pnpm db:seed` con prerequisitos (SEED-04) [wave 3]
+- [x] 03-03-PLAN.md — Gate de idempotencia (row-count invariance corriendo el seed dos veces) + aislamiento RLS (anon published-only + tenant foráneo 0 filas) + documentación de `pnpm db:seed` con prerequisitos (SEED-04) [wave 3]
 
 ## Progress
 
@@ -136,4 +136,4 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|-----------|----------------|--------|-----------|
 | 1. Schema completo + RLS | v1.1 | 6/6 | Complete    | 2026-06-29 |
 | 2. Pipeline de media | v1.1 | 3/3 | Complete    | 2026-06-30 |
-| 3. Seed del edificio ficticio | v1.1 | 2/3 | In Progress|  |
+| 3. Seed del edificio ficticio | v1.1 | 3/3 | Complete    | 2026-07-01 |

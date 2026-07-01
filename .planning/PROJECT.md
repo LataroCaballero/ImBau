@@ -37,12 +37,11 @@ La fundación técnica queda desplegada y operable desde el día uno: cada commi
 - ✓ Secrets cifrados en repo (SOPS/age) con separación por entorno — v1.0 (INFRA-03).
 - ✓ Schema completo de modelo-mvp.md §3.3 (13 tablas nuevas) con RLS FORCE por tenant y migraciones Drizzle versionadas (0002_domain + 0003_rls_domain), events particionada, suite cross-tenant verde en CI — v1.1 Phase 1 (SCHEMA-01..08).
 - ✓ Pipeline de media: upload a R2 + worker sharp (variantes AVIF/WebP srcset + blurhash/dims) persistido en `media`, idempotente con reintentos y errores observables (Sentry + pino), resoluble por web/panel — v1.1 Phase 2 (MEDIA-01..05). 68/68 tests automatizados verde; round-trip live-R2 + observabilidad de fallo confirmados en UAT staging (2026-06-30).
+- ✓ Seed determinista e idempotente del edificio ficticio "Brigos Recoleta" (13 pisos, 38 unidades, 2 listas de precios USD, planes CAC con refuerzos, 3 brokers, 14 leads con timeline, galerías/obra, 18 events en ≥2 particiones mensuales) — v1.1 Phase 3 (SEED-01..04). Media por el pipeline real R2+worker con mediaId determinista; gate run-twice de invariancia de filas + RLS-correctness; UAT live-R2 2/2 verde (2026-07-01: 13/13 media con variants+blurhash+dims, segunda corrida sin filas nuevas).
 
 ### Active
 
-Milestone actual — **v1.1 Fase 1 (Schema + Media + Seed)**. Requirements detallados en `.planning/REQUIREMENTS.md`:
-
-- [ ] Seed del edificio ficticio ~13 pisos estilo "Brigos Recoleta" con unidades, listas de precios y planes de pago realistas
+Milestone **v1.1 Schema + Media + Seed** completo (3/3 fases) — sin requirements activos. El próximo milestone (orden ventana-Fable: fase 3 del modelo maestro, el cotizador) se define con `/gsd-new-milestone`.
 
 ### Out of Scope
 
@@ -87,6 +86,7 @@ Milestone actual — **v1.1 Fase 1 (Schema + Media + Seed)**. Requirements detal
 | Staging detrás de nginx-host + certbot en vez de Traefik (D-01) | VPS de staging comparte caja con prod (`andescode.com.ar`), cuyo nginx ya posee :80/:443; Traefik habría arriesgado la config de prod | ⚠️ Revisit — funciona para staging; reevaluar Traefik en box dedicado para prod / dominios custom por CNAME |
 | pino-loki transport en vez de Promtail (D-03/04) | Cero contenedor extra, fallback-simétrico vía swap de `LOKI_URL` | ✓ Good — logs del worker llegando a Loki en staging |
 | Media pipeline: R2 con `WHEN_REQUIRED` checksum opt-out + mock-S3 in-memory en CI, live-R2 como gate humano (Phase 2 / D6) | R2 rechaza los checksums por defecto del SDK S3; CI no toca infra real (sin secrets en repo), pero el round-trip live se verifica en UAT staging | ✓ Good — 68/68 tests verde con mock; UAT live-R2 + observabilidad de fallo confirmados 2026-06-30 |
+| Seed: idempotencia por `seedId(name)=uuidv5` + `onConflictDoNothing`, media por pipeline REAL R2+worker con mediaId determinista (Phase 3 / D-04) | Un solo mecanismo de idempotencia para todas las tablas; el seed re-compone los primitivos de @imbau/storage (sin importar @imbau/api — evita ciclo db↔api) y una re-corrida sobreescribe los mismos objetos R2 en lugar de duplicar | ✓ Good — gate run-twice de invariancia verde; UAT live-R2 2/2 (13/13 media resueltas, segunda corrida sin filas nuevas) |
 
 ## Evolution
 
@@ -106,4 +106,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-30 — Phase 2 (Pipeline de media R2 + sharp + blurhash) completa: upload a R2 → worker sharp con variantes AVIF/WebP srcset + blurhash/dims persistidas en `media`, job idempotente con reintentos y errores observables (Sentry + pino), helper `resolveMedia` para web/panel. MEDIA-01..05 validados (68/68 tests automatizados verde; UAT staging live-R2 + observabilidad de fallo confirmados). Próximo: Phase 3 (Seed del edificio ficticio "Brigos Recoleta"). v1.0 Fundación shipped; v1.1 a 2/3 fases (67%).*
+*Last updated: 2026-07-01 — Phase 3 (Seed del edificio ficticio) completa: seed determinista e idempotente de "Brigos Recoleta" (13 pisos, 38 unidades, precios USD, planes CAC, brokers/leads/galerías/obra/events) con media por el pipeline real R2+worker. SEED-01..04 validados; UAT live-R2 2/2 verde (2026-07-01). **Milestone v1.1 Schema + Media + Seed: 3/3 fases (100%)** — listo para `/gsd-complete-milestone`. Próximo milestone: cotizador (fase 3 del modelo maestro, orden ventana-Fable).*
