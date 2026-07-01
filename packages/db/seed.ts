@@ -22,6 +22,7 @@ import { BUILDING } from "./src/seed/content";
 import { assertSeedPrerequisites } from "./src/seed/prerequisites";
 import { seedBuilding } from "./src/seed/building";
 import { seedPricing } from "./src/seed/pricing";
+import { seedMedia } from "./src/seed/media";
 
 // ── Events partition pre-create (idempotent owner DDL) ──────────────────────────────────────
 // Mirrors apps/worker/src/partitions.ts renderCreatePartitionSql — replicated (not imported)
@@ -116,10 +117,16 @@ export async function runSeed(opts?: RunSeedOptions): Promise<void> {
     const units = await seedBuilding(orgId, projectId);
     await seedPricing(orgId, projectId, units);
 
-    // TODO(03-02): seedContentRows(orgId, projectId, { units }) — brokers → leads → progress_posts
-    //              → galleries → events (partitioned, cross-month).
-    // TODO(03-02): seedMedia(orgId, projectId, opts) — PutObject → media insert → enqueue → poll
-    //              (skipped when opts.skipMedia).
+    // Media through the REAL R2 + worker pipeline (D-04). Skipped for DB-only runs (skipMedia:
+    // tests + CI without R2/worker); the `db:seed` CLI always runs it with the D-05 guard active.
+    // galleries/progress_posts reference the SAME deterministic mediaIds (mediaSeedId) whether or
+    // not this runs, so content stays coherent even when media rows/variants are not produced.
+    if (!opts?.skipMedia) {
+      await seedMedia(orgId, projectId);
+    }
+
+    // TODO(03-02 task 3): seedContentRows(orgId, projectId, { units }) — brokers → leads →
+    //                     galleries → progress_posts → events (partitioned, cross-month).
   } finally {
     await client.end({ timeout: 5 });
   }
