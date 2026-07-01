@@ -23,6 +23,7 @@ import { assertSeedPrerequisites } from "./src/seed/prerequisites";
 import { seedBuilding } from "./src/seed/building";
 import { seedPricing } from "./src/seed/pricing";
 import { seedMedia } from "./src/seed/media";
+import { seedContentRows } from "./src/seed/content-rows";
 
 // ── Events partition pre-create (idempotent owner DDL) ──────────────────────────────────────
 // Mirrors apps/worker/src/partitions.ts renderCreatePartitionSql — replicated (not imported)
@@ -125,8 +126,10 @@ export async function runSeed(opts?: RunSeedOptions): Promise<void> {
       await seedMedia(orgId, projectId);
     }
 
-    // TODO(03-02 task 3): seedContentRows(orgId, projectId, { units }) — brokers → leads →
-    //                     galleries → progress_posts → events (partitioned, cross-month).
+    // Content rows: brokers → leads (+timeline) → galleries → progress_posts → events (across ≥2
+    // monthly partitions). galleries/progress reference the deterministic mediaIds seedMedia
+    // produced (or would produce), so this is correct with media either on or skipped.
+    await seedContentRows(orgId, projectId, { units });
   } finally {
     await client.end({ timeout: 5 });
   }
