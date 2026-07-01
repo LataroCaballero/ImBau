@@ -68,35 +68,41 @@ Exclusiones explícitas — documentadas para prevenir scope creep.
 
 ## Traceability
 
-Qué fases cubren qué requirements. Se completa al crear el roadmap.
+Qué fases cubren qué requirements.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ENGINE-01 | — | Pending |
-| ENGINE-02 | — | Pending |
-| ENGINE-03 | — | Pending |
-| ENGINE-04 | — | Pending |
-| ENGINE-05 | — | Pending |
-| ENGINE-06 | — | Pending |
-| QUOTE-01 | — | Pending |
-| QUOTE-02 | — | Pending |
-| QUOTE-03 | — | Pending |
-| UI-01 | — | Pending |
-| UI-02 | — | Pending |
-| UI-03 | — | Pending |
-| UI-04 | — | Pending |
-| UI-05 | — | Pending |
-| UI-06 | — | Pending |
-| PDF-01 | — | Pending |
-| PDF-02 | — | Pending |
-| PDF-03 | — | Pending |
-| WA-01 | — | Pending |
+| ENGINE-01 | Phase 4 | Pending |
+| ENGINE-02 | Phase 4 | Pending |
+| ENGINE-03 | Phase 4 | Pending |
+| ENGINE-04 | Phase 4 | Pending |
+| ENGINE-05 | Phase 4 | Pending |
+| ENGINE-06 | Phase 4 | Pending |
+| QUOTE-01 | Phase 5 | Pending |
+| QUOTE-02 | Phase 5 | Pending |
+| QUOTE-03 | Phase 5 | Pending |
+| UI-01 | Phase 6 | Pending |
+| UI-02 | Phase 6 | Pending |
+| UI-03 | Phase 6 | Pending |
+| UI-04 | Phase 6 | Pending |
+| UI-05 | Phase 6 | Pending |
+| UI-06 | Phase 6 | Pending |
+| PDF-01 | Phase 7 | Pending |
+| PDF-02 | Phase 7 | Pending |
+| PDF-03 | Phase 7 | Pending |
+| WA-01 | Phase 6 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 19 total
-- Mapped to phases: 0 (roadmap pendiente)
-- Unmapped: 19 ⚠️
+- Mapped to phases: 19 (100%) ✓
+- Unmapped: 0
+
+**Por fase:**
+- Phase 4 — Motor de cotización puro: ENGINE-01..06 (6)
+- Phase 5 — Emisión y persistencia server-side: QUOTE-01, QUOTE-02, QUOTE-03 (3)
+- Phase 6 — UI pública del cotizador + WhatsApp: UI-01..06, WA-01 (7)
+- Phase 7 — PDF asíncrono en el worker: PDF-01, PDF-02, PDF-03 (3)
 
 ---
 *Requirements defined: 2026-07-01*
-*Last updated: 2026-07-01 after scoping (research + 4 decisiones de alcance confirmadas)*
+*Last updated: 2026-07-01 after roadmap creation (v1.2, Phases 4-7, 19/19 requirements mapeados)*

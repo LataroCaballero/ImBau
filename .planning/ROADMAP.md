@@ -6,7 +6,7 @@ SaaS multi-tenant de showroom 3D para preventa en pozo. El plan maestro (`docs/m
 
 - ✅ **v1.0 Fundación (Fase 0)** — Phases 1-4 (shipped 2026-06-26) — [archivo](milestones/v1.0-ROADMAP.md)
 - ✅ **v1.1 Schema + Media + Seed (Fase 1)** — Phases 1-3 (shipped 2026-07-01) — [archivo](milestones/v1.1-ROADMAP.md)
-- 📋 **v1.2 Cotizador (Fase 3 del plan maestro)** — por definir con `/gsd-new-milestone`
+- 🚧 **v1.2 Cotizador (Fase 3 del plan maestro)** — Phases 4-7 (en progreso) — numeración continúa desde v1.1
 
 ## Phases
 
@@ -37,11 +37,77 @@ Full detail: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · Require
 
 </details>
 
-### 📋 v1.2 Cotizador (Planned)
+### 🚧 v1.2 Cotizador (Fase 3 del plan maestro) — En progreso
 
-Próximo milestone según el orden ventana-Fable: fase 3 del plan maestro — motor `packages/quoting` (funciones puras, cobertura 100%, property-based tests) + UI del cotizador + PDF server-side + handoff a WhatsApp. Se define con `/gsd-new-milestone`.
+**Milestone Goal:** El diferencial competitivo #1 funciona de punta a punta: un comprador cotiza una unidad (contado USD / anticipo + cuotas CAC / refuerzos), ve el resultado en pantalla, descarga el PDF y abre WhatsApp con la cotización precargada — sobre un motor de cálculo puro al 100% de cobertura donde un error de cálculo mata el producto. Numeración GSD continúa desde v1.1 (última fase 3); directorios `04-*`, `05-*`, `06-*`, `07-*`.
+
+- [ ] **Phase 4: Motor de cotización puro (`packages/quoting`)** - Motor puro, determinista y sin I/O que emite un `QuoteResult` tipado único (contado + financiado CAC), 100% cobertura + property-based tests — el contrato del que dependen todas las superficies
+- [ ] **Phase 5: Emisión y persistencia server-side (API + RLS + rate limit)** - `publicProcedure` tRPC auditado que resuelve la org del proyecto publicado, computa vía `withTenant` y persiste el snapshot completo, con rate limit nginx — sin exponer `quotes`/`cac_index` por RLS
+- [ ] **Phase 6: UI pública del cotizador + CTA WhatsApp** - Web mobile-first: deep-link + picker piso→unidad, resultado en pantalla (contado vs financiado, primera cuota ARS, refuerzos, totales, leyenda no vinculante) y CTA WhatsApp precargado
+- [ ] **Phase 7: PDF asíncrono en el worker** - PDF server-side generado en el worker (BullMQ) desde el snapshot, almacenado en R2, idempotente por `quoteId` y con acentos correctos — asíncrono, nunca bloquea el resultado en pantalla
+
+## Phase Details
+
+### Phase 4: Motor de cotización puro (`packages/quoting`)
+
+**Goal**: Existe `packages/quoting` — un motor de cotización puro, determinista y sin I/O que emite un `QuoteResult` tipado único (el contrato del que dependen UI, PDF y WhatsApp), verificado al 100% de cobertura con property-based tests. La base peso (CAC como multiplicador) queda encodada en el contrato `QuoteInput` en esta fase; ninguna superficie puede construirse hasta que la forma de salida esté finalizada.
+**Depends on**: Nothing (primera fase del milestone; consume los tipos del schema `quotes`/`payment_plans`/`cac_index`/`unit_prices` de v1.1, sin cambios de schema)
+**Requirements**: ENGINE-01, ENGINE-02, ENGINE-03, ENGINE-04, ENGINE-05, ENGINE-06
+**Success Criteria** (what must be TRUE):
+
+  1. Dado una unidad + lista de precios + plan de pago + índice CAC vigente, el motor calcula la cotización contado (precio USD con descuento) y la financiada (anticipo USD + N cuotas ajustadas por CAC + refuerzos, primera cuota en ARS "al valor del mes" con CAC como multiplicador) como funciones puras sin I/O — nunca proyecta CAC futuro ni inventa FX. (ENGINE-01, ENGINE-02)
+  2. El motor emite una única estructura tipada `QuoteResult` que alimenta UI, PDF y texto de WhatsApp de forma idéntica — una sola forma de salida, sin recompute por superficie. (ENGINE-03)
+  3. `packages/quoting` pasa CI con 100% de cobertura + property-based tests que prueban los invariantes: anticipo + saldo + refuerzos reconcilian con el precio exacto, suma de cuotas = saldo al centavo, CAC monótono ⇒ cuota ARS monótona, y determinismo. (ENGINE-04)
+  4. Todo el dinero fluye en enteros (USD) / decimal (ARS) con una regla de redondeo y asignación de resto documentada y testeada — los totales cierran al centavo, nunca un float. (ENGINE-05)
+  5. El motor exporta `ENGINE_VERSION`, embebible en un snapshot y bumpeable ante cualquier cambio de fórmula. (ENGINE-06)
+
+**Plans**: TBD
+
+### Phase 5: Emisión y persistencia server-side (API + RLS + rate limit)
+
+**Goal**: Un comprador anónimo puede disparar la emisión de una cotización cuyo cómputo y persistencia corren server-side por un `publicProcedure` tRPC auditado que resuelve la org del proyecto `publicado`, lee CAC vía `withTenant` y persiste el snapshot completo — sin agregar policies anon a `quotes`/`cac_index` (quedan tenant-private) y con rate limit en el edge. La sub-decisión A1-vs-A2 (dónde vive el pool `app`) se resuelve como Key Decision documentada en esta fase.
+**Depends on**: Phase 4 (consume el contrato `QuoteResult`; el snapshot embebe `ENGINE_VERSION`)
+**Requirements**: QUOTE-01, QUOTE-02, QUOTE-03
+**Success Criteria** (what must be TRUE):
+
+  1. Una request anónima contra el procedure público de cotización resuelve la org del proyecto `publicado`, lee CAC y computa/persiste la cotización vía `withTenant` — sin ninguna policy anon sobre `quotes`/`cac_index` (siguen tenant-private); un mes CAC faltante falla con un mensaje server claro, no un 500 críptico. (QUOTE-01)
+  2. Cada cotización emitida persiste su snapshot completo (inputs resueltos + outputs + versión del motor) en `quotes.snapshot`, capturando el estado punto-en-el-tiempo que nunca se recomputa en vivo. (QUOTE-02)
+  3. El endpoint anónimo de cotización tiene rate limit en el edge vía nginx `limit_req` (no Traefik — D-01), rechazando ráfagas abusivas sin tocar la config de prod. (QUOTE-03)
+
+**Plans**: TBD
+
+### Phase 6: UI pública del cotizador + CTA WhatsApp
+
+**Goal**: Un comprador llega a una unidad publicada sin el explorador, cotiza en el celular y ve el resultado completo en pantalla (contado vs financiado, primera cuota ARS, refuerzos, totales, leyenda de ajuste CAC + no vinculante), con un CTA que abre WhatsApp con la cotización precargada — todo derivado del mismo `QuoteResult`, con formato es-AR consistente entre server y cliente.
+**Depends on**: Phase 5 (llama al `publicProcedure` de cotización; `apps/web` estrena su cliente tRPC)
+**Requirements**: UI-01, UI-02, UI-03, UI-04, UI-05, UI-06, WA-01
+**Success Criteria** (what must be TRUE):
+
+  1. El comprador llega a cotizar una unidad sin el explorador — vía deep-link compartible por URL param + un picker mínimo piso→unidad sobre unidades publicadas (rol anon). (UI-01)
+  2. En una pantalla mobile-first el comprador ve el resultado completo — precio USD, anticipo (USD + %), cuotas, primera cuota ARS "al valor del mes", refuerzos y totales — con la comparación contado vs financiado lado a lado (dos corridas del mismo motor). (UI-02, UI-03)
+  3. El comprador ajusta anticipo/plazo de forma interactiva solo dentro de los planes preset y bounds autorizados por el developer (nunca términos libres), con la leyenda de ajuste CAC + "cotización no vinculante" visible y todos los montos formateados es-AR consistentes entre server y cliente (`US$` vs `$`). (UI-04, UI-05, UI-06)
+  4. Tocar "Consultar por WhatsApp" abre wa.me con un resumen corto URL-encoded (del mismo `QuoteResult`, no la tabla completa) al número del proyecto, con el slot de routing por broker listo para fase 5. (WA-01)
+
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 7: PDF asíncrono en el worker
+
+**Goal**: El comprador puede descargar el PDF de su cotización, generado server-side en el worker (BullMQ) desde el snapshot persistido y almacenado en R2 — asíncrono, idempotente por `quoteId`, con acentos españoles correctos y la leyenda legal, sin bloquear nunca el resultado en pantalla ni el path demo-crítico (pantalla + WhatsApp).
+**Depends on**: Phase 5 (snapshot persistido + contrato de queue) y Phase 6 (descarga/poll cableada en la UI)
+**Requirements**: PDF-01, PDF-02, PDF-03
+**Success Criteria** (what must be TRUE):
+
+  1. El comprador puede descargar el PDF de su cotización, renderizado server-side en el worker BullMQ desde el snapshot persistido (nunca desde re-lecturas en vivo) y almacenado en R2 con la key en `quotes.pdfKey` — asíncrono, sin bloquear nunca el resultado en pantalla. (PDF-01)
+  2. La generación de PDF es idempotente por `quoteId` (un retry de BullMQ nunca duplica objetos) y renderiza correctamente los acentos españoles en el worker Alpine (fuente embebida, sin Chromium). (PDF-02)
+  3. El PDF lleva la leyenda legal "cotización no vinculante" + la leyenda de ajuste CAC. (PDF-03)
+
+**Plans**: TBD
 
 ## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 4 → 5 → 6 → 7
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -52,3 +118,7 @@ Próximo milestone según el orden ventana-Fable: fase 3 del plan maestro — mo
 | 1. Schema completo + RLS | v1.1 | 6/6 | Complete | 2026-06-29 |
 | 2. Pipeline de media | v1.1 | 3/3 | Complete | 2026-06-30 |
 | 3. Seed del edificio ficticio | v1.1 | 3/3 | Complete | 2026-07-01 |
+| 4. Motor de cotización puro | v1.2 | 0/TBD | Not started | - |
+| 5. Emisión y persistencia server-side | v1.2 | 0/TBD | Not started | - |
+| 6. UI pública del cotizador + WhatsApp | v1.2 | 0/TBD | Not started | - |
+| 7. PDF asíncrono en el worker | v1.2 | 0/TBD | Not started | - |

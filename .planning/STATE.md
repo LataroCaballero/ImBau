@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Cotizador
 status: planning
-last_updated: "2026-07-01T22:58:59.882Z"
+last_updated: "2026-07-01T23:20:00.000Z"
 last_activity: 2026-07-01
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -19,45 +19,47 @@ progress:
 
 See: .planning/PROJECT.md (updated 2026-07-01)
 
-**Core value:** La fundación técnica queda desplegada y operable desde el día uno: cada commit a main termina en software corriendo en staging con aislamiento multi-tenant verificable por RLS.
-**Current focus:** Definir el próximo milestone — v1.2 Cotizador (fase 3 del modelo maestro) vía `/gsd-new-milestone`
+**Core value:** El diferencial competitivo #1 (cotizador financiero argentino) funciona de punta a punta con un motor de cálculo provablemente correcto — un error de cálculo mata el producto.
+**Current focus:** Phase 4 — Motor de cotización puro (`packages/quoting`)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-07-01 — Milestone v1.2 started
+Phase: 4 of 7 (Motor de cotización puro `packages/quoting`) — primera fase del milestone v1.2
+Plan: — (roadmap creado; sin planes aún)
+Status: Ready to plan
+Last activity: 2026-07-01 — ROADMAP v1.2 creado (4 fases, 19/19 requirements mapeados)
+
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
 **Velocity:**
 
 - Total plans completed (proyecto): 30 (v1.0: 18 + v1.1: 12)
-- v1.1 plans completed: 12 of 12
+- v1.2 plans completed: 0 of TBD
 
-**By Phase (v1.1):**
+**By Phase (v1.2):**
 
 | Phase | Plans | Status |
 |-------|-------|--------|
-| 1. Schema completo + RLS | 6/6 | Complete |
-| 2. Pipeline de media | 3/3 | Complete |
-| 3. Seed del edificio ficticio | 3/3 | Complete (2026-07-01) |
+| 4. Motor de cotización puro | 0/TBD | Not started |
+| 5. Emisión y persistencia server-side | 0/TBD | Not started |
+| 6. UI pública del cotizador + WhatsApp | 0/TBD | Not started |
+| 7. PDF asíncrono en el worker | 0/TBD | Not started |
 
 *Updated after each plan completion*
-| Phase 03 P01 | 40min | 3 tasks | 12 files |
-| Phase 03 P02 | 35min | 3 tasks | 8 files |
-| Phase 03 P03 | 20min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table (full log). v1.1 cerrado — las decisiones estructurales que arrastra el próximo milestone:
+Decisions are logged in PROJECT.md Key Decisions table (full log). Decisiones vigentes / abiertas que enmarcan v1.2:
 
-- [Carry v1.0 / A1]: RLS = GUC transaction-scoped (`SET LOCAL`) + roles app/anon sin BYPASSRLS; tabla nueva = clon del template RLS (`projects.ts`) verificado por la suite cross-tenant.
+- [Carry v1.0 / A1]: RLS = GUC transaction-scoped (`SET LOCAL`) + roles app/anon sin BYPASSRLS; tabla nueva = clon del template RLS verificado por la suite cross-tenant.
 - [Carry CLAUDE.md]: dinero en enteros (USD precios) / decimal (ARS cuotas), nunca floats; migraciones Drizzle versionadas; errores observables (Sentry + pino).
-- [Carry v1.1]: el schema de quotes/payment_plans/cac_index y el seed "Brigos Recoleta" quedaron listos para que el cotizador (v1.2) los consuma sin cambios de schema previstos.
+- [Carry v1.1]: schema de `quotes`/`payment_plans`/`cac_index` + seed "Brigos Recoleta" listos para que el cotizador los consuma sin cambios de schema previstos.
+- [Settled / Phase 4]: base peso = **CAC como multiplicador** (saldo en unidades CAC al boleto; nunca proyecta CAC futuro ni inventa FX) — encodado en el contrato `QuoteInput` de ENGINE-02.
+- [Open / Phase 5]: sub-decisión **A1-vs-A2** (dónde vive el pool `app` para el `publicProcedure` de cotización) debe resolverse como Key Decision documentada durante la planificación de la fase 5 (A1 recomendado: `apps/web` gana `DATABASE_APP_URL` grep-fenced, ampliando D-03).
 
 ### Pending Todos
 
@@ -65,7 +67,10 @@ None yet.
 
 ### Blockers/Concerns
 
-None — los blockers de v1.1 se resolvieron todos antes del cierre (ver milestones/v1.1-ROADMAP.md y RETROSPECTIVE.md).
+None — los blockers de v1.1 se resolvieron todos antes del cierre. Notas de fase para planning:
+- Phase 5: QUOTE-03 (nginx `limit_req`) toca infra de staging (nginx-host + certbot, no Traefik — D-01).
+- Phase 6: `apps/web` no tiene cliente tRPC hoy (panel sí) — scopearlo explícito en el plan.
+- Phase 7: react-pdf en Alpine requiere fuente embebida (acentos) + idempotencia por `quoteId` (retry BullMQ at-least-once).
 
 ## Deferred Items
 
@@ -79,10 +84,10 @@ Items acknowledged and deferred at the v1.0 milestone close on 2026-06-26 (overr
 
 ## Session Continuity
 
-Last session: 2026-07-01T22:30:00Z
-Stopped at: Milestone v1.1 archived (verified_closeout, tag v1.1) — phases en milestones/v1.1-phases/
+Last session: 2026-07-01T23:20:00Z
+Stopped at: ROADMAP v1.2 creado (Phases 4-7, 19/19 requirements mapeados, 100% coverage) + STATE reposicionado a Phase 4
 Resume file: None
 
 ## Operator Next Steps
 
-- `/gsd-new-milestone` — definir v1.2 Cotizador (fase 3 del modelo maestro, orden ventana-Fable)
+- `/gsd-plan-phase 4` — planificar la fase 4 (Motor de cotización puro `packages/quoting`)
