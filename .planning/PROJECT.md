@@ -4,17 +4,24 @@
 
 SaaS multi-tenant para que desarrolladores inmobiliarios argentinos vendan unidades en pozo: un showroom web mobile-first (explorador del edificio por pisos con hotspots SVG sobre renders estáticos, ficha de unidad, cotizador con financiación argentina USD + cuotas CAC, avance de obra, leads por WhatsApp) más un panel de autogestión (precios, disponibilidad, leads, métricas, brokers). Lo construye Lautaro (Andescode) con desarrollo AI-first; el documento maestro de producto es `docs/modelo-mvp.md`.
 
-**Estado actual:** **v1.0 Fundación (Fase 0)** SHIPPED 2026-06-26 y **v1.1 Schema + Media + Seed (Fase 1)** SHIPPED 2026-07-01 — sobre la fundación (staging vivo, CI/CD, auth, RLS) ahora existe el modelo de datos completo de modelo-mvp §3.3 con RLS por tenant, el pipeline de media R2 + sharp + blurhash, y el seed determinista de "Brigos Recoleta" poblando todo. Cada fase del modelo-mvp.md es su propio milestone GSD, en el orden ventana-Fable: 0 → 1 → 3 → 4 → 2 → 5 → 6. **Próximo:** v1.2 (Fase 3 del plan maestro — el cotizador).
+**Estado actual:** **v1.0 Fundación (Fase 0)** SHIPPED 2026-06-26 y **v1.1 Schema + Media + Seed (Fase 1)** SHIPPED 2026-07-01 — sobre la fundación (staging vivo, CI/CD, auth, RLS) ahora existe el modelo de datos completo de modelo-mvp §3.3 con RLS por tenant, el pipeline de media R2 + sharp + blurhash, y el seed determinista de "Brigos Recoleta" poblando todo. Cada fase del modelo-mvp.md es su propio milestone GSD, en el orden ventana-Fable: 0 → 1 → 3 → 4 → 2 → 5 → 6. **En curso:** v1.2 Cotizador (Fase 3 del plan maestro).
 
 ## Core Value
 
 La fundación técnica queda desplegada y operable desde el día uno: cada commit a main termina en software corriendo en staging (`staging.tours.andescode.com.ar`) con aislamiento multi-tenant verificable por RLS — no "funciona en mi máquina".
 
-## Next Milestone: v1.2 Cotizador (Fase 3 del plan maestro)
+## Current Milestone: v1.2 Cotizador (Fase 3 del plan maestro)
 
-**Goal (a definir con `/gsd-new-milestone`):** el motor de cotización `packages/quoting` — funciones puras sin I/O, cobertura 100% exigida, property-based tests — más la UI del cotizador (USD + cuotas CAC), generación de PDF server-side en el worker y handoff a WhatsApp. Consume el schema de quotes/payment_plans/cac_index que quedó listo en v1.1 y los datos del seed "Brigos Recoleta".
+**Goal:** El diferencial competitivo #1 funciona de punta a punta: un comprador cotiza una unidad (contado USD / anticipo + cuotas CAC / refuerzos), ve el resultado en pantalla, descarga el PDF y abre WhatsApp con la cotización precargada — con un motor de cálculo puro al 100% de cobertura donde un error de cálculo mata el producto.
 
-**Por qué ahora:** orden ventana-Fable (0 → 1 → **3** → 4 → 2 → 5 → 6) — el cotizador es la fase más densa en lógica pura, ideal para front-loadear mientras dura el acceso al modelo. Es además el diferencial competitivo #1 (nadie resuelve bien la financiación argentina).
+**Target features (P4 de modelo-mvp.md, todo rama A):**
+- `packages/quoting` — motor puro y determinista (sin I/O), tipado exhaustivo, property-based tests + unitarios, cobertura 100% exigida en CI. Entrada: unidad + lista de precios + plan de pago + índice CAC vigente. Salida: estructura tipada que alimenta UI, PDF y texto WhatsApp.
+- UI del cotizador en la web pública (mobile-first): contado USD / anticipo + cuotas ajustadas por CAC / refuerzos, resultado en pantalla.
+- PDF server-side generado en el worker (con leyenda legal "cotización no vinculante").
+- CTA WhatsApp (wa.me) con la cotización precargada.
+- Persistencia del snapshot completo de cada cotización emitida (inputs + outputs + versión del motor) — auditabilidad total.
+
+**Por qué ahora:** orden ventana-Fable (0 → 1 → **3** → 4 → 2 → 5 → 6) — el cotizador es la fase más densa en lógica pura, ideal para front-loadear mientras dura el acceso al modelo. Es además el diferencial competitivo #1 (nadie resuelve bien la financiación argentina). Consume el schema de quotes/payment_plans/cac_index y el seed "Brigos Recoleta" de v1.1 sin cambios de schema previstos.
 
 ## Requirements
 
@@ -36,7 +43,13 @@ La fundación técnica queda desplegada y operable desde el día uno: cada commi
 
 ### Active
 
-Milestone **v1.1 Schema + Media + Seed** completo (3/3 fases) — sin requirements activos. El próximo milestone (orden ventana-Fable: fase 3 del modelo maestro, el cotizador) se define con `/gsd-new-milestone`.
+Milestone **v1.2 Cotizador** — requirements en definición (ver `.planning/REQUIREMENTS.md` cuando exista):
+
+- [ ] Motor de cotización `packages/quoting` puro y determinista, cobertura 100% + property-based tests
+- [ ] UI del cotizador en la web pública (contado USD / anticipo + cuotas CAC / refuerzos)
+- [ ] PDF server-side de la cotización en el worker (leyenda "cotización no vinculante")
+- [ ] CTA WhatsApp con la cotización precargada
+- [ ] Snapshot completo persistido de cada cotización emitida (inputs + outputs + versión del motor)
 
 ### Out of Scope
 
@@ -101,4 +114,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-01 after v1.1 milestone — **v1.1 Schema + Media + Seed SHIPPED** (3 fases, 12 plans, 17/17 requirements, verified_closeout). Archivado en `milestones/v1.1-*`. Próximo: `/gsd-new-milestone` para v1.2 Cotizador (fase 3 del modelo maestro, orden ventana-Fable).*
+*Last updated: 2026-07-01 after starting milestone v1.2 Cotizador (fase 3 del modelo maestro, orden ventana-Fable) — goals y target features definidos; requirements + roadmap en curso.*

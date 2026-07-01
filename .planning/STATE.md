@@ -1,20 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: Schema + Media + Seed
-current_phase: 1
-status: Awaiting next milestone
-stopped_at: Milestone v1.1 archived (verified_closeout) — next is /gsd-new-milestone (v1.2 cotizador)
-last_updated: "2026-07-01T22:29:08.080Z"
+milestone: v1.2
+milestone_name: Cotizador
+status: planning
+last_updated: "2026-07-01T22:58:59.882Z"
 last_activity: 2026-07-01
-last_activity_desc: Milestone v1.1 completed and archived
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 12
-  completed_plans: 12
-  percent: 100
-current_phase_name: seed-del-edificio-ficticio
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -28,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-07-01)
 
 ## Current Position
 
-Phase: Milestone v1.1 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-07-01 — Milestone v1.1 completed and archived
+Status: Defining requirements
+Last activity: 2026-07-01 — Milestone v1.2 started
 
 ## Performance Metrics
 
