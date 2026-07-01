@@ -20,6 +20,8 @@ import * as schema from "./src/schema";
 import { seedId, SEED_REFERENCE_DATE } from "./src/seed/ids";
 import { BUILDING } from "./src/seed/content";
 import { assertSeedPrerequisites } from "./src/seed/prerequisites";
+import { seedBuilding } from "./src/seed/building";
+import { seedPricing } from "./src/seed/pricing";
 
 // ── Events partition pre-create (idempotent owner DDL) ──────────────────────────────────────
 // Mirrors apps/worker/src/partitions.ts renderCreatePartitionSql — replicated (not imported)
@@ -109,13 +111,15 @@ export async function runSeed(opts?: RunSeedOptions): Promise<void> {
     );
 
     // ── Domain row generators (invoked in composite-FK order after the project) ───────────────
-    // TODO(03-01 task 3): const unitIds = await seedBuilding(orgId, projectId);
-    //                     await seedPricing(orgId, projectId, unitIds);
-    // TODO(03-02): seedContentRows(orgId, projectId, { unitIds }) — brokers → leads → progress_posts
+    // Building catalog (floors + units) then pricing (price_lists + payment_plans + unit_prices +
+    // cac_index). The seeded units flow into pricing so unit_prices attach to them.
+    const units = await seedBuilding(orgId, projectId);
+    await seedPricing(orgId, projectId, units);
+
+    // TODO(03-02): seedContentRows(orgId, projectId, { units }) — brokers → leads → progress_posts
     //              → galleries → events (partitioned, cross-month).
     // TODO(03-02): seedMedia(orgId, projectId, opts) — PutObject → media insert → enqueue → poll
     //              (skipped when opts.skipMedia).
-    void projectId;
   } finally {
     await client.end({ timeout: 5 });
   }
