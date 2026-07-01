@@ -223,3 +223,421 @@ function buildCacSeries(): CacRow[] {
 }
 
 export const CAC_SERIES: readonly CacRow[] = buildCacSeries();
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// Plan 03-02 content: media catalog, brokers, leads (+timeline), progress posts, events (D-03/D-07)
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+
+// ── Media asset catalog (D-03) ──────────────────────────────────────────────────────────────
+// Each logical media name maps to a committed file under assets/ (see assets/LICENSES.md for
+// provenance/license) and a usage: gallery images carry a `seccion` (amenities/exteriores/
+// interiores); progress images feed progress_posts. seedMedia (media.ts) uploads each file to R2
+// under a deterministic key and returns a logical-name → mediaId map that content-rows.ts wires
+// into galleries.imagenes[] and progress_posts.mediaId.
+export type GallerySeccion = "amenities" | "exteriores" | "interiores";
+
+export interface MediaAssetDef {
+  /** Logical name; also the deterministic-id seed key (`brigos:media:<key>`). */
+  readonly key: string;
+  /** Filename under packages/db/src/seed/assets/. */
+  readonly file: string;
+  /** image/jpeg for all current assets (worker re-encodes to AVIF/WebP regardless). */
+  readonly contentType: string;
+  /** File extension used in the R2 originalKey. */
+  readonly ext: string;
+  readonly usage: "gallery" | "progress";
+  /** Present only for gallery images (which section groups this image). */
+  readonly seccion?: GallerySeccion;
+}
+
+const jpg = (
+  key: string,
+  usage: "gallery" | "progress",
+  seccion?: GallerySeccion,
+): MediaAssetDef => ({
+  key,
+  file: `${key}.jpg`,
+  contentType: "image/jpeg",
+  ext: "jpg",
+  usage,
+  ...(seccion ? { seccion } : {}),
+});
+
+export const MEDIA_ASSETS: readonly MediaAssetDef[] = [
+  jpg("amenities-pileta", "gallery", "amenities"),
+  jpg("amenities-gym", "gallery", "amenities"),
+  jpg("amenities-sum", "gallery", "amenities"),
+  jpg("amenities-rooftop", "gallery", "amenities"),
+  jpg("exteriores-fachada", "gallery", "exteriores"),
+  jpg("exteriores-entrada", "gallery", "exteriores"),
+  jpg("exteriores-balcon", "gallery", "exteriores"),
+  jpg("interiores-living", "gallery", "interiores"),
+  jpg("interiores-cocina", "gallery", "interiores"),
+  jpg("interiores-dormitorio", "gallery", "interiores"),
+  jpg("interiores-bano", "gallery", "interiores"),
+  jpg("obra-avance-01", "progress"),
+  jpg("obra-avance-02", "progress"),
+];
+
+// The three gallery sections, in display order. content-rows.ts builds one gallery per seccion
+// whose imagenes[] holds the seeded mediaIds of the gallery assets in that seccion.
+export const GALLERY_SECCIONES: readonly GallerySeccion[] = [
+  "amenities",
+  "exteriores",
+  "interiores",
+];
+
+// ── Brokers (D-07) ──────────────────────────────────────────────────────────────────────────
+// Realistic AR broker identities with a link slug, WhatsApp and email. Some leads arrive through
+// a broker (lead.brokerKey), most come in directo/WhatsApp.
+export interface BrokerDef {
+  /** Deterministic-id seed key (`brigos:broker:<key>`). */
+  readonly key: string;
+  readonly nombre: string;
+  readonly slug: string;
+  readonly whatsapp: string;
+  readonly email: string;
+}
+
+export const BROKERS: readonly BrokerDef[] = [
+  {
+    key: "martina-gomez",
+    nombre: "Martina Gómez",
+    slug: "martina-gomez",
+    whatsapp: "+5491155551234",
+    email: "martina.gomez@recoletapropiedades.com.ar",
+  },
+  {
+    key: "lucas-fernandez",
+    nombre: "Lucas Fernández",
+    slug: "lucas-fernandez",
+    whatsapp: "+5491144448899",
+    email: "lucas.fernandez@brokerhaus.com.ar",
+  },
+  {
+    key: "valentina-paz",
+    nombre: "Valentina Paz",
+    slug: "valentina-paz",
+    whatsapp: "+5491133337766",
+    email: "valentina.paz@pazpropiedades.com.ar",
+  },
+];
+
+// ── Leads + append-only timeline (D-07) ─────────────────────────────────────────────────────
+// 14 leads spanning all four estados (nuevo/contactado/negociacion/cerrado) with varied origen
+// and a realistic LeadNote[] timeline. Notes carry a `dayOffset` (days BEFORE SEED_REFERENCE_DATE)
+// that content-rows.ts turns into a fixed ISO `ts` — never a wall-clock read (determinism). Leads
+// flagged `attachUnit` get a deterministic seeded unit pinned (interés en una unidad puntual).
+export type LeadEstado = "nuevo" | "contactado" | "negociacion" | "cerrado";
+
+export interface LeadNoteDef {
+  /** Days before SEED_REFERENCE_DATE for this note's ts (append-only, oldest → newest). */
+  readonly dayOffset: number;
+  readonly autor?: string;
+  readonly nota: string;
+  readonly estadoPrev?: LeadEstado;
+  readonly estadoNuevo?: LeadEstado;
+}
+
+export interface LeadDef {
+  /** Deterministic-id seed key (`brigos:lead:<key>`). */
+  readonly key: string;
+  readonly nombre: string;
+  readonly contacto: string;
+  readonly origen: string;
+  readonly estado: LeadEstado;
+  /** When present, the lead came through this broker (BrokerDef.key). */
+  readonly brokerKey?: string;
+  /** When true, content-rows pins a deterministic seeded unit (interés puntual). */
+  readonly attachUnit?: boolean;
+  readonly timeline: readonly LeadNoteDef[];
+}
+
+const EQUIPO = "Equipo Brigos";
+
+export const LEADS: readonly LeadDef[] = [
+  // ── nuevo (recién ingresados, sin contactar) ──
+  {
+    key: "sofia-ramirez",
+    nombre: "Sofía Ramírez",
+    contacto: "sofia.ramirez@gmail.com",
+    origen: "web",
+    estado: "nuevo",
+    timeline: [
+      { dayOffset: 3, nota: "Consulta desde la web por un 2 ambientes al frente. Dejó mail y teléfono." },
+    ],
+  },
+  {
+    key: "diego-alvarez",
+    nombre: "Diego Álvarez",
+    contacto: "+5491166660011",
+    origen: "whatsapp",
+    estado: "nuevo",
+    timeline: [
+      { dayOffset: 2, nota: "Escribió por WhatsApp preguntando si quedan monoambientes disponibles." },
+    ],
+  },
+  {
+    key: "carla-benitez",
+    nombre: "Carla Benítez",
+    contacto: "carla.benitez@outlook.com",
+    origen: "instagram",
+    estado: "nuevo",
+    timeline: [
+      { dayOffset: 5, nota: "Llegó desde la campaña de Instagram. Interesada en amenities y pileta." },
+    ],
+  },
+  {
+    key: "nicolas-suarez",
+    nombre: "Nicolás Suárez",
+    contacto: "+5491177770022",
+    origen: "portal-inmobiliario",
+    estado: "nuevo",
+    timeline: [
+      { dayOffset: 1, nota: "Contacto entrante desde el portal. Pidió lista de precios de unidades altas." },
+    ],
+  },
+  // ── contactado (primer contacto hecho) ──
+  {
+    key: "julieta-moreno",
+    nombre: "Julieta Moreno",
+    contacto: "julieta.moreno@gmail.com",
+    origen: "web",
+    estado: "contactado",
+    attachUnit: true,
+    timeline: [
+      { dayOffset: 20, nota: "Consulta web por un 3 ambientes contrafrente." },
+      {
+        dayOffset: 18,
+        autor: EQUIPO,
+        nota: "La llamé, le pasé el brochure y opciones de financiación en cuotas CAC.",
+        estadoPrev: "nuevo",
+        estadoNuevo: "contactado",
+      },
+    ],
+  },
+  {
+    key: "matias-ferreyra",
+    nombre: "Matías Ferreyra",
+    contacto: "+5491188880033",
+    origen: "broker",
+    estado: "contactado",
+    brokerKey: "martina-gomez",
+    timeline: [
+      { dayOffset: 22, autor: "Martina Gómez", nota: "Cliente propio, busca 2 ambientes para renta." },
+      {
+        dayOffset: 19,
+        autor: "Martina Gómez",
+        nota: "Le compartí el link de la unidad y la simulación de cuotas.",
+        estadoPrev: "nuevo",
+        estadoNuevo: "contactado",
+      },
+    ],
+  },
+  {
+    key: "agustina-castro",
+    nombre: "Agustina Castro",
+    contacto: "agustina.castro@gmail.com",
+    origen: "referido",
+    estado: "contactado",
+    timeline: [
+      { dayOffset: 30, nota: "Referida por un cliente que ya reservó. Busca semipiso." },
+      {
+        dayOffset: 27,
+        autor: EQUIPO,
+        nota: "Coordinamos una visita a la oficina de ventas para la semana que viene.",
+        estadoPrev: "nuevo",
+        estadoNuevo: "contactado",
+      },
+    ],
+  },
+  {
+    key: "federico-rios",
+    nombre: "Federico Ríos",
+    contacto: "+5491199990044",
+    origen: "whatsapp",
+    estado: "contactado",
+    timeline: [
+      { dayOffset: 15, nota: "Consulta por WhatsApp sobre entrega y avance de obra." },
+      {
+        dayOffset: 13,
+        autor: EQUIPO,
+        nota: "Le mandé fotos del avance y el cronograma estimado de entrega.",
+        estadoPrev: "nuevo",
+        estadoNuevo: "contactado",
+      },
+    ],
+  },
+  // ── negociacion (en tratativa por una unidad puntual) ──
+  {
+    key: "lucia-dominguez",
+    nombre: "Lucía Domínguez",
+    contacto: "lucia.dominguez@gmail.com",
+    origen: "broker",
+    estado: "negociacion",
+    brokerKey: "lucas-fernandez",
+    attachUnit: true,
+    timeline: [
+      { dayOffset: 42, autor: "Lucas Fernández", nota: "Interesada firme en un 3 ambientes al frente." },
+      {
+        dayOffset: 38,
+        autor: "Lucas Fernández",
+        nota: "Le pasé la cotización con anticipo del 30% y saldo en 36 cuotas CAC.",
+        estadoPrev: "contactado",
+        estadoNuevo: "negociacion",
+      },
+      { dayOffset: 30, autor: EQUIPO, nota: "Pidió mejorar el anticipo; la escalé a la desarrolladora." },
+    ],
+  },
+  {
+    key: "gonzalo-medina",
+    nombre: "Gonzalo Medina",
+    contacto: "+5491155550055",
+    origen: "web",
+    estado: "negociacion",
+    attachUnit: true,
+    timeline: [
+      { dayOffset: 40, nota: "Consulta web por el penthouse." },
+      {
+        dayOffset: 35,
+        autor: EQUIPO,
+        nota: "Visita presencial hecha. Le gustó la terraza; pidió cotización formal.",
+        estadoPrev: "contactado",
+        estadoNuevo: "negociacion",
+      },
+      { dayOffset: 28, autor: EQUIPO, nota: "Enviamos la cotización del penthouse con plan financiado a 48 cuotas." },
+    ],
+  },
+  {
+    key: "florencia-ibarra",
+    nombre: "Florencia Ibarra",
+    contacto: "florencia.ibarra@outlook.com",
+    origen: "instagram",
+    estado: "negociacion",
+    attachUnit: true,
+    timeline: [
+      { dayOffset: 48, nota: "Llegó por Instagram, busca 2 ambientes de inversión." },
+      {
+        dayOffset: 44,
+        autor: EQUIPO,
+        nota: "Le armé la simulación de renta y la cotización en cuotas.",
+        estadoPrev: "contactado",
+        estadoNuevo: "negociacion",
+      },
+      { dayOffset: 33, autor: EQUIPO, nota: "Está comparando con otra torre de la zona; seguimos en contacto." },
+    ],
+  },
+  // ── cerrado (reserva/boleto concretado) ──
+  {
+    key: "tomas-acosta",
+    nombre: "Tomás Acosta",
+    contacto: "+5491166660066",
+    origen: "broker",
+    estado: "cerrado",
+    brokerKey: "valentina-paz",
+    attachUnit: true,
+    timeline: [
+      { dayOffset: 55, autor: "Valentina Paz", nota: "Cliente decidido por un monoambiente de pozo." },
+      {
+        dayOffset: 50,
+        autor: "Valentina Paz",
+        nota: "Aceptó la cotización; coordinamos la seña.",
+        estadoPrev: "negociacion",
+        estadoNuevo: "cerrado",
+      },
+      { dayOffset: 46, autor: EQUIPO, nota: "Reserva cobrada. Boleto firmado con anticipo del 30%." },
+      { dayOffset: 44, autor: EQUIPO, nota: "Unidad marcada como vendida en el sistema." },
+    ],
+  },
+  {
+    key: "camila-vega",
+    nombre: "Camila Vega",
+    contacto: "camila.vega@gmail.com",
+    origen: "referido",
+    estado: "cerrado",
+    attachUnit: true,
+    timeline: [
+      { dayOffset: 58, nota: "Referida por Tomás Acosta. Busca 2 ambientes para vivienda." },
+      {
+        dayOffset: 52,
+        autor: EQUIPO,
+        nota: "Visita + cotización. Quedó muy interesada en el contrafrente.",
+        estadoPrev: "contactado",
+        estadoNuevo: "negociacion",
+      },
+      {
+        dayOffset: 47,
+        autor: EQUIPO,
+        nota: "Cerró la operación; abonó la reserva.",
+        estadoPrev: "negociacion",
+        estadoNuevo: "cerrado",
+      },
+      { dayOffset: 45, autor: EQUIPO, nota: "Boleto firmado. Plan financiado a 36 cuotas CAC." },
+    ],
+  },
+];
+
+// ── Progress posts / avance de obra (D-01) ──────────────────────────────────────────────────
+// A short obra timeline; each post carries a fecha (from SEED_REFERENCE_DATE minus dayOffset) and
+// references a seeded media by logical name (mediaKey → mediaId, plain uuid ref, no FK).
+export interface ProgressPostDef {
+  /** Deterministic-id seed key (`brigos:progress:<key>`). */
+  readonly key: string;
+  /** Days before SEED_REFERENCE_DATE for the post's fecha. */
+  readonly dayOffset: number;
+  readonly titulo: string;
+  readonly cuerpo: string;
+  /** Logical media name (MediaAssetDef.key) whose mediaId this post shows. */
+  readonly mediaKey: string;
+}
+
+export const PROGRESS_POSTS: readonly ProgressPostDef[] = [
+  {
+    key: "fundaciones",
+    dayOffset: 120,
+    titulo: "Fundaciones terminadas",
+    cuerpo:
+      "Completamos las fundaciones y el submuro. Arrancamos con la estructura de hormigón de la " +
+      "planta baja. La obra avanza según el cronograma previsto.",
+    mediaKey: "obra-avance-01",
+  },
+  {
+    key: "estructura-piso-6",
+    dayOffset: 70,
+    titulo: "Estructura hasta el piso 6",
+    cuerpo:
+      "Ya levantamos la estructura hasta el sexto piso. Esta semana empezamos el encofrado de las " +
+      "losas de los pisos altos. Los tiempos se mantienen firmes.",
+    mediaKey: "obra-avance-02",
+  },
+  {
+    key: "avance-fachada",
+    dayOffset: 25,
+    titulo: "Comienza la fachada",
+    cuerpo:
+      "Iniciamos el cerramiento y los trabajos de fachada. Se empiezan a ver las terminaciones " +
+      "exteriores del edificio. Falta menos para la entrega.",
+    mediaKey: "exteriores-fachada",
+  },
+];
+
+// ── Events / analytics (D-07) ───────────────────────────────────────────────────────────────
+// Event tipos the seed distributes across ≥2 monthly partitions. content-rows.ts assigns each
+// event a FIXED ts (SEED_REFERENCE_DATE minus a per-event dayOffset) so events route to the
+// pre-created events_YYYY_MM partitions — never a wall-clock read.
+export const EVENT_TIPOS = [
+  "view_project",
+  "view_unit",
+  "open_quote",
+  "open_whatsapp",
+] as const;
+export type EventTipo = (typeof EVENT_TIPOS)[number];
+
+// Fixed day-offsets (before SEED_REFERENCE_DATE = 2026-06-01) spanning June/May/April 2026 so the
+// generated events populate ≥2 distinct monthly partitions (D-07). Kept ≤ 61 so none falls before
+// the oldest pre-created partition (events_2026_04) into DEFAULT.
+export const EVENT_DAY_OFFSETS: readonly number[] = [
+  0, 1, 2, 4, 6, 9, // June 2026 (offset 0 = 2026-06-01)
+  12, 15, 18, 22, 26, 29, // May 2026
+  36, 40, 45, 50, 55, 60, // April 2026
+];
