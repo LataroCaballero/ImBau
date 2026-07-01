@@ -1,160 +1,189 @@
 # Project Research Summary
 
-**Project:** ImBau — Showroom 3D para preventa en pozo (milestone v1 = fase 0: fundación)
-**Domain:** Multi-tenant SaaS foundation (monorepo, CI/CD, staging, observabilidad, auth + RLS)
-**Researched:** 2026-06-12
+**Project:** ImBau — v1.2 Cotizador (Fase 3)
+**Domain:** Argentine off-plan (preventa en pozo) quoting engine + public quote UI + async PDF + WhatsApp handoff
+**Researched:** 2026-07-01
 **Confidence:** HIGH
 
 ## Executive Summary
 
-ImBau phase 0 builds the foundation for a multi-tenant real-estate presale SaaS: pnpm/Turborepo monorepo, Docker Compose + Traefik staging, GitHub Actions CI/CD, Better Auth with organization plugin, Postgres 16 + Drizzle with RLS-based tenant isolation, and basic observability (Sentry, pino → Loki, Uptime Kuma). The stack is pre-decided; research confirms exact versions (verified against npm 2026-06-12), verifies the compatibility matrix, and prescribes the critical wiring patterns. The product's credibility pitch — "tenant isolation, provable" and "operable from day one" — sets a foundation bar deliberately higher than a typical throwaway MVP.
+The v1.2 milestone adds the first public-facing surface to an already-shipped multi-tenant foundation. The core product is a pure, deterministic quoting engine (`packages/quoting`) that computes Argentine CAC-adjusted installment financing — exactly the capability that competitors (Urbania3D, Hauzd, Web3D) fail to implement correctly. The engine is not a UI feature: it is the product's legal and commercial differentiator, and a single cent-level drift or a stale index silently misrepresented makes the cotizador worse than the broker's Excel. The recommended approach is to build the engine first, verify it exhaustively (100% coverage + property-based invariants), and let the UI, PDF, and WhatsApp surfaces all derive from the same typed `QuoteResult` — never recomputing independently.
 
-The recommended approach: build in strict dependency order — shared config, then DB + RLS (highest risk, must come before any app code), then auth, then the tRPC API seam, then both Next.js apps + worker stub, then full Compose + Traefik topology, then observability, then CI/CD. The keystone decision is transaction-scoped `SET LOCAL` for the Postgres tenant GUC channeled through a single `withTenant()` helper — this must be established before any application code and verified by cross-tenant absence tests running as the non-owner app role.
+The most important architectural decision for this milestone is the RLS boundary: `cac_index` and `quotes` are **tenant-private** in the committed v1.1 schema — the anon role cannot read the index or write a quote. This is not a bug to fix by adding anon policies; it is a feature. The correct path is a server-side `publicProcedure` (tRPC) that resolves the published project's org, reads CAC via `withTenant`, computes the quote, persists the snapshot, and enqueues the PDF — all server-authoritative. The public buyer triggers the flow; the server owns every privileged operation. This mirrors the existing media pipeline pattern and requires no schema migration.
 
-The two meta-risks are: (1) RLS integration — silently bypassed policies (table owner exemption, wrong DB role, session-scoped GUC), broken auth behind Traefik, and the Let's Encrypt rate-limit trap — each has a clear mechanical fix documented in PITFALLS.md; and (2) scope creep — phase 0 must fit in ~3-4 days; OTel tracing dashboards, BullMQ job logic, media pipeline, PgBouncer, and custom-domain TLS are explicitly deferred.
+The main risks are: (1) float contamination at the Drizzle `numeric`→string boundary (parse directly into `decimal.js`, never through `parseFloat`); (2) installment rounding with no named remainder rule (making cuota totals fail to foot); (3) the PDF worker running in Alpine without embedded Latin-Extended fonts (accents render as tofu); and (4) silently widening the `apps/web` isolation to hold the app pool without documenting it as a deliberate Key Decision. Address these in the engine and worker phases; they are all preventable with explicit decisions made early.
+
+---
 
 ## Key Findings
 
 ### Recommended Stack
 
-Stack is pre-decided (CLAUDE.md / modelo-mvp.md §3.2). Research pinned current versions and flagged two early decisions: **pin TypeScript 5.9.x (NOT 6.x)** until the tool matrix confirms support, and **pin ESLint 9.x flat config** (ESLint 10 + typescript-eslint stability unconfirmed). Keep ALL DDL in one Drizzle migration history — fold Better Auth's generated schema into `packages/db`, never run two migration systems.
+The existing stack (pnpm+Turborepo, Next 16/React 19, tRPC v11+Zod 4, PG16+Drizzle+RLS, BullMQ+Redis, Vitest 4, R2, Sentry/pino) is unchanged. This milestone adds exactly **two runtime deps** and **two dev deps**:
 
-**Core technologies (pinned versions, verified against npm 2026-06-12):**
+**Net-new runtime deps:**
+- `decimal.js@10.6.0` — arbitrary-precision decimal arithmetic for the engine; parse `numeric` strings directly (`new Decimal(row.valor)`), never through `parseFloat`; configure an explicit rounding mode (`ROUND_HALF_UP`) as a single visible decision
+- `@react-pdf/renderer@4.5.1` + `react@19.2.x` peer (worker only) — headless server-side PDF in pure Node; no Chromium; built-in Helvetica covers Latin-1 (a e i o u n); add only to `apps/worker`
 
-| Package | Version | | Package | Version |
-|---------|---------|-|---------|---------|
-| pnpm | 11.6.0 | | Drizzle ORM | 0.45.2 |
-| Turborepo | 2.9.18 | | Drizzle Kit | 0.31.10 |
-| TypeScript | 5.9.x (NOT 6.x) | | postgres (porsager) | 3.4.9 |
-| Node.js | 22 LTS | | Better Auth | 1.6.18 |
-| Next.js | 16.2.x | | BullMQ | 5.78.0 |
-| React | 19.2.x | | ioredis | 5.11.1 |
-| tRPC | 11.17.0 | | pino | 10.3.1 |
-| TanStack Query | 5.101.0 | | @sentry/nextjs | 10.57.0 |
-| Zod | 4.4.x | | Vitest / Playwright | 4.1.8 / 1.60 |
+**Net-new dev deps:**
+- `fast-check@4.8.0` + `@fast-check/vitest@0.4.1` — property-based testing for the engine; modelo-mvp.md section 3.4 explicitly mandates PBT alongside unit tests
 
-**RLS integration pattern (the load-bearing decision):** dedicated NOSUPERUSER/NOBYPASSRLS roles (`app_authenticated` + `anon`), transaction-scoped `set_config('app.current_org_id', orgId, true)` (SET LOCAL, pool-safe) fed from Better Auth's `activeOrganizationId`, and `pgPolicy`/`pgRole` in the Drizzle schema with `entities.roles: true`.
+**Nothing else needs to be installed.** `@vitest/coverage-v8`, `drizzle-zod`, and all other tools are already present. The 100% coverage gate is scoped to `packages/quoting/vitest.config.ts` only — not the root config.
+
+**Critical anti-patterns to avoid:** `dinero.js` v2 (alpha, unmaintained), Chromium/Playwright in Alpine for PDF, global 100% coverage threshold, any JS float in a money position.
 
 ### Expected Features
 
-**Must have (table stakes for a phase-0 foundation):**
-- Provable tenant isolation — RLS isolation tests in CI against a real Postgres (a mocked DB cannot prove policies)
-- Better Auth org plugin full membership lifecycle: orgs, members, invitations with expiry; map default roles to owner/developer/viewer via `createAccessControl`
-- CI gates: lint + type-check + tests (with Postgres service for RLS tests); auto-deploy staging on merge to main, manual prod
-- Observability from first deploy: Sentry (incl. `onRequestError` for RSC), pino structured logs → Loki, Uptime Kuma
+**Must have (table stakes):**
+- Pure deterministic quote engine (`packages/quoting`) — 100% coverage + property tests; this IS the differentiator
+- Contado (USD, discounted) result — half of every AR pozo pitch
+- Financiado result: anticipo + N cuotas CAC-adjusted + refuerzos — the core Argentine financing model
+- First cuota "al valor del mes" (pesos) + adjustment + non-binding legend on screen and PDF
+- Server-side PDF (worker to R2, async) — shareable/archivable artifact
+- WhatsApp CTA with pre-filled summary — the funnel endpoint
+- Standalone unit entry (URL param + minimal picker) — NEW requirement; the explorer (Fase 2) ships later; the cotizador is the first public surface
+- Full quote snapshot persistence (inputs + outputs + engine version) — auditability per section 3.4
 
-**Should have (differentiators of a strong foundation):**
-- Cross-tenant *absence* tests run as the app role (not superuser) — the milestone's acceptance gate
-- Migrations run before container swap in deploy; `pg_policies` verified after migrate
+**Should have (competitive differentiators, defer to v1.x):**
+- Contado-vs-financiado side-by-side comparison
+- Interactive anticipo/plazo within developer-authorized bounds
+- Deep-link from ficha de unidad (blocked on Fase 2)
+- Per-broker WhatsApp routing (blocked on Fase 5)
 
-**Defer (later milestones — phase 0 risk is gold-plating, not under-building):**
-- Backups/PITR + restore rehearsal (pre-first-paying-client), full OTel tracing dashboards, BullMQ job logic (stub `apps/worker` as deployable shell), PgBouncer, media pipeline, custom-domain on-demand TLS, SOPS rotation
+**Anti-features (never build):**
+- Predicting/projecting future CAC values — legal liability
+- Free-form anticipo/plazo outside developer-authorized plans
+- Fabricated USD-to-ARS FX rate; use CAC as the peso basis
+- Full 48-cuota amortization table with projected CAC
+- Persisting a lead on every quote view; persist on commit only
+- Closing-cost (sellos/escribania) calculation
+
+**Load-bearing domain decision (resolve before engine is built):** The spec states cuota amounts in pesos but the schema has no USD-to-ARS FX rate. **Recommendation: Option 1** — express the peso cuota as `cuota_usd_share * CAC_valor_vigente`, treating the balance as a fixed number of CAC "unidades" at boleto time. This uses only the stated inputs, keeps USD as the monetary invariant, and is consistent with how the seed CAC index is modeled.
 
 ### Architecture Approach
 
-The package graph IS the architecture: dependencies point strictly downward — apps → `packages/api` → (`db`, `quoting`, `ui`) → `config`. `packages/api` is the single seam holding tRPC routers + context + RLS middleware + the Better Auth instance, imported identically by both Next.js apps and the worker. No app imports another app. Tenant context flow is explicit and verifiable: Better Auth `session.activeOrganizationId` → tRPC `protectedProcedure` re-validates membership → `withTenant(orgId)` in `packages/db` → `current_setting('app.org_id')` in the RLS policy → rows filtered by the database, not by app `where` clauses. Public `apps/web` uses only the anon path limited to `publicado` projects and carries no auth client.
+The architecture follows the proven `createUpload -> BullMQ -> processMedia -> withTenant UPDATE` pattern from v1.1. Quote emission = a `publicProcedure` tRPC route that resolves the published project's org via `withAnon`, reads CAC + persists snapshot via `withTenant(orgId)`, then enqueues to `QUOTE_PDF_QUEUE`. The worker renders the PDF from the frozen snapshot (never from live DB re-reads), writes to R2, and updates `quotes.pdfKey`. On-screen result + WhatsApp CTA return synchronously from the in-memory `QuoteResult`; PDF is fully async. No schema migration is needed — all columns exist.
 
 **Major components:**
-1. `packages/config` — shared tsconfig/ESLint/Zod env schema (everything depends on it)
-2. `packages/db` — Drizzle schema, roles, RLS policies, `withTenant()` helper, migrations (single DDL source of truth incl. Better Auth tables)
-3. `packages/api` — tRPC routers/context + Better Auth instance + RLS middleware
-4. `apps/panel` / `apps/web` / `apps/worker` — Next.js apps + BullMQ stub, multi-stage Dockerfiles via `turbo prune`
-5. Infra — Docker Compose: Traefik (TLS), web, panel, worker, Postgres, Redis, Loki/Grafana, Uptime Kuma
-6. CI/CD — GitHub Actions: gates → Docker build → registry → VPS deploy (non-root) → migrate-before-swap
+1. `packages/quoting` (NEW) — pure engine: `calcQuote()`, `toWhatsAppText()`, `toPdfModel()`, `ENGINE_VERSION`; zero I/O; 100% coverage gate; Vitest unit + fast-check property tests
+2. `packages/api` quotesRouter (NEW) — `compute` (preview, no persist) + `create` (persist + enqueue); resolves org from published project; `withTenant` for CAC read + quote INSERT; Zod-validated; rate-limited
+3. `apps/web` `[projectSlug]/[unitId]` route (NEW) — RSC reads unit_price/plans/broker via `withAnon`; client configurator calls `quotes.*`; renders `QuoteResult`; WhatsApp CTA; minimal unit picker for standalone entry
+4. `apps/worker` `processQuotePdf` (NEW) — renders `toPdfModel()` output via react-pdf; R2 upload via deterministic key; `withTenant` UPDATE `pdfKey`; `failed` to Sentry/pino
+5. `packages/storage` (MODIFIED) — adds `QUOTE_PDF_QUEUE`, `QuotePdfJobData`, `quotePdfJobOptions`, `quotePdfKey()` following the existing queue.ts/keys.ts pattern
+
+**The tenant-private crux (planner must choose explicitly):**
+- Option A1 (recommended): `apps/web` gains `DATABASE_APP_URL`, used only in `quotesRouter`; deliberately widens D-03 "web is anon-only"; must be documented as a Key Decision and grep-fenced
+- Option A2: Quote emission from a separate server surface already holding the app pool; cleaner isolation, one more moving part
+- Option B (avoid): Add anon policies to `cac_index`/`quotes` — leaks tenant pricing index; violates committed isolation posture
+
+**Rate limiting reality:** Staging uses nginx + certbot (D-01), not Traefik. Implement `limit_req` in nginx and/or a Redis token bucket in-app. Do not plan a Traefik middleware for quote-create.
 
 ### Critical Pitfalls
 
-1. **RLS silently bypassed by table owner/superuser** — app must connect as non-owner role; `FORCE ROW LEVEL SECURITY` on every tenant table; never test as superuser
-2. **Session-scoped tenant context leaks across pooled connections** — always `SET LOCAL` inside a transaction via `withTenant()`; never session-level `SET`
-3. **`drizzle-kit push` silently drops RLS policies** — use `generate` + `migrate` only (also mandated by CLAUDE.md); verify `pg_policies` after migrating
-4. **Better Auth behind Traefik** — two opposite failure modes: wrong derived base URL (cookies/OAuth break) vs blindly trusting `X-Forwarded-*` (forgery); also reconcile org-plugin `member` table with the planned `memberships` table
-5. **Let's Encrypt rate limits** — use LE staging CA during setup; persist `acme.json` with mode 600
-6. **Over-engineering phase 0** — master doc's hard control rule: if phase 0 exceeds one week, recalibrate; defer everything not in the Active requirements list
+1. **Float contamination at the Drizzle numeric boundary** — `anticipoPct` and `cac_index.valor` return as JS strings; the reflex `parseFloat()` reintroduces floats. Parse straight into `new Decimal(row.valor)`. Assert with a property test: `anticipo + sum(cuotas) + sum(refuerzos) === precioTotal` exactly, no tolerance.
+
+2. **Installment rounding with no named remainder rule** — `saldo / cuotas` rarely divides evenly. Naive per-row rounding makes totals fail to foot. Pick an explicit rule (floor base installment, distribute remainder to the first k installments), encode it as a named pure function, assert the footing invariant as a fast-check property.
+
+3. **Wrong-layer RLS integration (anon 42501)** — `cac_index`/`quotes` have no anon policy. The fix is NOT adding anon policies (that leaks tenant pricing data). Compute and persist server-side in a `publicProcedure` scoped to the published project's org via `withTenant`.
+
+4. **Property tests that game coverage or test the implementation against itself** — test invariants (totals foot, monotonicity, determinism, boundary inputs) with adversarial generators. Forbid `c8 ignore` in `packages/quoting`. Engine is the product; false confidence here is the highest-risk outcome.
+
+5. **PDF in Alpine without embedded Latin-Extended fonts** — use `@react-pdf/renderer` (pure Node, no browser); verify accents in a smoke test against the actual Alpine worker image; make the PDF job idempotent by `quoteId` (deterministic R2 key + overwrite) for BullMQ at-least-once retries.
+
+6. **Snapshot drift — re-rendering from live data instead of the frozen snapshot** — UI, PDF, and WhatsApp must all derive from the same `QuoteResult`; the worker renders from `quotes.snapshot`, never re-runs the engine from IDs. A price change after issuance must not alter an existing quote's numbers.
+
+7. **es-AR formatting drift between browser and Node** — `Intl.NumberFormat('es-AR', {style:'currency'})` inserts a narrow no-break space (U+202F) whose exact form varies across ICU versions. Own the symbol (`US$`/`$` as literal labels), use `Intl.NumberFormat('es-AR', {style:'decimal'})` for grouping, test the formatter in both runtimes.
+
+---
 
 ## Implications for Roadmap
 
-Based on research, suggested phase structure (6 phases):
+### Phase 1: Pure Quoting Engine
+**Rationale:** `QuoteResult` is the type contract for every other surface. Must exist and be verified before any surface is built. Densest pure-logic work — ideal for the Fable window without integration complexity.
+**Delivers:** `packages/quoting` — `calcQuote()`, serializers, `ENGINE_VERSION`, typed I/O; Vitest unit suite + fast-check property tests (invariants: footing, monotonicity, determinism, boundary inputs); 100% coverage gate scoped to the package
+**Addresses:** Engine table-stakes; CAC-as-peso-basis design decision (must be encoded in `QuoteInput` contract here); installment remainder rule; money types
+**Avoids:** Float contamination (Pitfall 1), installment rounding (Pitfall 2), weak property tests (Pitfall 4), snapshot drift (Pitfall 7 — engine owns the output shape)
+**Research flag:** Standard patterns — well-specified in docs/modelo-mvp.md section 3.4 and STACK.md. Skip `--research-phase`.
 
-### Phase 1: Monorepo Foundation + Shared Config
-**Rationale:** Prerequisite for all compilation; everything imports `packages/config`
-**Delivers:** Workspace graph, tsconfig, ESLint 9 flat config, Zod env schema, stub package skeletons
-**Avoids:** TypeScript 6 / ESLint 10 toolchain churn (pin TS 5.9, ESLint 9)
+### Phase 2: API Persistence + Queue Contract
+**Rationale:** Once the engine type is stable, the tRPC router and RLS-aware persistence layer can be built. The tenant-private crux (Option A1 vs A2) must be resolved here as a documented Key Decision before any public UI exists.
+**Delivers:** `packages/api` quotesRouter (`compute` + `create`); `packages/storage` queue/key contract; Zod validation; `withTenant` org resolution from published project; snapshot INSERT; queue enqueue; nginx `limit_req` config for quote endpoint
+**Implements:** Architecture Option A1 or A2; BullMQ producer side of the media-pipeline pattern
+**Avoids:** Wrong-layer RLS integration (Pitfall 5); quote spam + PII in snapshot (Pitfall 6); client-supplied prices/CAC (Anti-Pattern 4)
+**Research flag:** No new research — `withTenant`/`withAnon` patterns established in codebase. A1/A2 is a product decision, not a research question.
 
-### Phase 2: Data Layer — Postgres, Drizzle, RLS
-**Rationale:** Highest-risk unit; retrofitting RLS is a rewrite, so it precedes ALL app code
-**Delivers:** Docker Compose (PG16 + Redis), two DB roles, schema, `withTenant()` helper, RLS policies + FORCE RLS, cross-tenant absence tests
-**Avoids:** Pitfalls 1, 2, 3 (owner bypass, GUC leak, push dropping policies)
+### Phase 3: Public Web UI + WhatsApp CTA
+**Rationale:** With engine type and tRPC router in place, the public UI is a consumer. The standalone unit entry (URL param + minimal picker) must be designed here since the explorer does not exist yet.
+**Delivers:** `apps/web/app/[projectSlug]/[unitId]` — RSC page (reads via `withAnon`); client configurator; `QuoteResult` render (contado + financiado, first cuota ARS, refuerzos, totals, non-binding legend); WhatsApp CTA; minimal unit picker
+**Addresses:** Standalone entry requirement; WhatsApp handoff; mobile-first performance budget (<3s on 4G)
+**Avoids:** es-AR formatting drift (Pitfall 9 — shared formatter tested in both runtimes); wa.me phone/encode (Pitfall 10); `$` vs `US$` label confusion
+**Research flag:** Standard Next.js RSC + tRPC client patterns. Skip `--research-phase`.
 
-### Phase 3: Auth + API Layer
-**Rationale:** Depends on DB schema; provides the session → org → tenant-tx seam for all apps
-**Delivers:** Better Auth org plugin (sessions, roles owner/developer/viewer, invitations), tRPC `createContext`, secrets handling
-**Avoids:** Pitfall 4 (dual migration systems, member/memberships drift)
-
-### Phase 4: App Surfaces + Worker Skeleton
-**Rationale:** Thin vertical proof that the seam works end-to-end
-**Delivers:** `apps/panel` (login + one RLS-protected query), `apps/web` (one anon-role page), `apps/worker` stub; multi-stage Dockerfiles with `turbo prune` + Next standalone
-
-### Phase 5: Compose Topology, Traefik TLS, Observability
-**Rationale:** Staging must exist before CI can deploy to it
-**Delivers:** Full Compose with Traefik (LE staging CA first), Sentry with `onRequestError`, pino → Loki, Uptime Kuma
-**Avoids:** Pitfall 5 (LE rate limits), Sentry losing RSC errors
-
-### Phase 6: CI/CD — Gate + Auto-Deploy to Staging
-**Rationale:** Closes the loop: every merge to main ends deployed
-**Delivers:** GitHub Actions: lint+typecheck+tests (Postgres service for RLS tests) → Docker build → registry → VPS deploy (non-root) → migrate-before-swap
+### Phase 4: Async PDF Worker
+**Rationale:** PDF is async and non-blocking — it can slip without blocking the demo-critical on-screen + WhatsApp path. Build last so a PDF issue never delays the milestone's primary value.
+**Delivers:** `apps/worker/src/quote-pdf.ts` + `quote-pdf-render.tsx` — `processQuotePdf` (renders from snapshot, uploads to R2, writes back `pdfKey`); `reportQuotePdfFailure` to Sentry/pino; queue/worker registered in `boot()`; PDF download/poll wired in UI
+**Implements:** Async PDF pipeline mirroring `processMedia`; idempotent by `quoteId` (deterministic R2 key, overwrite on retry)
+**Avoids:** PDF fonts/memory/retry (Pitfall 8 — react-pdf not Chromium, accent smoke test in actual Alpine image); snapshot drift (Pitfall 7 — renders from stored snapshot only)
+**Research flag:** No new research — react-pdf pattern is documented in STACK.md; BullMQ idempotency pattern established from v1.1 media pipeline (D-04).
 
 ### Phase Ordering Rationale
 
-- Strict dependency order from the package graph: config → db → auth/api → apps → infra → pipeline
-- RLS before any app code — retrofitting is a rewrite; the isolation test is the milestone exit gate
-- Observability and CI/CD are part of definition of done ("operable from day one"), not deferred polish
+- **Engine before everything:** `QuoteResult` is the type contract; no surface can be built correctly until the output shape is finalized and the CAC-as-peso-basis decision is encoded.
+- **API before UI:** The tRPC router and the A1/A2 RLS crux must be resolved before the UI calls any procedure. The decision affects `apps/web/env.ts` and must be a documented Key Decision, not a surprise.
+- **UI before PDF:** WhatsApp and on-screen result are the demo-critical path. PDF is a background artifact. Decoupling them means a PDF slip does not block the milestone.
+- **PDF last:** Async, isolated, non-blocking. BullMQ queue already exists; react-pdf is new but self-contained in the worker.
 
 ### Research Flags
 
-Phases likely needing deeper research during planning:
-- **Phase 2 (Drizzle + RLS):** `pgPolicy`/`pgRole` API relatively new; `entities.roles: true` easy to miss; `push` vs `generate`+`migrate` high-stakes
-- **Phase 3 (Better Auth + tRPC):** org plugin API evolving; `member` vs `memberships` reconciliation needs explicit decision; Traefik proxy header trust
-- **Phase 4 (Dockerfiles):** `turbo prune --docker` + `output: 'standalone'` + `outputFileTracingRoot` + `transpilePackages` has documented failure modes
+Phases needing deeper research during planning:
+- **None.** All phases build on well-specified patterns. The engine is fully spec'd in docs/modelo-mvp.md section 3.4; the queue/persistence pattern mirrors v1.1 media pipeline; tRPC/RLS patterns are established in the codebase. The one genuine open question (USD-to-ARS basis) is a product decision, not a research gap.
 
-Phases with standard patterns (skip research-phase):
-- **Phase 1:** standard pnpm + Turborepo official patterns
-- **Phase 5:** standard Compose + Traefik ACME + Sentry official docs
-- **Phase 6:** GitHub Actions + Turborepo cache + Docker Buildx well-established
+Phases with standard patterns (skip `--research-phase`):
+- **All four phases** — research is complete; grounded in the existing codebase and committed schema.
+
+---
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Versions queried against live npm; patterns from official docs |
-| Features | HIGH | Grounded in PROJECT.md + modelo-mvp.md; corroborated by SaaS norms |
-| Architecture | HIGH | Verified Postgres SET LOCAL semantics; standard Turborepo/tRPC layout |
-| Pitfalls | HIGH (RLS/Drizzle/Traefik/Sentry) / MEDIUM (Better Auth proxy specifics) | Better Auth API still evolving |
+| Stack | HIGH | All versions verified against npm registry 2026-07-01; react-pdf peer range confirmed against React 19; fast-check/vitest pairing confirmed |
+| Features | HIGH | Domain mechanics cross-checked against Argentine industry sources; seeded v1.1 data confirms the financing model is correctly represented |
+| Architecture | HIGH | Grounded in direct codebase reads (schema, RLS policies, tRPC context, media pipeline) — not generic patterns |
+| Pitfalls | HIGH (schema-specific) / MEDIUM (Alpine/ICU) | Schema-specific pitfalls verified against committed files. Alpine font and ICU spacing pitfalls are ecosystem-documented but not tested in this specific image version |
 
-**Overall confidence:** HIGH
+**Overall confidence: HIGH**
 
 ### Gaps to Address
 
-- Better Auth org plugin API stability — re-verify exact options/invitation-email wiring (Resend handler) against pinned 1.6.x at Phase 3 implementation time
-- Deploy mechanism to shared VPS: SSH push vs self-hosted runner — pick one during Phase 6 planning and isolate from existing `andescode.com.ar`
-- Whether Better Auth's adapter holds a separate privileged connection from the RLS-scoped app pool — confirm during Phase 3
-- TypeScript 6.x adoption — revisit after phase 0 is stable
+- **USD-to-ARS peso basis (design decision):** Must be resolved before the engine's `QuoteInput` type is finalized. Recommendation is Option 1 (CAC as the peso multiplier). Planner must make this explicit and encode it in the engine contract.
+- **Option A1 vs A2 (app pool location):** Must be a documented Key Decision before Phase 2 implementation. Recommendation is A1 with grep-fence and documented D-03 widening.
+- **CAC missing-month UX:** The engine will fail loudly on a missing CAC month (correct). For v1.2, the error should be a clear server message ("CAC del mes no cargado"), not a cryptic 500. Panel warning is a later milestone.
+- **`apps/web` tRPC client:** `apps/web` currently has no tRPC client (panel does). The quote configurator needs one. Must be scoped explicitly in the Phase 3 plan.
+
+---
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- PostgreSQL docs — Row Security Policies
-- Drizzle ORM docs — RLS (`pgPolicy`, `pgRole`, entities.roles)
-- Better Auth docs — Organization plugin, Drizzle adapter
-- Turborepo docs — Docker guide (`turbo prune`)
-- Traefik docs — ACME certificate resolvers
-- npm registry (versions, queried 2026-06-12)
+- `packages/db/src/schema/{quotes,payment-plans,cac-index,unit-prices,brokers,json-schemas}.ts` — committed v1.1 schema; money column types, RLS policies, snapshot envelope
+- `packages/api/src/trpc/{init,context,middleware}.ts`, `routers/{projects,media,_app}.ts` — existing withTenant/withAnon patterns
+- `packages/storage/src/{queue,keys,index}.ts` + `apps/worker/src/index.ts` — existing BullMQ queue/worker/media patterns
+- `docs/modelo-mvp.md` sections 2.3, 3.3, 3.4, 3.5 — user flow, data model, engine spec, cotizador requirements
+- `.planning/PROJECT.md` — v1.2 milestone goal, Key Decisions (D-01 nginx, D-03 web anon-only, D-04 idempotent keys)
+- `CLAUDE.md` — money rules, quality gates, stack constraints
+- npm registry 2026-07-01 — exact versions for decimal.js, fast-check, @fast-check/vitest, @react-pdf/renderer
 
 ### Secondary (MEDIUM confidence)
-- Bytebase — Postgres RLS Footguns
-- Nile / Permit.io / Rico Fritzsche — multi-tenant RLS guides
-- Mortadha — Supabase-style RLS with Drizzle + tRPC middlewares
-- PlanetScale — "RLS sounds great until it isn't"
+- Modalidades de Pago de Departamentos en Pozo (Estudio Kohon) — anticipo 30%, CAC cuotas mechanics
+- Indice CAC (Spazios) — CAC index semantics and monthly adjustment behavior
+- Claves para comprar en pozo (Infobae, 2025) — refuerzos semestrales, sellos/escribania
+- Node.js issue #15223 — Intl.NumberFormat ICU spacing drift across versions
+- General Alpine/BullMQ retry idempotency patterns
+
+### Tertiary (LOW confidence)
+- URL length limits (~2000 chars for wa.me deep links) — practical ceiling from multiple guides, not officially documented by WhatsApp
 
 ---
-*Research completed: 2026-06-12*
+*Research completed: 2026-07-01*
 *Ready for roadmap: yes*

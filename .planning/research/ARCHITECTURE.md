@@ -1,380 +1,321 @@
 # Architecture Research
 
-**Domain:** Multi-tenant SaaS foundation (phase 0) — pnpm/Turborepo monorepo, Next.js App Router + tRPC, Postgres 16 + Drizzle with RLS, Better Auth, BullMQ/Redis, Docker Compose + Traefik on a VPS
-**Researched:** 2026-06-12
-**Confidence:** HIGH on monorepo/tRPC/Drizzle/Better-Auth wiring and the RLS-in-a-transaction pattern (verified against current docs and known Postgres semantics); MEDIUM on exact Docker Compose service tuning and CI cache details (depends on VPS specifics not yet pinned).
+**Domain:** Quoting engine + public-web quote flow + async PDF + WhatsApp handoff, integrated into an existing pnpm/Turborepo multi-tenant SaaS (ImBau v1.2 Cotizador)
+**Researched:** 2026-07-01
+**Confidence:** HIGH (grounded in the actual codebase — schema, RLS policies, tRPC context, media pipeline — not on generic patterns)
 
-> Scope note: the stack is **already decided** (CLAUDE.md §Stack). This document is not an ecosystem survey — it answers *how these phase-0 pieces are typically wired together, where the boundaries sit, how the tenant context reaches RLS, and in what order to build them*. It deliberately omits product features (explorer, quoting, panel CRUD) — those are later milestones.
+## Executive Finding (read this first)
 
----
+The single load-bearing architectural decision of this milestone is **where the CAC read and the quote write happen**, because of an RLS fact already baked into the schema:
+
+- `quotes` is **tenant-private**: only a `quotes_tenant` policy for `app_authenticated`, **no anon policy, no anon GRANT** → an anon SELECT/INSERT raises `42501` (documented in `quotes.ts:1-9`).
+- `cac_index` is **tenant-private** for the same reason (`cac-index.ts:1-8`): CAC is org-private business data, never exposed to the public web.
+- `payment_plans`, `unit_prices`, `brokers` **do** have `*_anon_published` SELECT policies → the public web already reads them via `withAnon`.
+
+Consequence: a public/anonymous buyer **cannot** read the CAC index nor persist a quote through the anon pool. The CAC value is required to display the ARS installment ("cuota inicial en pesos al valor del mes"). Therefore **quote emission must run server-side through the app pool (`withTenant`), not the anon pool** — regardless of the fact that the buyer is anonymous.
+
+This collides with the PROJECT.md assumption "no schema changes anticipated." It is resolvable **without** a schema change (recommended), but the roadmapper must pick a lane explicitly. See **Integration Points → The tenant-private crux**.
 
 ## Standard Architecture
 
-### System Overview — monorepo package graph (build/dependency direction)
+### System Overview
 
 ```
-┌──────────────────────────── apps (deployables) ────────────────────────────┐
-│  ┌──────────────┐      ┌──────────────┐      ┌──────────────┐              │
-│  │  apps/web    │      │  apps/panel  │      │ apps/worker  │              │
-│  │ (public,RSC/ │      │ (Next.js,    │      │ (Node proc,  │              │
-│  │  ISR, anon)  │      │  authed)     │      │  BullMQ)     │              │
-│  └──────┬───────┘      └──────┬───────┘      └──────┬───────┘              │
-│         │                     │                     │                       │
-│         │ imports             │ imports             │ imports               │
-└─────────┼─────────────────────┼─────────────────────┼───────────────────────┘
-          ▼                     ▼                     ▼
-┌──────────────────────────── packages (libraries) ──────────────────────────┐
-│   ┌───────────────────────────────────────────────────────────────────┐   │
-│   │ packages/api   (tRPC routers + context + RLS middleware + auth glue)│   │
-│   └───────┬───────────────────────────┬───────────────────────┬────────┘   │
-│           │ imports                    │ imports               │ imports     │
-│           ▼                            ▼                       ▼             │
-│   ┌──────────────┐            ┌──────────────┐        ┌──────────────┐      │
-│   │ packages/db  │            │packages/quot.│        │ packages/ui  │      │
-│   │ (Drizzle     │            │ (pure quote  │        │ (shadcn kit, │      │
-│   │  schema +    │            │  engine —    │        │  panel/web)  │      │
-│   │  client +    │            │  no I/O)     │        └──────────────┘      │
-│   │  RLS helpers)│            └──────────────┘                              │
-│   └──────┬───────┘                                                          │
-│          │ imports                                                          │
-│          ▼                                                                  │
-│   ┌──────────────┐                                                          │
-│   │packages/config│ (tsconfig base, eslint, env schema/Zod, shared const)  │
-│   └──────────────┘                                                          │
-└─────────────────────────────────────────────────────────────────────────────┘
-          │ (all DB access)                          │ (cross-cutting)
-          ▼                                          ▼
-┌──────────────────────────── runtime infra (Docker Compose) ────────────────┐
-│  Traefik ─► web/panel/worker     Postgres 16 (RLS)     Redis (BullMQ)       │
-│  Better Auth tables ◄── same Postgres        Loki/Grafana   Uptime Kuma     │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                     apps/web  (public, anon-only today)               │
+│  ┌────────────────────┐        ┌──────────────────────────────────┐  │
+│  │ Unit page (RSC/ISR) │───────▶│ Cotizador UI (client component)  │  │
+│  │ reads via withAnon: │        │ plan selector · anticipo · cuotas│  │
+│  │  unit_price, plan,  │        │ renders QuoteResult · WhatsApp   │  │
+│  │  broker (whatsapp)  │        └───────────────┬──────────────────┘  │
+│  └────────────────────┘                        │ quotes.compute /     │
+│                                                 │ quotes.create        │
+├─────────────────────────────────────────────────┼─────────────────────┤
+│                    packages/api  (tRPC v11)      ▼                     │
+│  quotesRouter (NEW):                                                   │
+│   compute  (publicProcedure)  ── run engine, return QuoteResult (no DB write)
+│   create   (publicProcedure)  ── resolve+revalidate org, run engine,   │
+│                                  persist snapshot via withTenant,      │
+│                                  enqueue PDF job                       │
+│                          │                    │                       │
+│              ┌───────────▼─────────┐   ┌───────▼───────────┐          │
+│              │ packages/quoting    │   │ withTenant(org)   │          │
+│              │ PURE engine (NEW):  │   │ app_authenticated │          │
+│              │ calcQuote()         │   │ INSERT quotes     │          │
+│              │ toWhatsAppText()    │   │ (snapshot+version)│          │
+│              │ toPdfModel()        │   └───────┬───────────┘          │
+│              │ ENGINE_VERSION      │           │ enqueue              │
+│              └─────────────────────┘           ▼                       │
+├────────────────────────────────────────────────┼─────────────────────┤
+│                        Redis / BullMQ           │ QUOTE_PDF_QUEUE      │
+├────────────────────────────────────────────────┼─────────────────────┤
+│                     apps/worker                 ▼                     │
+│   processQuotePdf (NEW): read quote via withTenant → render PDF        │
+│   (react-pdf) → PUT R2 (quotePdfKey) → withTenant UPDATE quotes.pdfKey │
+│   failure → Sentry + pino (reportQuotePdfFailure)                     │
+├──────────────────────────────────────────────────────────────────────┤
+│   PostgreSQL 16 (RLS)          Cloudflare R2          Redis            │
+│   quotes / cac_index tenant-priv   quotes/{…}.pdf     BullMQ jobs      │
+└──────────────────────────────────────────────────────────────────────┘
 ```
-
-**The golden rule of the graph: dependencies point downward, never up or sideways between apps.** Apps import packages; packages never import apps; `packages/api` is the only package that touches `db`, `quoting`, and auth together; `quoting` and `ui` import nothing but `config`. No app imports another app. This is what makes Turborepo caching and independent deploys work, and it is the single most common thing to get wrong on day one.
 
 ### Component Responsibilities
 
-| Component | Responsibility (owns) | Typical implementation | Phase-0 scope |
-|-----------|----------------------|------------------------|---------------|
-| `packages/config` | Shared tsconfig, eslint/prettier, **env validation (Zod `t3-env` style)**, shared constants (roles, project states) | Plain TS exports + `tsconfig.base.json`; `env.ts` parses `process.env` and throws at boot | Full |
-| `packages/db` | Drizzle schema, migrations, the **two connection roles** (`app`/`anon`), the `withTenant()` transaction helper that issues `set_config` | Drizzle + `postgres-js`/`node-postgres`; SQL migration files committed; RLS policies defined as SQL | Auth tables + org/membership/project skeleton + RLS scaffolding |
-| `packages/quoting` | Pure deterministic quote math — no I/O, no DB | Pure functions; 100% coverage, property-based tests | **Skeleton only** (package exists, real engine is phase 3) |
-| `packages/ui` | Shared shadcn/ui components, theme tokens | shadcn/ui + Tailwind, consumed by web & panel | Skeleton |
-| `packages/api` | tRPC routers, **request context builder**, RLS middleware, Better-Auth-session→tenant glue, Zod input validation | `@trpc/server` routers; `createContext` reads Better Auth session, resolves active org, opens tenant transaction | `appRouter` skeleton + `auth`/`org` routers + protected/public procedures |
-| `apps/web` | Public showroom; RSC + ISR; reads only `publicado` projects via **anon role** | Next.js App Router; tRPC server-side caller for RSC, no auth session | "Hello tenant" page proving anon RLS read works |
-| `apps/panel` | Authenticated self-service panel | Next.js App Router; Better Auth client + tRPC React Query | Login + org switch + a single RLS-protected query |
-| `apps/worker` | Background jobs (images, PDFs, emails, alerts) | Long-running Node process; BullMQ consumers; imports `db`/`api` service layer | Skeleton consumer + healthcheck + one no-op job |
-| Postgres 16 | System of record + tenant isolation (RLS) + LISTEN/NOTIFY | Single instance, two app roles | Full (this *is* the foundation) |
-| Redis | BullMQ queue backing store | Single instance | Full |
-| Traefik | TLS termination, routing by host, edge rate-limit middleware | Docker labels per service; Let's Encrypt | staging host routing + TLS |
-| Better Auth | Sessions, organizations, memberships, roles, email invites | Better Auth + `organization` plugin + Drizzle adapter, **same Postgres** | Full |
-
----
+| Component | Responsibility | Implementation |
+|-----------|----------------|----------------|
+| `packages/quoting` (NEW, fills empty placeholder) | Pure, deterministic calc: base USD → anticipo → cuotas (CAC/fijo) → refuerzos → totals. Serializers to WhatsApp text and PDF model. Engine version. **No I/O.** | Pure TS functions + exhaustive types; Vitest unit + property-based; 100% coverage gate |
+| `quotesRouter` (NEW in `packages/api`) | Boundary: validate inputs (Zod), run engine, resolve/revalidate the published-project org, persist snapshot via `withTenant`, enqueue PDF | tRPC v11 `publicProcedure`s (buyer is anonymous), reuse `withTenant`/`withAnon` |
+| Cotizador UI (NEW in `apps/web`) | Mobile-first plan configurator; render `QuoteResult`; WhatsApp CTA; optional lead capture | Client component under the unit route; calls `quotes.*` |
+| `processQuotePdf` (NEW in `apps/worker`) | Render the persisted snapshot to PDF (legal legend "cotización no vinculante"), store in R2, write back `pdfKey` | Mirrors `processMedia`; react-pdf; `withTenant` UPDATE |
+| `packages/storage` (MODIFIED) | Add `QUOTE_PDF_QUEUE`, `QuotePdfJobData`, `quotePdfKey()`, `quotePdfJobOptions()` | Same "shared contract, no bullmq import" pattern as `queue.ts` |
+| `quotes` table (UNCHANGED) | Stores `snapshot` (versioned envelope), `pdfKey` (nullable), `leadId` (nullable) — all columns already exist | Drizzle schema from v1.1; no migration |
 
 ## Recommended Project Structure
 
 ```
-imbau/
-├── apps/
-│   ├── web/                    # public showroom (anon role, RSC/ISR)
-│   │   ├── src/app/            # App Router; (public) routes only
-│   │   ├── src/trpc/           # server-side tRPC caller (no client session)
-│   │   └── Dockerfile
-│   ├── panel/                  # authenticated panel
-│   │   ├── src/app/            # App Router; auth-gated layout
-│   │   ├── src/lib/auth-client.ts   # Better Auth React client
-│   │   ├── src/trpc/           # tRPC React Query provider + client
-│   │   └── Dockerfile
-│   └── worker/                 # BullMQ consumers
-│       ├── src/queues/         # one file per queue
-│       ├── src/index.ts        # process bootstrap + graceful shutdown
-│       └── Dockerfile
-├── packages/
-│   ├── config/                 # tsconfig.base, eslint, env.ts (Zod), constants
-│   ├── db/
-│   │   ├── src/schema/         # auth.ts, organizations.ts, projects.ts, ...
-│   │   ├── src/rls/            # policies.sql helpers + withTenant()/withAnon()
-│   │   ├── src/client.ts       # pool(s) + role connections
-│   │   ├── drizzle.config.ts
-│   │   └── migrations/         # *.sql, committed, never edited after apply
-│   ├── api/
-│   │   ├── src/trpc.ts         # initTRPC, procedure builders, middlewares
-│   │   ├── src/context.ts      # createContext: session → org → tenant tx
-│   │   ├── src/root.ts         # appRouter (merges sub-routers)
-│   │   ├── src/routers/        # auth.ts, organization.ts, project.ts ...
-│   │   └── src/auth.ts         # Better Auth server instance (shared)
-│   ├── quoting/                # pure engine (skeleton in phase 0)
-│   └── ui/                     # shadcn components + theme
-├── infra/
-│   ├── docker-compose.yml      # full local + staging topology
-│   ├── docker-compose.staging.yml  # overrides (Traefik labels, volumes)
-│   └── traefik/                # dynamic config, middlewares (rate-limit)
-├── .github/workflows/ci.yml    # lint+typecheck+test → build → deploy staging
-├── turbo.json                  # task graph + cache config
-├── pnpm-workspace.yaml
-└── package.json
+packages/quoting/src/
+├── index.ts             # barrel: calcQuote, types, ENGINE_VERSION, serializers
+├── types.ts             # QuoteInput, QuoteResult, CuotaLine, RefuerzoLine (typed, integer money)
+├── engine.ts            # calcQuote(input): pure calc, embeds { version: ENGINE_VERSION }
+├── serialize.ts         # toWhatsAppText(result), toPdfModel(result) — pure
+├── money.ts             # integer-USD + decimal-ARS helpers, explicit rounding
+├── version.ts           # ENGINE_VERSION = 1  (== snapshot envelope version)
+├── engine.test.ts       # unit tables (contado / CAC / refuerzos / edge cases)
+└── engine.property.test.ts  # fast-check invariants (sum(cuotas)+anticipo == saldo, monotonicity…)
+
+packages/api/src/trpc/routers/
+└── quotes.ts            # NEW quotesRouter (compute + create); registered in _app.ts
+
+packages/storage/src/
+├── quote-pdf.ts         # NEW: QUOTE_PDF_QUEUE, QuotePdfJobData, quotePdfJobOptions
+└── keys.ts              # MODIFIED: add quotePdfKey(orgId, projectId, quoteId)
+
+apps/worker/src/
+├── quote-pdf.ts         # NEW: processQuotePdf + reportQuotePdfFailure
+├── quote-pdf-render.tsx # NEW: react-pdf document from toPdfModel() output
+└── index.ts             # MODIFIED boot(): QUOTE_PDF_QUEUE + worker + failed handler
+
+apps/web/app/
+└── [projectSlug]/[unitId]/   # NEW unit route: RSC reads (withAnon) + cotizador client UI
+    ├── page.tsx              # server: read unit_price, payment_plans, broker via anon caller
+    └── cotizador.tsx         # client: configurator, calls quotes.*, WhatsApp CTA
 ```
 
 ### Structure Rationale
 
-- **`packages/api` is the seam, not the apps.** Both Next.js apps and the worker import the *same* `appRouter` type and the *same* service functions. The router lives in a package so the web app gets server-side type-safe calls in RSC, the panel gets a typed client, and the worker can call business logic directly without HTTP. Putting tRPC inside one app and re-importing across apps breaks Turborepo boundaries.
-- **`db` owns RLS, not `api`.** The connection roles, the `withTenant()` transaction helper, and the policy SQL live next to the schema they protect. `api` *uses* `withTenant()` but never constructs raw connections. This keeps "how isolation works" in one auditable place.
-- **`config/env.ts` is imported by everything that boots.** A single Zod-validated env object that throws on missing vars at startup prevents the classic "deployed to staging, crashes on first request because `DATABASE_URL` was a typo."
-- **`apps/web` has no auth client at all.** It only ever uses the anon connection. Physically separating the public surface (no session cookies, no panel mutations) shrinks the attack surface and lets ISR cache aggressively.
-- **`infra/` is versioned in the repo.** Compose + Traefik config are reviewed like code; staging and prod differ only by an override file and secrets.
-
----
+- **`packages/quoting` has zero dependencies on `db`/`api`/`storage`.** Its input/output types are plain (mirror the DB shapes but are not Drizzle rows). This keeps it pure, trivially 100%-coverable, and re-runnable for audit. Everything else depends on *its output type* — hence it is built first.
+- **Serializers live inside `quoting`** (`toWhatsAppText`, `toPdfModel`) so on-screen, PDF, and WhatsApp text all derive from the **same** `QuoteResult` — guaranteeing they never drift.
+- **PDF rendering (react-pdf) lives in the worker**, not in `quoting`: rendering is I/O-adjacent and server-only. `quoting` produces a pure `PdfModel` (data); the worker owns the JSX/render. This preserves the engine's purity.
 
 ## Architectural Patterns
 
-### Pattern 1: Tenant context via transaction-scoped `set_config` (the keystone)
+### Pattern 1: Pure engine, versioned snapshot, server-authoritative compute
 
-**What:** Every authenticated request runs its DB work inside a **single transaction**, and the first statement of that transaction sets the tenant id (and role) using `set_config('app.org_id', $1, true)` — the `true` makes it `SET LOCAL`, scoped to the transaction. RLS policies read `current_setting('app.org_id')`. When the transaction commits/rolls back, the setting evaporates, so the pooled connection is clean for the next request.
+**What:** `calcQuote(input): QuoteResult` is pure. Every result embeds `{ version: ENGINE_VERSION }`. The persisted `snapshot` stores **inputs + outputs + version** (`{ version: 1, inputs: {...}, result: {...} }`) so any emitted quote can be re-verified/re-rendered exactly as issued even after prices or CAC change — full auditability (modelo §3.4).
 
-**When to use:** Always, for every tenant-scoped read or write. There is no "set it once on connect" shortcut that is safe with pooling.
+**When to use:** Always. The engine never reads a clock, DB, or env; the caller passes the CAC vigente and prices in.
 
-**Trade-offs:** Every request pays for a transaction (cheap) and you must remember that a query *outside* `withTenant()` sees nothing (or errors) — which is the desired fail-closed behavior. Cannot use a statement-pooling pooler (PgBouncer statement mode) — see anti-patterns.
-
-**Example:**
-```typescript
-// packages/db/src/rls/with-tenant.ts
-export async function withTenant<T>(
-  orgId: string,
-  role: "app_user",
-  fn: (tx: Tx) => Promise<T>,
-): Promise<T> {
-  return db.transaction(async (tx) => {
-    // SET LOCAL: scoped to THIS transaction only — pool-safe.
-    await tx.execute(sql`select set_config('app.org_id', ${orgId}, true)`);
-    await tx.execute(sql`set local role ${sql.raw(role)}`);
-    return fn(tx); // all queries here are RLS-filtered to orgId
-  });
-}
-
-// A policy that uses it (in policies.sql):
-//   create policy org_isolation on projects using
-//     (organization_id = current_setting('app.org_id')::uuid);
-```
-
-### Pattern 2: tRPC context = (Better Auth session → active org → tenant tx factory)
-
-**What:** `createContext` validates the Better Auth session, reads `session.activeOrganizationId`, verifies the user's membership/role, and exposes a `db` bound to that org via `withTenant`. A `protectedProcedure` middleware throws `UNAUTHORIZED` if no session and `FORBIDDEN` if the user isn't a member of the requested org. The public app uses a separate `publicProcedure` wired to the **anon role** path that only sees `publicado` projects.
-
-**When to use:** The standard request pipeline for both apps. The web app uses public procedures; the panel uses protected ones.
-
-**Trade-offs:** The active-org indirection (org switcher updates `activeOrganizationId` on the session) is the right model but means org membership must be re-checked server-side on every call — never trust the client's claimed org.
+**Trade-offs:** Snapshot is larger (stores inputs too) — worth it for probative value ("cotización no vinculante" but archivable). Version bump is the ONLY way the interior shape changes; the DB envelope (`quoteSnapshotSchema = z.object({version: z.literal(1)}).passthrough()`) stays fixed, so evolving the calc needs **no migration** — just a new `ENGINE_VERSION` and a widened `z.literal(1)` → `z.union([...])`.
 
 **Example:**
 ```typescript
-// packages/api/src/context.ts
-export async function createContext({ headers }: { headers: Headers }) {
-  const session = await auth.api.getSession({ headers });
-  return { session, db };
+// packages/quoting/src/engine.ts
+export function calcQuote(input: QuoteInput): QuoteResult {
+  const anticipoUsd = roundUsd(input.precioUsd * input.anticipoPct / 100);
+  const saldoUsd = input.precioUsd - anticipoUsd;
+  // ... cuotas (CAC vs fijo), refuerzos, totals — all integer USD / decimal ARS
+  return { version: ENGINE_VERSION, precioUsd: input.precioUsd, anticipoUsd, cuotas, refuerzos, totals };
 }
-
-// packages/api/src/trpc.ts
-export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
-  const orgId = ctx.session?.session.activeOrganizationId;
-  if (!ctx.session || !orgId) throw new TRPCError({ code: "UNAUTHORIZED" });
-  // membership re-check happens inside withTenant via RLS + an explicit guard
-  return next({
-    ctx: { ...ctx, orgId, runTenant: <T>(fn: (tx: Tx) => Promise<T>) =>
-      withTenant(orgId, "app_user", fn) },
-  });
-});
 ```
 
-### Pattern 3: Two Postgres roles, one database, fail-closed by default
+### Pattern 2: Read-anon, compute+persist-app (the media pipeline, re-applied)
 
-**What:** Create a privileged migration/owner role (used only by Drizzle migrations and the worker's trusted paths), an `app_user` role for authenticated requests (RLS-enforced, scoped by `app.org_id`), and an `anon` role for the public web (RLS limited to `projects.estado = 'publicado'`). The app connects as a login role that `SET ROLE`s into `app_user`/`anon` per transaction. Tables have `enable row level security` **and `force row level security`** so even the table owner is constrained.
+**What:** Mirror the proven `createUpload`/`confirmUpload` → BullMQ → `processMedia` → `withTenant` UPDATE flow. Quote emission = insert `quotes` via `withTenant` → enqueue → worker renders PDF → `withTenant` UPDATE `pdfKey`. The job payload carries `organizationId` (the worker has no session), exactly like `MediaJobData`.
 
-**When to use:** From the first migration. Retrofitting RLS after tables exist is a known rewrite trap.
+**When to use:** The persist + PDF path. Reuse `mediaJobOptions`' shape: `jobId = quoteId` (dedup/idempotent), `attempts: 5`, exponential backoff; `failed` handler → Sentry + pino.
 
-**Trade-offs:** Slightly more setup; you must remember to add a policy whenever you add a tenant table (enforce via a test that asserts every tenant table has RLS enabled).
+**Trade-offs:** Requires the **app pool** in whatever process runs `quotes.create` (see the crux below). That is the price of keeping `quotes`/`cac_index` invisible to raw anon SQL.
 
-### Pattern 4: Worker calls the service layer directly, not over HTTP
+**Example:**
+```typescript
+// packages/storage/src/quote-pdf.ts  (no bullmq import — shared contract, like queue.ts)
+export const QUOTE_PDF_QUEUE = "quote-pdf";
+export interface QuotePdfJobData { quoteId: string; organizationId: string; projectId: string; }
+export function quotePdfJobOptions(quoteId: string) {
+  return { jobId: quoteId, attempts: 5, backoff: { type: "exponential", delay: 2000 } } as const;
+}
+```
 
-**What:** The worker imports the same business functions `packages/api` exposes (or a thin `services` layer beneath the routers) and runs them with an explicit org context (jobs carry `orgId` in their payload, fed into `withTenant`). It does not call the Next.js apps over HTTP.
+### Pattern 3: WhatsApp CTA as a pure link from the engine output
 
-**When to use:** All background work. Realtime fan-out (later) is the worker/DB emitting `NOTIFY`; SSE endpoints in the web app `LISTEN`.
+**What:** `toWhatsAppText(result)` returns the message body; the CTA is `https://wa.me/<brokerPhone>?text=<encodeURIComponent(text)>`. Broker phone comes from `brokers.whatsapp`, which is **anon-readable** (`brokers_anon_published` SELECT confirmed) — read in the RSC via `withAnon`, no privileged path needed.
 
-**Trade-offs:** Requires keeping a clean service layer that doesn't assume an HTTP request object — good discipline anyway. In phase 0 this is just a no-op job proving the wiring + graceful shutdown.
+**When to use:** Immediately on the unit page, from the in-memory `QuoteResult`. Do **not** wait for the PDF (it may not be rendered yet). Optionally append the public quote-page URL.
 
----
+**Trade-offs:** wa.me text length is bounded — keep the message a concise summary (unit id, precio, anticipo, N cuotas, first cuota ARS + CAC legend), not the full schedule. The full detail lives in the PDF and on-screen.
 
 ## Data Flow
 
-### Request flow — authenticated panel mutation (the canonical path)
+### Quote generation (anonymous buyer) — recommended flow
 
 ```
-[Panel UI action]
-   ↓  tRPC client (React Query) + Better Auth session cookie
-[Traefik] → [apps/panel Next.js route handler]
-   ↓  createContext: auth.getSession() → activeOrganizationId
-[protectedProcedure middleware]  → verify session + org membership
-   ↓  runTenant(orgId, tx => ...)
-[BEGIN tx; set_config('app.org_id', orgId, true); set local role app_user]
-   ↓  Drizzle query
-[Postgres RLS] filters rows to orgId  →  rows
-   ↓  COMMIT (tenant context auto-discarded)
-[typed result] → tRPC → React Query cache → UI
+Buyer on /[projectSlug]/[unitId]  (published project, RSC via withAnon reads
+   unit_price + payment_plans + broker.whatsapp)
+        │  configures plan (anticipo %, cuotas, refuerzos)
+        ▼
+quotes.compute  (publicProcedure)  ── engine runs SERVER-SIDE ──────────┐
+        │  needs CAC vigente → read via withTenant(orgResolved) [app]    │  (crux)
+        ▼                                                                │
+QuoteResult returned → rendered on screen + WhatsApp CTA built ──────────┘
+        │  buyer clicks "Consultar por WhatsApp" / leaves contact
+        ▼
+quotes.create  (publicProcedure, rate-limited)
+   1. withAnon: SELECT project WHERE id=? AND estado='publicado'  → orgId  (revalidate!)
+   2. withTenant(orgId): read unit_price + plan + cac_index vigente
+   3. calcQuote(...) → snapshot {version, inputs, result}
+   4. withTenant(orgId): INSERT quotes (snapshot), optional leads (anon path or app)
+   5. enqueue QUOTE_PDF_QUEUE { quoteId, organizationId, projectId }
+        ▼
+on-screen result + WhatsApp fire IMMEDIATELY (no PDF wait)
+        ▼ (async, background)
+worker processQuotePdf → render → R2 → withTenant UPDATE quotes.pdf_key
+        ▼
+PDF download link appears (poll quote.pdfKey, or included in broker email)
 ```
 
-### Request flow — public read (anon)
+### Sync vs async for the PDF — recommendation: ASYNC
+
+The product goal is "portada → cotización por WhatsApp en <2 min" and "<3s en 4G." react-pdf rendering is heavy and must not block the buyer.
+
+- **On-screen result + WhatsApp CTA: synchronous** (from the in-memory `QuoteResult` — zero extra latency).
+- **PDF: asynchronous** via BullMQ, exactly like media variants. The download button either (a) polls `quotes.pdfKey` until non-null (simple, MVP-appropriate), or (b) the PDF link is delivered in the broker/lead notification email once ready. **Do not** reuse SSE/LISTEN-NOTIFY for this in the MVP — polling a single quote is simpler and cheaper.
+
+### State ownership
 
 ```
-[Visitor opens proyecto.com] → [Traefik] → [apps/web RSC]
-   ↓  server-side tRPC caller, publicProcedure (NO session)
-[BEGIN tx; set local role anon]
-   ↓  Drizzle query
-[Postgres RLS] → only projects.estado = 'publicado' visible → rows
-   ↓  COMMIT  →  RSC renders, ISR caches
+QuoteResult (ephemeral)  ──lives in the client while configuring──▶ display + WhatsApp
+       │ (on emit)
+       ▼
+quotes.snapshot (durable, versioned)  ──▶ authoritative record ──▶ PDF render source
 ```
-
-### Tenant-context flow (the thing to get exactly right)
-
-```
-Better Auth session
-   └─ session.activeOrganizationId   (set on login / org switch)
-        └─ tRPC protectedProcedure re-validates membership
-             └─ withTenant(orgId): SET LOCAL app.org_id INSIDE a tx
-                  └─ Postgres current_setting('app.org_id') in RLS policy
-                       └─ rows physically filtered by the database
-```
-
-The isolation guarantee lives in **Postgres**, not in application `where` clauses. Application code can forget a filter; RLS can't. That is the whole point of choosing RLS over app-level scoping for this product.
-
-### Key data flows (phase 0)
-
-1. **Login + org bootstrap:** user authenticates (Better Auth) → if no active org, a `databaseHook` `before` session creation sets `activeOrganizationId` to their first membership → subsequent requests carry it.
-2. **Invite:** owner invites email → Better Auth `organization` plugin creates an invitation row → Resend (via worker) sends the email → invitee accepts → membership row created with role.
-3. **Migration/deploy:** CI builds images → on merge to main, deploy step runs `pnpm db:migrate` (privileged role) against staging Postgres *before* swapping app containers.
-
----
-
-## Suggested Build Order (phase-0 components, by dependency)
-
-Derived strictly from the package graph above — build leaves first, then the seam, then the deployables, then the operational shell.
-
-1. **Repo skeleton + `packages/config`** — pnpm workspaces, `turbo.json`, base tsconfig/eslint, **Zod env schema**. Nothing compiles meaningfully without this. (Unblocks everything.)
-2. **`docker compose up` for Postgres + Redis** — you need a real DB locally before schema work. Keep it minimal here (data services only); add Traefik/observability later.
-3. **`packages/db`: Drizzle + Better Auth tables + org/membership/project skeleton + the two roles + `withTenant`/`withAnon` + first RLS policies.** This is the riskiest, highest-value unit — do it early while attention is fresh. Ship with a test asserting RLS isolation (org A cannot see org B).
-4. **Better Auth server instance (`packages/api/src/auth.ts`) wired to the Drizzle adapter + organization plugin.** Depends on db (auth tables). Verify sessions + org switch + invite create.
-5. **`packages/api`: tRPC init, context (session→org→tx), protected/public procedures, a trivial `organization`/`project` router.** Depends on db + auth.
-6. **`apps/panel`: login, org switcher, one protected query that proves RLS end-to-end through the UI.** Depends on api.
-7. **`apps/web`: one public page that reads a `publicado` project via the anon path** — proves the public/anon isolation boundary. Depends on api/db.
-8. **`apps/worker`: BullMQ consumer skeleton, graceful shutdown, one no-op job + healthcheck.** Depends on db (+ redis already up).
-9. **Full Docker Compose topology + Traefik** (web/panel/worker/traefik labels, TLS, edge rate-limit middleware for `leads`/`events` later). Depends on apps building into images.
-10. **Observability: pino structured logs → Loki/Grafana, Sentry init in each app, Uptime Kuma, OTel scaffolding.** Cross-cutting; wire once apps run.
-11. **CI/CD: GitHub Actions** — `lint → typecheck → test (incl. RLS isolation test) → build images → push registry → deploy staging + run migrations`. Last because it orchestrates everything above.
-
-**Critical ordering constraints:** RLS (step 3) must precede any app code, because retrofitting it is a rewrite. Auth (4) precedes api context (5) precedes both apps (6,7). Migrations run *before* container swap in deploy (step 11). Observability (10) and CI (11) are the "operable from day one" payoff and should not be deferred past the milestone even though they come last in dependency order.
-
----
-
-## CI Pipeline Shape (GitHub Actions)
-
-```
-on: push → [ install (pnpm, cached) ]
-   → turbo run lint typecheck test   (affected-graph aware, remote/Turbo cache)
-        └─ includes the RLS isolation test (spins ephemeral Postgres service)
-   → turbo run build                  (Next.js standalone output for web/panel)
-   → docker build + push per app      (only on main)
-on: merge to main →
-   → ssh/registry deploy to VPS
-   → pnpm db:migrate (privileged role) BEFORE container swap
-   → docker compose up -d (rolling)   → smoke check via Uptime Kuma / healthchecks
-prod: same workflow, manual approval gate.
-```
-
-Build order inside CI mirrors the package graph (Turborepo computes it); the only hand-ordered step is **migrate-before-swap** in deploy.
-
----
 
 ## Scaling Considerations
 
-| Scale | Architecture adjustments |
-|-------|--------------------------|
-| 0–1k visitors (MVP/staging) | Single VPS, single Postgres, single Redis, Compose. ISR + R2 absorb public read load. No pooler needed yet. This is the whole milestone-v1 target. |
-| 1k–100k visitors | Add a **transaction-mode** connection pooler (PgBouncer/Supavisor) — compatible because the RLS pattern already uses `SET LOCAL`-in-a-transaction. Move worker to its own VPS. Read replicas for the public/anon read path. |
-| 100k+ | Partition `events` is already designed (monthly); offload analytics to ClickHouse (already noted as the path). Consider per-large-tenant schema/db split only if a single tenant dwarfs others — RLS handles the long tail. |
+| Scale | Adjustments |
+|-------|-------------|
+| 0–1k quotes/day | Current single-worker BullMQ is ample. `compute` is pure/fast; `create` is one short `withTenant` tx + one enqueue. |
+| 1k–100k | Add PDF worker concurrency (like media `concurrency: 2`); ensure `quotes` has an index on `(organization_id, project_id)`; cache CAC-vigente read per (org, período) request-scoped. |
+| 100k+ | Separate the PDF worker from the media worker (own queue already isolates them); consider ISR/edge-cache for the unit page shell; move CAC lookups behind a small read cache. |
 
 ### Scaling priorities
 
-1. **First bottleneck: image/media delivery on 4G**, not the DB. Mitigated by R2 + AVIF/WebP variants (phase 1) and Lighthouse budget in CI — architectural, not a DB concern.
-2. **Second bottleneck: connections under concurrency.** The transaction-scoped RLS choice future-proofs this: a transaction-mode pooler drops in without touching app code. (If we had chosen session-level `SET`, adding a pooler would be a rewrite — which is exactly why we didn't.)
-
----
+1. **First bottleneck: PDF rendering throughput** — react-pdf is CPU-heavy. Async queue already absorbs bursts; raise concurrency before anything else.
+2. **Second: the app-pool connection count on the public path** — if `quotes.create` runs in `apps/web`, watch pool sizing; the anonymous surface can be spiked. Rate-limit at the edge (below).
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: Setting tenant context once per connection (or in middleware before a transaction)
+### Anti-Pattern 1: Running the engine (and CAC read) client-side
 
-**What people do:** `SET app.org_id = ...` (session-level) on connect or at the start of a request, then run queries on a pooled connection.
-**Why it's wrong:** With any connection pooling, a later request reuses that connection and inherits the previous tenant's context → cross-tenant data leak that only manifests under concurrency in production. Statement-mode poolers break it outright.
-**Do this instead:** `SET LOCAL` / `set_config(..., true)` **inside the transaction** that runs the queries (Pattern 1). Context dies with the transaction; the connection returns clean.
+**What people do:** Compute the quote in the browser and send the result up to be stored.
+**Why it's wrong:** The calc is the product's differentiator and the snapshot is probative — a client-computed value can be tampered, and CAC is org-private (must not ship to the browser as raw data). It also breaks "on-screen == PDF == persisted."
+**Do this instead:** Compute server-side (`quotes.compute`/`create`); the browser only renders the returned `QuoteResult`.
 
-### Anti-Pattern 2: Enforcing tenancy with application `where org_id = ?` instead of RLS
+### Anti-Pattern 2: Giving the anon role read/write on `cac_index`/`quotes` to "keep it simple"
 
-**What people do:** Skip RLS and add a `where` clause in every Drizzle query.
-**Why it's wrong:** One forgotten clause = silent cross-tenant leak; nothing fails loudly. CLAUDE.md mandates RLS for this reason.
-**Do this instead:** RLS in the database with `force row level security`; the app `where` clauses become an optimization, not the security boundary. Add a test that fails if any tenant table lacks RLS.
+**What people do:** Add `*_anon_published` policies to `cac_index` and an anon INSERT to `quotes` (mirroring `leads`) so the web can use `withAnon` end-to-end.
+**Why it's wrong:** It exposes org-private CAC values and lets anon enumerate quote rows — weaker isolation, and it *is* the schema change PROJECT.md wanted to avoid.
+**Do this instead:** Keep both tenant-private; concentrate the privileged read/write in one audited `publicProcedure` that re-derives the org from the published project (app-pool elevation). (This is a genuine fork — see the crux; if the team decides CAC exposure is acceptable, the anon-policy route is the alternative.)
 
-### Anti-Pattern 3: Putting tRPC routers inside one app and importing across apps
+### Anti-Pattern 3: Blocking the WhatsApp/on-screen result on PDF generation
 
-**What people do:** Define routers in `apps/panel` and import them from `apps/web`/`apps/worker`.
-**Why it's wrong:** Creates app→app dependencies, breaks Turborepo caching and independent deploys, and tangles the public and authed surfaces.
-**Do this instead:** Routers + context live in `packages/api`; every app imports the package. Apps never import apps.
+**What people do:** `await` PDF render inside `quotes.create` before returning.
+**Why it's wrong:** Kills the <2 min / <3s goals; couples a fast path to a slow one; a react-pdf failure would fail the whole quote.
+**Do this instead:** Return the result immediately; enqueue the PDF; surface it when ready.
 
-### Anti-Pattern 4: Mixing Better Auth tables into a hand-rolled migration flow
+### Anti-Pattern 4: Trusting a client-supplied `organizationId` or price on the public path
 
-**What people do:** Let Better Auth own one schema generation path and Drizzle own another, drifting apart.
-**Why it's wrong:** Two sources of truth for the schema → migration conflicts, RLS not applied to auth-adjacent tables.
-**Do this instead:** Use the Better Auth **Drizzle adapter**, generate its tables into `packages/db/src/schema`, and let Drizzle migrations be the single source of truth (commit them; never hand-edit applied migrations).
-
-### Anti-Pattern 5: Deferring observability/CI to "after it works"
-
-**What people do:** Build features first, add logging/monitoring/deploy later.
-**Why it's wrong:** Directly violates the project's core value ("operable from day one; not 'works on my machine'"). You discover staging is broken via the client, not your dashboards.
-**Do this instead:** Steps 10–11 are part of the milestone definition of done, not optional polish.
-
----
+**What people do:** Let the browser pass org/price into `quotes.create`.
+**Why it's wrong:** Cross-tenant write / price tampering. The whole codebase's rule (T-03-05) is "org is server-derived only."
+**Do this instead:** Resolve org from the `(projectSlug/unitId)` via a `withAnon` published-only read, re-validate `estado='publicado'`, then `withTenant(org)`. Read the price from the DB, never from input.
 
 ## Integration Points
 
-### External Services
+### The tenant-private crux (the decision the roadmapper must make)
 
-| Service | Integration pattern | Notes / gotchas |
-|---------|---------------------|-----------------|
-| Resend (email) | Called from the **worker**, not the request path; React Email templates | Invitations/leads emails are async jobs; keep API keys server-only via `config/env.ts` |
-| Cloudflare R2 | S3 SDK; signed URLs from panel | Not phase-0 critical (media is phase 1) but env vars and bucket should exist in staging |
-| Sentry | SDK init per app (web/panel/worker) | Set `tracesSampleRate` low; tag events with `orgId` (never PII) |
-| Loki/Grafana | pino → JSON logs → Promtail/Loki | Structured logs with `orgId`, `requestId`; one log schema across apps |
-| Uptime Kuma | HTTP healthcheck endpoints per app | Each app exposes `/healthz` (liveness) and `/readyz` (DB/Redis reachable) |
-| Traefik / Let's Encrypt | Docker labels per service; on-demand TLS for custom domains (later) | Phase 0: just staging host + TLS; rate-limit middleware defined but lightly used |
+| Option | How | Schema change? | Isolation | Recommendation |
+|--------|-----|----------------|-----------|----------------|
+| **A — App-pool elevation (recommended)** | One `publicProcedure` resolves+revalidates the published-project org, then reads CAC / writes quote via `withTenant`. The public-serving process holds the app pool. | **None** | Strong — CAC/quotes stay invisible to raw anon SQL | **Choose this.** Concentrates privilege in one audited, rate-limited function; no migration. |
+| B — Add anon policies | `cac_index` anon-published SELECT + `quotes` anon INSERT (like `leads`); engine runs in RSC via `withAnon`. | **Yes** (2 policies + grants) | Weaker — anon can read CAC, enumerate quotes | Only if the team explicitly accepts exposing CAC to the public role. |
 
-### Internal Boundaries
+**Option A sub-decision — where the app pool lives:**
+- **A1 (leaning recommended):** `apps/web` gains `DATABASE_APP_URL` used *only* by the `quotes.create/compute` path. This widens the D-03 "web is anon-only" isolation deliberately — it must be documented as a Key Decision, the app-pool usage grep-fenced to the quotes router, and the endpoint edge-rate-limited.
+- **A2:** Relocate quote emission to a surface that already holds the app pool (a dedicated public API route / the panel's server runtime), keeping `apps/web` strictly anon. Cleaner isolation, one more moving part.
 
-| Boundary | Communication | Considerations |
-|----------|---------------|----------------|
-| apps ↔ `packages/api` | Direct import (RSC server caller / typed client / worker direct call) | No HTTP between worker and apps; type-safe contracts, no codegen |
-| `packages/api` ↔ `packages/db` | Direct import; api uses `withTenant`/`withAnon`, never raw pool | All tenant scoping funneled through db helpers |
-| `packages/api` ↔ Better Auth | api owns the single `auth` server instance; reads `activeOrganizationId` | Re-validate membership server-side every request |
-| worker ↔ Redis ↔ apps | BullMQ queues; jobs carry `orgId` in payload | Worker sets tenant context from payload, same `withTenant` path |
-| web/panel ↔ Postgres realtime | LISTEN/NOTIFY → SSE (later phases) | Channel/payload conventions decided in db package now to avoid churn |
+Flag both to the user; do not silently widen D-03.
 
----
+### Rate limiting (anon-triggered write)
+
+`quotes.create` is an anonymous write, same class as `events`/`leads` (modelo §3.3 requires an edge rate-limit). **Note the staging reality:** the proxy is **nginx-host + certbot, not Traefik** (Decision D-01). So the rate limit is `nginx limit_req` (or an app-layer limiter) — the Traefik middleware from CLAUDE.md is not available on the shared staging box. Roadmapper should not plan a Traefik middleware here.
+
+### External services
+
+| Service | Integration | Notes |
+|---------|-------------|-------|
+| Cloudflare R2 | Reuse `makeR2Client` + a new `quotePdfKey()`; deterministic key `quotes/{orgId}/{projectId}/{quoteId}.pdf` → retry overwrites in place (idempotent, like `variantKey`) | Reuse `@imbau/storage` transport; add key + queue contract only |
+| Redis / BullMQ | New `QUOTE_PDF_QUEUE`; producer = `@imbau/api`, consumer = `apps/worker`; contract in `@imbau/storage` (no bullmq import) | Same producer/consumer split as `MEDIA_QUEUE` |
+| Sentry + pino | `reportQuotePdfFailure` on the worker `failed` handler; errors never swallowed | Mirror `reportMediaFailure` |
+| WhatsApp (wa.me) | Pure link from `brokers.whatsapp` (anon-readable) + `toWhatsAppText()` | No API, just a URL |
+
+### Internal boundaries
+
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| `quoting` ↔ everything | Types only (import `QuoteInput`/`QuoteResult`); pure functions | `quoting` imports nothing from `db`/`api`/`storage` — keep it acyclic and pure |
+| `api` ↔ `db` | `withTenant`/`withAnon` only (never `appDb`/owner pool) | Same rule the media/projects routers already follow (T-03-09) |
+| `api` ↔ `worker` | Via `@imbau/storage` queue contract (`QuotePdfJobData`) | Payload carries `organizationId` (worker has no session) |
+| `worker` ↔ `db` | `withTenant(payload.organizationId)` for read + `pdfKey` UPDATE | Exactly the `processMedia` write-back pattern |
+
+## Suggested Build Order (dependency-driven)
+
+1. **`packages/quoting` — engine first, 100% coverage + property tests.** Densest pure logic; defines the `QuoteResult` type every other surface consumes. Includes `toWhatsAppText`/`toPdfModel` and `ENGINE_VERSION`. No integration. *(This is the milestone's quality centerpiece — CI coverage gate.)*
+2. **API + persistence — `quotesRouter` (`compute` + `create`).** Resolve the tenant-private crux (Option A). Wire `withAnon` org-resolution, `withTenant` CAC read + snapshot insert, register in `_app.ts`. Add the `@imbau/storage` PDF queue/key contract here (producer side).
+3. **Web UI — unit route + cotizador.** RSC anon reads (unit_price, plans, broker) + client configurator calling `quotes.*`; render `QuoteResult`; **WhatsApp CTA lands here** (it's a pure link, cheap). Add a tRPC client to `apps/web` (currently none) or use server actions.
+4. **PDF worker — async render.** `processQuotePdf` + react-pdf document + R2 store + `pdfKey` write-back + `failed`→Sentry; register queue/worker in `boot()`; wire the download/poll on the UI. Last because it's async and non-blocking to the core UX.
+
+Rationale: each step depends only on prior ones; the engine's output type is the contract; WhatsApp (cheap) ships with UI; PDF (heavy, async) is isolated last so a PDF slip never blocks the demo-critical on-screen + WhatsApp path.
+
+## New vs Modified — explicit
+
+**New:**
+- `packages/quoting/src/*` — engine, types, serializers, version, unit + property tests (fills the empty placeholder).
+- `packages/api/src/trpc/routers/quotes.ts` — `quotesRouter` (`compute`, `create`).
+- `packages/storage/src/quote-pdf.ts` — `QUOTE_PDF_QUEUE`, `QuotePdfJobData`, `quotePdfJobOptions`.
+- `apps/worker/src/quote-pdf.ts` + `quote-pdf-render.tsx` — `processQuotePdf`, react-pdf document, `reportQuotePdfFailure`.
+- `apps/web/app/[projectSlug]/[unitId]/*` — unit route + cotizador client UI + WhatsApp CTA (+ possibly a web tRPC client).
+
+**Modified:**
+- `packages/api/src/trpc/routers/_app.ts` — register `quotes`.
+- `packages/storage/src/index.ts` — export the new contract; `keys.ts` — add `quotePdfKey()`.
+- `apps/worker/src/index.ts` `boot()` — declare `QUOTE_PDF_QUEUE`, stand up the worker, wire `failed`.
+- `apps/web/env.ts` — **only under Option A1**: add `DATABASE_APP_URL` (documented D-03 widening).
+- nginx staging vhost — add `limit_req` for the quote-create endpoint (no Traefik).
+
+**Unchanged (no migration):**
+- `quotes` table — `snapshot`, `pdfKey`, `leadId` already exist; envelope `{version:1}.passthrough()` accommodates the engine interior.
+- `payment_plans`, `unit_prices`, `cac_index`, `brokers` — schema/policies as shipped in v1.1.
+
+## Money & determinism notes (for the engine planner)
+
+- USD amounts are **integers** (`unit_prices.precio integer`, `Refuerzo.montoUsd int`, `anticipoPct numeric`) — never float (CLAUDE.md D-14). ARS installments derive from CAC (`cac_index.valor numeric(12,4)`).
+- Recommend integer-USD arithmetic + a **decimal** discipline for ARS (integer minor units or `decimal.js`), with **explicit, tested rounding rules** — rounding is the classic quoting pitfall and a property-test target (e.g. `sum(cuotas) + anticipo + sum(refuerzos) == precio` in USD).
+- Keep `quoting` dependency-light; if a decimal lib is added, it's the only runtime dep and must be pinned.
 
 ## Sources
 
-- [Drizzle ORM — Row-Level Security (RLS)](https://orm.drizzle.team/docs/rls) — HIGH (official)
-- [Better Auth — Drizzle Adapter](https://better-auth.com/docs/adapters/drizzle) and [Active Organization & Context](https://deepwiki.com/better-auth/better-auth/5.5-access-control-deep-dive) — HIGH/MEDIUM (official + community wiki)
-- [Restore Supabase RLS with Drizzle using tRPC middlewares](https://mortadha.dev/blog/restore-supabase-rls-with-drizzle-using-trpc-middlewares/) — MEDIUM (community, corroborates the tx-scoped middleware pattern)
-- [PostgreSQL RLS notes — set/set local only persist in a transaction](https://imfeld.dev/notes/postgresql_row_level_security) — HIGH (matches Postgres semantics)
-- [Postgres Row-Level Security Footguns — Bytebase](https://www.bytebase.com/blog/postgres-row-level-security-footguns/) and [RLS sounds great until it isn't — PlanetScale](https://planetscale.com/blog/rls-sounds-great-until-it-isnt) — MEDIUM (pooling/SET ROLE pitfalls, cross-checked)
-- [Mastering PostgreSQL RLS for multi-tenancy](https://ricofritzsche.me/mastering-postgresql-row-level-security-rls-for-rock-solid-multi-tenancy/) — MEDIUM (corroborating)
-- Project docs: `docs/modelo-mvp.md` §3 (architecture/stack/data model), `CLAUDE.md` (stack/quality), `.planning/PROJECT.md` (phase-0 scope) — HIGH (authoritative for this project)
+- Codebase (HIGH — direct read): `packages/db/src/schema/{quotes,payment-plans,cac-index,unit-prices,leads,brokers,json-schemas}.ts`; `packages/db/src/with-tenant.ts`; `packages/api/src/trpc/{init,context,middleware}.ts`, `routers/{projects,media,_app}.ts`, `media/register.ts`; `packages/storage/src/{queue,keys,index}.ts`; `apps/worker/src/index.ts`; `apps/web/app/page.tsx`, `env.ts`.
+- `docs/modelo-mvp.md` §3.3 (schema + anon-insert-with-rate-limit), §3.4 (cotizador engine spec), §3.5 (deploy). HIGH.
+- `.planning/PROJECT.md` — v1.2 milestone goal, D-01 (nginx not Traefik), D-03 (web anon-only), money conventions. HIGH.
 
 ---
-*Architecture research for: multi-tenant SaaS foundation (phase 0)*
-*Researched: 2026-06-12*
+*Architecture research for: ImBau v1.2 Cotizador — quoting engine integration*
+*Researched: 2026-07-01*

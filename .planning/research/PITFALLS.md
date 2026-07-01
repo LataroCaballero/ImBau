@@ -1,380 +1,341 @@
 # Pitfalls Research
 
-**Domain:** Multi-tenant SaaS foundation (phase 0) — Next.js App Router + tRPC + Drizzle/Postgres RLS + Better Auth + Docker Compose/Traefik on a shared VPS, solo AI-first developer
-**Researched:** 2026-06-12
-**Confidence:** HIGH on RLS/pooling, Drizzle RLS, Traefik ACME, Sentry App Router (cross-checked against official docs); MEDIUM on Better Auth proxy/multi-app specifics (evolving API) and solo over-engineering judgment.
+**Domain:** Argentine financial quoting engine (CAC-adjusted installments) added to an existing multi-tenant Next.js/Drizzle/BullMQ SaaS
+**Researched:** 2026-07-01
+**Confidence:** HIGH (grounded in the committed v1.1 schema) / MEDIUM on external specifics (Alpine fonts, ICU spacing, wa.me limits)
 
-> Scope note: this milestone (v1) is ONLY phase 0 of `docs/modelo-mvp.md`. The hard control rule is "phase 0 must take under a week (3-4 días con Fable)". Several pitfalls below are about *over-building* the foundation, not just bugs. Where a pitfall belongs to a later GSD milestone, it is flagged so the roadmap can defer it cleanly instead of dragging it into phase 0.
+> **Scope note:** These are pitfalls specific to *adding the cotizador (P4) on top of the already-shipped v1.1 schema*. The money-column types, the tenant-private RLS posture of `cac_index`/`quotes`, and the versioned `snapshot` envelope are already committed — several pitfalls below are consequences of those exact decisions, not hypotheticals.
+>
+> **Load-bearing schema facts (verified in `packages/db/src/schema/`):**
+> - `unit_prices.precio` → **`integer`** (USD whole units). `payment_plans.refuerzos[].montoUsd` → **`integer`**. `payment_plans.cuotas` → **`integer`**.
+> - `payment_plans.anticipoPct` → **`numeric`** and `cac_index.valor` → **`numeric(12,4)`** → **Drizzle/`postgres.js` return these as JS `string`, not `number`.**
+> - `cac_index` is **TENANT-PRIVATE**: only a tenant policy for the app role, **NO anon policy, NO anon GRANT** → an anon SELECT raises `42501`.
+> - `quotes` is **TENANT-PRIVATE**: **NO anon policy, NO anon insert** → the public web cannot insert a quote via the `anon` role.
+> - `quotes.snapshot` is a versioned envelope `{ version: 1 }` with a `.passthrough()` interior owned by `packages/quoting`; `pdfKey` and `leadId` are nullable.
 
 ## Critical Pitfalls
 
-### Pitfall 1: RLS session context leaks across pooled connections
+### Pitfall 1: Float contamination at the numeric-string boundary (Drizzle returns `numeric` as string)
 
 **What goes wrong:**
-You set the tenant context with `SET app.current_tenant = ...` (session-level) or `set_config('app.current_tenant', x, false)` (the `false` = not transaction-local). With a connection pooler in transaction mode (PgBouncer) — or even just an app-level pool that reuses connections — the *next* request that grabs that physical connection inherits the previous tenant's context. Result: a user reads/writes another organization's units, prices, and leads. This is a silent cross-tenant data breach, not a crash, so tests that only check "does my own data show up" pass.
+`anticipoPct` and `cac_index.valor` come back from the DB as **strings** (`"30"`, `"1234.5600"`). The reflex is `parseFloat(row.valor)` or `Number(row.anticipoPct)`, then `precio * (anticipoPct/100)` and `saldo * cacMes/cacBase`. Now the whole "dinero en enteros, nunca floats" rule is silently violated: `0.1 + 0.2` errors accumulate across 60 installments and the total drifts a few cents/dollars from `precio`.
 
 **Why it happens:**
-The default for `set_config` is session scope. Tutorials show `SET` for simplicity. The bug is invisible in local dev (single connection, no concurrency) and only appears under load with a pool.
+The columns *look* numeric and TypeScript happily coerces `string → number`. The float only leaks at the CAC ratio and the percentage steps — the integer columns (`precio`, `montoUsd`) lull you into thinking the engine is float-free when the multipliers aren't.
 
 **How to avoid:**
-- Always set tenant context **transaction-scoped**: `set_config('app.current_tenant', $1, true)` (third arg `true` = local to transaction) and run every tenant query inside a transaction that opens with that call. Drizzle: wrap in `db.transaction(async (tx) => { await tx.execute(sql\`select set_config('app.current_tenant', ${orgId}, true)\`); ... })`.
-- Build one helper (`withTenant(orgId, fn)`) in `packages/db` that is the *only* sanctioned way to query tenant tables. Forbid raw `db.select()` against tenant tables outside it (lint rule or code review).
-- If/when PgBouncer is introduced, use transaction pooling and never rely on session state. For phase 0 staging you may run without PgBouncer, but write the helper transaction-scoped from day one so adding the pooler later changes nothing.
+- Do the engine's internal math in a **decimal / integer-scaled domain**: keep `precio` and `montoUsd` as integers; represent `anticipoPct` as basis points (integer) or run a decimal library (`decimal.js`/`big.js`) at every ratio step; carry the CAC ratio as a decimal, never a float.
+- Parse `numeric` strings with the decimal library **directly from the string** (`new Decimal(row.valor)`), never through `parseFloat` — going through `number` is the contamination.
+- Assert engine boundary types: the engine input should be `bigint`/integer/`Decimal`, and there should be no `number` in money positions. A lint/type rule (branded `Usd` / `Cents` type) makes float positions un-typable.
+- Property test: `sum(anticipo + cuotas + refuerzos) === precioTotal` must hold **exactly** for all generated plans (see Pitfall 4).
 
 **Warning signs:**
-- Any `set_config(..., false)` or bare `SET app.*` in the codebase.
-- Tenant queries not wrapped in a transaction.
-- Tests that only ever use a single org / single connection.
+`parseFloat`/`Number(...)` around price/CAC values; totals that are off by cents; snapshot totals that don't reconstruct `precio`; test tolerances like `toBeCloseTo`.
 
-**Phase to address:** This milestone (phase 0) — it is the core deliverable. The `withTenant` helper and its isolation tests are a phase-0 exit criterion.
+**Phase to address:** Engine (`packages/quoting`) — this is the founding invariant of the package.
 
 ---
 
-### Pitfall 2: RLS bypassed by the table owner / superuser connection
+### Pitfall 2: Installment rounding — nobody owns the remainder cent, so the sum ≠ the balance
 
 **What goes wrong:**
-RLS policies are silently ignored for the role that owns the table and for superusers, unless you `ALTER TABLE ... FORCE ROW LEVEL SECURITY`. Your migrations and your app very commonly connect as the owning/admin role (the role Drizzle migrations run under, or a single `postgres`-ish app user). So every policy you carefully wrote does nothing in production, and isolation appears to work in tests only because the test fixtures happen to filter by org.
+`saldo / cuotas` rarely divides evenly. Naive `round(saldo/cuotas)` per installment makes N equal installments whose sum is `saldo ± a few units`. Displayed 60× "US$ 1.667" implies 100.020 but the balance was 100.000 — the cotización doesn't foot. Buyers and Pablo *will* add up the cuotas.
 
 **Why it happens:**
-`ENABLE ROW LEVEL SECURITY` looks sufficient; the owner-exemption rule is buried in the Postgres docs. Single-DB-user setups (common on small VPS) make the app the owner.
+Integer division + independent per-row rounding has no rule for where the remainder goes. Developers round each installment identically and never reconcile against the total.
 
 **How to avoid:**
-- Run the application against a **dedicated non-owner, non-superuser role** (e.g. `app_authenticated`, plus `app_anon` for the public web read path) that has only `SELECT/INSERT/UPDATE/DELETE` grants, never table ownership.
-- Add `ALTER TABLE <t> FORCE ROW LEVEL SECURITY` on every tenant table as a belt-and-suspenders defense so even an accidental owner connection is constrained.
-- Keep migration/DDL on a separate privileged role used *only* by `drizzle-kit migrate`, never by the running apps.
+- Pick an explicit **remainder allocation rule** and encode it as a named invariant: e.g. base installment = `floor(saldo/cuotas)`, distribute the `saldo mod cuotas` remaining units one-per-installment to the **first k** installments (or all to the last — decide and document). The rule must be a pure function with its own test.
+- Hard invariant (property test): `anticipo + Σcuotas + Σrefuerzos === precioTotal` for **every** input, exactly, no tolerance.
+- Do the same for the CAC-adjusted **peso** amount of the first cuota — rounding to whole pesos (ARS, no centavos per CLAUDE.md) must also foot.
+- Keep the rule in the snapshot semantics so a re-render reproduces the identical breakdown.
 
 **Warning signs:**
-- App and migrations share one DB user.
-- `DATABASE_URL` for the app points at a superuser or the table owner.
-- An isolation test that inserts as org A and selects as org B still returns A's rows.
+UI shows N identical installments; no test named for "remainder"/"resto"; `Σcuotas !== saldo`; a `toBeCloseTo` anywhere in the money suite.
 
-**Phase to address:** This milestone (phase 0) — role separation and FORCE RLS are part of the multi-tenancy deliverable.
+**Phase to address:** Engine.
 
 ---
 
-### Pitfall 3: RLS isolation never actually tested (false confidence)
+### Pitfall 3: CAC index staleness / missing month — engine silently uses the wrong (or a fabricated) index
 
 **What goes wrong:**
-The team writes policies, sees their own data, and declares multi-tenancy "done". There is no test that proves org A *cannot* see org B. Combined with pitfalls 1 and 2, the foundation ships with broken isolation and no one knows until a customer sees another developer's prices.
+`cac_index` is a **manual monthly load** (one value per org per período, e.g. `"2026-06"`). If June isn't loaded yet and a quote is generated in June, the engine either (a) throws mid-quote, (b) silently falls back to May, or (c) worst: interpolates/extrapolates a "current" CAC. Any silent fallback produces a quote with an index that doesn't match the leyenda — a correctness *and* trust failure.
 
 **Why it happens:**
-Positive tests are easy; adversarial cross-tenant tests require seeding two orgs and asserting *absence*. AI-generated test suites tend to assert presence, not absence.
+The index is human-maintained and lags; the engine treats "latest row" as "current month" without asserting the período actually equals the quote's month.
 
 **How to avoid:**
-- Write isolation tests that run **as the app role with the same `set_config` machinery as production** (not as the owner). Seed org A and org B; assert that querying under A's context returns zero of B's rows for `select`, `update`, `insert` (cross-tenant insert should fail or be invisible), and `delete`.
-- Include the `anon` read path: assert `anon` sees only `projects` with `estado = 'publicado'` and nothing from `borrador`/`archivado`, and zero rows from `leads`/`events` reads.
-- Make this suite a CI gate.
+- The engine takes the CAC value as an **explicit input** (it's already designed pure/no-I/O) — the *caller* resolves "which período" and must **fail loudly** if the required período row is absent. No implicit "latest".
+- Define policy explicitly: a CAC plan quotes the **cuota inicial en pesos al valor del mes vigente** with a leyenda — so the contract is "value of the load-month", and a missing month is a hard error surfaced to the panel ("cargá el CAC de junio"), never a silent substitution.
+- Snapshot must record `{ periodo, valor }` used, so the quote is self-describing regardless of later loads.
+- Add a panel/health signal: "CAC del mes no cargado" before it blocks a sale.
 
 **Warning signs:**
-- No test file references a second organization.
-- Tests connect as the owner/admin role.
-- "RLS works" claimed without an absence assertion.
+Engine reads "most recent" CAC without comparing período to the quote date; no error path for a missing month; quotes generated at month-start silently using last month.
 
-**Phase to address:** This milestone (phase 0). Verification: the cross-tenant absence suite is green in CI.
+**Phase to address:** CAC-index resolution (caller/panel) + Engine input contract. Add a panel warning for the missing month.
 
 ---
 
-### Pitfall 4: Drizzle RLS policies applied with `push` instead of `generate`/`migrate`
+### Pitfall 4: Property-based tests that test the implementation, game coverage, or use weak generators
 
 **What goes wrong:**
-`drizzle-kit push` does not reliably emit the RLS policy SQL (`CREATE POLICY`, role grants) — confirmed open behavior in drizzle-orm. Developers use `push` for speed in dev, the policies silently never get created, and the app runs with RLS-enabled-but-no-policies (default deny) or, worse, RLS not enabled at all. The project's own CLAUDE.md mandates versioned migrations and forbids manual schema changes, so `push` violates the standard *and* breaks RLS.
+The 100%-coverage gate is met with example tests plus a couple of `fc.property` runs over `fc.integer()` in a narrow range — so the suite is green, coverage is 100%, and the remainder-cent / large-cuota / zero-anticipo / all-refuerzos cases were never generated. Or the property test re-implements the engine's arithmetic as the "oracle" (tests the code against itself). Or a `/* c8 ignore */` hides a branch to hit the gate.
 
 **Why it happens:**
-`push` is the fast path everyone reaches for in early dev; the policy gap is not obvious. drizzle-kit also does not yet auto-generate policies for every case, so some policies must be hand-written SQL migrations.
+100% line coverage is easy to reach without exercising *value* edge cases; property tests are hard to write as true invariants, so people default to "run the function, assert it equals a re-derived number".
 
 **How to avoid:**
-- Use `drizzle-kit generate` + `drizzle-kit migrate` exclusively (matches CLAUDE.md). Never `push`, even locally — make `pnpm db:migrate` the only path and don't expose a `push` script.
-- Define policies via Drizzle's `pgPolicy`/`crudPolicy` where supported, and hand-write the rest as explicit SQL migration files committed to the repo.
-- Add a migration-presence check / drift check in CI so a missing policy migration fails the build.
+- Test **invariants, not recomputation**: (1) totals foot exactly; (2) monotonicity (more anticipo → smaller saldo → smaller cuotas); (3) `anticipoPct ∈ [0,100]`, `cuotas ≥ 1`, refuerzos sum ≤ saldo — reject out-of-domain; (4) determinism (same input → byte-identical snapshot); (5) no cuota is negative or zero when saldo>0.
+- Use **realistic, adversarial generators**: prices up to millions of USD, `cuotas` up to 120+, `anticipoPct` at 0 and 100 boundaries, refuerzos that consume the whole balance, CAC ratios far from 1.
+- Coverage gate is **necessary, not sufficient** — forbid `c8 ignore` in `packages/quoting`; review that branches are covered by *meaningful* assertions, not just execution.
+- Seed/shrink reporting on so CI prints the failing case.
 
 **Warning signs:**
-- A `db:push` script in `package.json`.
-- Policies defined in TS but absent from the generated SQL migration files.
-- `pg_policies` view empty on a fresh migrated DB.
+Property body recomputes the formula; generators are `fc.nat()` with no `max`; `c8 ignore` comments; coverage 100% but few `assert`/`expect` per test.
 
-**Phase to address:** This milestone (phase 0). Verification: query `pg_policies` after migrate; every tenant table has expected policies.
+**Phase to address:** Engine (test suite is part of the deliverable).
 
 ---
 
-### Pitfall 5: Better Auth misconfigured behind Traefik (cookies/sessions break, or open to forgery)
+### Pitfall 5: The anon public web cannot read CAC or write quotes — wrong-layer integration attempt
 
 **What goes wrong:**
-Two failure modes. (a) Auth derives the wrong base URL behind the reverse proxy — login redirects, OAuth callbacks, and secure cookies break because Better Auth sees `http`/internal host instead of the public `https` host. (b) You "fix" it by blindly trusting `X-Forwarded-*` headers without locking down who can set them, opening host-header/CSRF forgery.
+The cotizador lives on the **public (anon) web**, but `cac_index` and `quotes` are **tenant-private** (no anon policy). The instinct is to fetch CAC and insert the quote from the public client via the `anon` role → every call raises `42501` and looks like an RLS bug. The "fix" people reach for is disastrous: add an anon SELECT policy to `cac_index` (leaks every tenant's index) or an anon INSERT to `quotes` (opens spam/PII writes), or run the public path with the app/owner pool (bypasses tenant isolation entirely).
 
 **Why it happens:**
-Behind Traefik the app receives internal scheme/host. Better Auth resolves base URL from static config → env (`BETTER_AUTH_URL`) → forwarded headers (only when `trustedProxyHeaders` is on). Getting the precedence and proxy header trust wrong is easy, and the multi-app setup (web + panel sharing auth) multiplies the surface (`trustedOrigins`, cookie domain, same secret).
+The public web only has the `anon` grant; the quoting inputs deliberately don't. The layering (compute + persist on the **server**, scoped to the project's org) isn't obvious from the client's vantage point.
 
 **How to avoid:**
-- Set an explicit `baseURL` / `BETTER_AUTH_URL` to the public staging URL rather than relying on header derivation, OR enable `trustedProxyHeaders` only after configuring Traefik to set `X-Forwarded-Proto`/`X-Forwarded-Host` and strip any client-supplied versions.
-- List every app origin (web + panel, staging + localhost) in `trustedOrigins`; share the same auth secret/encryption key across apps.
-- For shared sessions across `web` and `panel` on subdomains, set the cookie domain to the registrable parent domain and use `Secure`/`SameSite` appropriately. If they are separate hosts, decide explicitly whether sessions are shared or independent — don't leave it accidental.
-- Pin the Better Auth + organization-plugin versions and re-read the proxy/security docs at integration time (API still evolving).
+- Compute and persist **server-side**: a tRPC route/server action running in a **transaction scoped to the target project's organization** (`SET LOCAL app.current_organization_id = <org of the published project>`), using the app role — not the anon browser role, not the owner pool. The public visitor triggers it; the server resolves the org from the published project and runs with that tenant's GUC.
+- **Do not** add anon policies to `cac_index` or `quotes`. Keep them tenant-private (as committed). The only anon-readable pricing inputs are `unit_prices`/`payment_plans` (published-only), which is enough to *display*; the authoritative compute + snapshot happen server-side.
+- Treat the quote-generation endpoint as an **anonymous write funnel**: validate with Zod, rate-limit at the edge (see Pitfall 6), and never trust client-supplied prices/CAC — the server re-reads them.
 
 **Warning signs:**
-- Login works on localhost but redirects/cookies fail on staging.
-- OAuth/callback URLs contain the internal host or `http`.
-- `trustedProxyHeaders` enabled without Traefik sanitizing the headers.
+`42501` on the cotizador path; a migration adding `anon` to `cac_index`/`quotes`; the public request using `DATABASE_URL`/owner pool instead of the app pool with a project-scoped GUC; prices/CAC coming from the request body.
 
-**Phase to address:** This milestone (phase 0) — auth + reverse proxy is in scope. Verification: full login + invite + org-switch flow works end-to-end on the staging URL.
+**Phase to address:** Persistence / API wiring (server-side quote endpoint). This is the #1 integration pitfall for this milestone.
 
 ---
 
-### Pitfall 6: Better Auth Drizzle adapter schema/migration drift
+### Pitfall 6: Anonymous quote spam, PII in snapshots, and unbounded quote/lead writes
 
 **What goes wrong:**
-The Better Auth Drizzle adapter (plus organization plugin) expects specific tables/columns (users, sessions, accounts, verification, organization, member, invitation). If you hand-roll the schema or let the adapter and your own migrations diverge, auth fails at runtime with cryptic errors, or the organization plugin can't find its tables. Multi-tenant membership/roles (owner/developer/viewer) live partly in plugin tables and partly in your `memberships` — duplicating or mismatching them creates two sources of truth.
+A public "generate quote" endpoint that persists a snapshot per call is a free write amplifier: a bot generates thousands of quotes (and PDFs — see Pitfall 8), filling the table and the worker queue. Separately, if the quote captures buyer name/phone (for the WhatsApp hand-off) and that lands in `snapshot` JSONB, you've put **PII in an audit blob** that's hard to redact and may not need to be there.
 
 **Why it happens:**
-Two schema generators (Better Auth CLI vs your Drizzle migrations) competing; plugin tables are easy to forget; the project already has a `memberships` table in `docs/modelo-mvp.md` §3.3 that must reconcile with the org plugin's `member` table.
+modelo-mvp.md §3.3 explicitly allows anonymous inserts for `events`/`leads` with edge rate-limiting — the same discipline must extend to the quote funnel, but quotes are a heavier write and easy to forget. PII creeps into the snapshot because it's convenient to stuff everything in one JSONB.
 
 **How to avoid:**
-- Generate the Better Auth schema via its CLI, commit it as Drizzle schema, and feed it through the same `generate`/`migrate` pipeline — one migration history.
-- Decide explicitly whether the org plugin's `member` table *is* your `memberships` (preferred — one source of truth for roles) or whether you keep a separate domain table. Document the mapping. Don't run both with overlapping responsibilities.
-- Re-run the auth schema generator after any plugin/version bump and review the diff.
+- **Rate-limit the quote endpoint** (per-IP / per-session, edge middleware + Zod validation) exactly like `leads`/`events`. Note: staging uses **nginx (not Traefik)** per D-01 — the CLAUDE.md "Traefik rate-limit middleware" doesn't exist there; implement the limit in nginx (`limit_req`) and/or app-level (Redis token bucket) so it's real on staging, not just in the design doc.
+- Decide deliberately whether a public compute even needs to **persist**: consider persisting the snapshot only when the visitor commits (opens WhatsApp / leaves contact → becomes a `lead`), and computing ephemerally otherwise. Reduces spam surface and PII.
+- Keep the **snapshot PII-free**: `snapshot` = financial inputs/outputs + engine version. Buyer contact belongs in `leads` (which already models contact + `quote?`), linked via the nullable `quotes.leadId`, not embedded in the audit envelope.
+- Cap PDF generation to committed quotes, not every compute.
 
 **Warning signs:**
-- Auth tables created outside the Drizzle migration history.
-- Both a `member` and a `memberships` table holding roles.
-- Runtime "relation does not exist" / missing-column errors from auth.
+No rate limit on the quote route; buyer name/phone appearing inside `snapshot`; a PDF job enqueued on every keystroke/compute; quote table growth uncorrelated with leads.
 
-**Phase to address:** This milestone (phase 0). Verification: auth + org plugin run against the migrated schema with no runtime schema errors; roles resolve from one table.
+**Phase to address:** Persistence + edge/rate-limit config (nginx-aware). PII decision at snapshot design time.
 
 ---
 
-### Pitfall 7: Traefik exhausts Let's Encrypt rate limits on staging
+### Pitfall 7: Snapshot drifts from what's rendered — re-render uses live data instead of the frozen snapshot
 
 **What goes wrong:**
-Let's Encrypt production limits issuance (~50 certs/domain/week, plus duplicate-certificate limits). A crash-looping Traefik, non-persisted `acme.json`, or repeated redeploys during phase-0 iteration request fresh certs each restart and hit the limit — then *no* cert issues for up to a week, blocking the staging demo. The on-demand TLS feature for clients' custom domains (planned in the master doc) amplifies this risk later.
+The quote is stored as a snapshot, but the PDF/UI re-render **re-reads live** `unit_prices`/`cac_index`/`payment_plans` (or re-runs the current engine) instead of rendering *from the snapshot*. Weeks later the price changed or the engine formula changed, and the "same" quote now shows different numbers than the buyer saw / the PDF says. Auditability — the whole point of the snapshot — is lost.
 
 **Why it happens:**
-`acme.json` not mounted to a persistent volume; using the production CA while iterating; container restart loops during early infra debugging.
+It's easier to call the engine again with IDs than to render a stored blob; and the snapshot interior is `.passthrough()` (open shape), so nothing forces the renderer to consume it faithfully.
 
 **How to avoid:**
-- Use the **Let's Encrypt staging CA** (`acme-staging-v02`) while building/iterating phase-0 infra; switch to production only when the setup is stable. Use separate storage files (`acme-staging.json` / `acme.json`).
-- Persist `acme.json` on a Docker volume; set file permissions to `600` (Traefik refuses world-readable acme storage).
-- Fix crash loops before they spin; cap restart policy during debugging.
-- For the future custom-domain feature, plan DNS-01 or careful on-demand issuance with the rate limits in mind — flag as a later milestone, NOT phase 0.
+- **One source of truth for rendering: the snapshot.** UI result screen, PDF, and WhatsApp text all format **from the persisted snapshot object**, never from a fresh engine run or a live DB read. Compute once, freeze, render many.
+- Store enough in the snapshot to render everything (per-installment breakdown, anticipo, refuerzos, CAC período+valor, totals, currency labels) so no live lookup is needed.
+- **Bump `version` on every engine change** and store `engineVersion` in the snapshot. A renderer must be able to read old versions (or explicitly refuse) — never reinterpret v1 data with v2 math.
+- Test: given a stored snapshot, PDF text and UI totals are derived purely from it (golden-file / snapshot test), independent of current DB rows.
 
 **Warning signs:**
-- `acme.json` lives inside the container (lost on rebuild) or is `644`.
-- Repeated "too many certificates already issued" / rate-limit errors in Traefik logs.
-- Browser shows the staging CA cert in prod (left on staging CA by mistake).
+PDF/worker code that imports the engine and recomputes from IDs; renderer reads `unit_prices` at render time; `version` never incremented across formula changes; two quotes with the same inputs but different stored numbers after a price edit.
 
-**Phase to address:** This milestone (phase 0) for staging TLS. Custom-domain on-demand TLS: later milestone.
+**Phase to address:** Persistence (snapshot shape) + PDF + UI (all render-from-snapshot).
 
 ---
 
-### Pitfall 8: Over-engineering phase 0 past the one-week control rule
+### Pitfall 8: PDF-in-worker — Alpine fonts, memory/timeouts, and retries that duplicate PDFs
 
 **What goes wrong:**
-The master doc sets a hard rule: if phase 0 takes more than a week, recalibrate the whole plan. With an AI assistant it is tempting to fully wire OpenTelemetry traces, Grafana/Loki dashboards, BullMQ workers, PgBouncer, SOPS secret rotation, and custom-domain TLS *now*. The foundation balloons to two weeks, the Fable window burns on plumbing instead of the "wow" demo (explorer + quoter), and the control rule is violated.
+Three distinct failures stack up in the BullMQ worker (Node **Alpine** image):
+1. **Fonts/accents:** If the PDF is rendered via headless Chromium (Puppeteer), Alpine has no bundled fonts → Spanish accents (á é í ó ú ñ) and the `US$`/`$` glyphs render as tofu/□, or Chromium won't launch (musl vs glibc, missing `chromium` apk). If via a JS PDF lib (pdfkit/@react-pdf), the default font may lack Latin-Extended glyphs → accents drop.
+2. **Memory/timeout:** Chromium in a small VPS container is heavy; concurrent PDF jobs OOM-kill the worker or exceed the job timeout, leaving jobs stuck.
+3. **Retry duplication:** BullMQ **retries on failure**; a job that generated the PDF, uploaded to R2, but timed out before acking will **re-run and create a second PDF** (and possibly a second `pdfKey`), or double-charge the queue. Non-idempotent side effects on retry.
 
 **Why it happens:**
-"Professional from day one" (a real project value) gets misread as "everything, maximally, immediately". AI makes adding each piece cheap, so scope creeps silently. Solo dev has no one pushing back.
+Alpine ships minimal; PDF rendering is the heaviest thing the worker does; and BullMQ's at-least-once semantics meet a non-idempotent upload.
 
 **How to avoid:**
-- Define phase-0 "done" minimally and literally from PROJECT.md Active list: monorepo skeleton, CI (lint+typecheck+test), Docker Compose up with Postgres/Redis, Better Auth + orgs + RLS isolation proven, versioned migrations, auto-deploy to staging, *basic* observability (Sentry capturing errors + pino structured logs + Uptime Kuma ping). That is enough.
-- Defer to later milestones (explicitly, in the roadmap): full OTel tracing dashboards, BullMQ/worker logic, PgBouncer, image pipeline, SOPS rotation, custom-domain on-demand TLS. Stub the worker app as an empty deployable shell only.
-- Time-box: if phase 0 crosses ~5 working days, stop and recalibrate per the control rule rather than pushing through.
+- **Fonts:** If Chromium, install `chromium` + `font-noto`/`ttf-freefont`/`fontconfig` in the image and set the Puppeteer executable path; verify accents render in a smoke test. Prefer a **pure-JS PDF path** (e.g. pdfkit/@react-pdf with an **embedded** font that includes Latin-Extended, like Noto/Inter) to avoid Chromium in Alpine entirely — lighter memory, no browser deps. Add a CI/worker test that asserts "ácéíóúñ US$" round-trips visibly (render → extract text).
+- **Memory/timeout:** bound worker **concurrency** for PDF jobs, set a realistic job timeout, and size the container; the media pipeline (sharp) already runs here — don't let PDF + sharp contend unbounded.
+- **Idempotency:** make the PDF job **idempotent by `quoteId`** — deterministic R2 key (`quotes/{quoteId}.pdf`), upsert/overwrite, and set `pdfKey` in a way that a retry produces the *same* object, not a new one. The v1.1 media pipeline already established "deterministic key + overwrite on re-run" (D-04) — reuse that pattern.
+- Errors observable (Sentry + pino) — never a silently swallowed PDF failure.
 
 **Warning signs:**
-- Building features (quoting, media, panel CRUD) "while I'm here".
-- Grafana dashboards / OTel spans being tuned before any product code exists.
-- Day 6+ of phase 0 with isolation tests still not green.
+Tofu/□ in generated PDFs; Chromium launch errors in Alpine logs; worker OOM/restarts under load; two R2 objects for one quote; `pdfKey` changing on retry.
 
-**Phase to address:** This milestone (phase 0) — it is a scoping discipline. Verification: phase-0 exit checklist matches PROJECT.md Active list exactly, no more.
+**Phase to address:** PDF worker phase. Font/idempotency are the load-bearing bits.
 
 ---
 
-### Pitfall 9: Single-app Docker build pulls the whole monorepo (slow, broken, leaks secrets)
+### Pitfall 9: es-AR formatting wrong — `1,234.56` instead of `1.234,56`, and Node-vs-browser ICU spacing
 
 **What goes wrong:**
-Building `apps/web` (or `panel`/`worker`) by copying the entire monorepo into the image: huge images, slow CI, cache thrash, and workspace packages (`packages/db`, `api`, etc.) not resolving at runtime — or, worse, `.env` / source for *all* apps baked into one image. Next.js in a monorepo also commonly ships broken because `output: 'standalone'` and `outputFileTracingRoot` aren't set, so workspace deps aren't traced.
+Two levels:
+1. **Locale wrong:** numbers formatted with default/`en-US` grouping show `1,234.56` (US) instead of the Argentine `1.234,56` — thousands `.`, decimals `,`. Peso vs dólar labels get mixed (`$` for ARS vs `US$`/`USD` for dollars — Argentines read `$` as pesos; showing `$ 100.000` for a USD price is a serious misread).
+2. **ICU spacing drift:** `Intl.NumberFormat('es-AR', { style:'currency' })` inserts a **narrow no-break space (U+202F/U+00A0)** between the symbol and the number, and the exact symbol/spacing **changed across ICU versions** (documented: currency spacing shifted on Node's ICU bumps). So the string rendered in the **browser** (one ICU version) differs from the **worker/Node** PDF (another ICU version), and naive test assertions (`expect(s).toBe("US$ 1.234,56")` with a normal space) fail or, worse, UI and PDF disagree by an invisible character.
 
 **Why it happens:**
-Naive `COPY . .` Dockerfile; not knowing about `turbo prune --docker`; forgetting Next.js standalone needs the monorepo root as tracing root and `transpilePackages` for internal packages.
+Default `toLocaleString()`/no locale → runtime locale. And ICU is bundled per-runtime; browser V8 and Node ship different ICU versions, and Node/Alpine's ICU may differ from dev — so `Intl` output is not byte-stable across the stack.
 
 **How to avoid:**
-- Use `turbo prune --docker <app>` to produce a minimal pruned context per app, with a multi-stage Dockerfile (deps → build → runner) and pnpm with corepack.
-- In each Next.js app: `output: 'standalone'`, `outputFileTracingRoot` = monorepo root, `transpilePackages` listing internal `packages/*` consumed.
-- Run from `.next/standalone` in the runner stage; don't reinstall deps or ship dev deps. Keep build args / secrets out of layers (use `--secret`, not `ARG`).
+- **Format from the snapshot in one place**, with an explicit `es-AR` formatter and explicit currency handling — and **decide symbol conventions in code** (`US$` for USD, `$` for ARS), don't rely on ICU's currency symbol which may render `US$`, `USD`, or `$` differently per version.
+- To guarantee UI == PDF, consider **not** relying on `Intl` currency style for the money string: format the integer/decimal grouping deterministically (own thousands-`.`/decimals-`,` formatter, or `Intl.NumberFormat('es-AR', {style:'decimal'})`) and **prepend your own literal `US$ `/`$ ` label** with a normal space you control. This removes the U+202F variability and the cross-runtime ICU divergence.
+- If keeping `Intl`, pin behavior: test against the **actual** output (copy the real narrow-space char) and run the format test in **both** the web build and the Node/worker env so drift is caught in CI. Node 22 ships full-ICU (es-AR works in Alpine), but *which* ICU version is not guaranteed equal to the browser's.
+- ARS cuotas are whole pesos (no centavos per CLAUDE.md) — format with 0 fraction digits; USD prices are whole units too.
 
 **Warning signs:**
-- Dockerfile starts with `COPY . .`.
-- Image size in hundreds of MB for a Next app; CI build minutes climbing.
-- Runtime "cannot find module @repo/db" or missing internal package.
+`1,234.56` anywhere in es-AR UI; `$` on a USD amount; assertions with a literal normal space passing locally but flaky in CI; PDF and web showing different spacing/symbol for the same number; use of `toLocaleString()` with no locale arg.
 
-**Phase to address:** This milestone (phase 0) — building/deploying the three apps from the monorepo is in scope.
+**Phase to address:** UI + PDF (shared formatter in `packages/ui` or `packages/quoting` output-formatting helper, tested in both runtimes).
 
 ---
 
-### Pitfall 10: Insecure VPS deploy from GitHub Actions
+### Pitfall 10: wa.me link — phone format, accent/newline encoding, and URL length
 
 **What goes wrong:**
-Phase 0 wires auto-deploy to a *shared* VPS that also hosts `andescode.com.ar`. Common mistakes: long-lived SSH keys with broad access in repo secrets; the workflow `docker compose pull && up` over SSH as root; secrets echoed into logs; or a self-hosted runner on the shared box that becomes a backdoor into the host. A compromise here touches the unrelated production site on the same VPS.
+- **Phone:** wa.me needs an international number **digits only, no `+`, no spaces/dashes**. Argentine mobiles need the `54` **country code + `9`** for mobile (`54 9 <área> <número>`) — omitting the `9`, or including `+`/`15`/spaces, silently opens WhatsApp to a broken/empty chat.
+- **Encoding:** the prefilled text must be `encodeURIComponent`-encoded. Spanish accents and the `$`/newlines break if you hand-concatenate; line breaks must be `%0A`. Double-encoding (encoding an already-encoded string) produces literal `%25` garbage in the message.
+- **Length:** very long prefilled text (a full installment table) risks truncation — practical cross-browser/deep-link URL ceiling is ~**2000 chars**; WhatsApp/browsers may cut long `text` params.
 
 **Why it happens:**
-SSH-deploy tutorials use a root key and `set -x`. Self-hosted runners are convenient but are a documented attack surface ("assume anyone who can run a workflow has the runner's environment").
+`wa.me/<phone>?text=<...>` looks trivial, so the phone normalization and single-encode discipline get skipped; and the temptation is to cram the whole quote into the message.
 
 **How to avoid:**
-- Deploy with a dedicated, least-privilege deploy user (not root), a key scoped to that user, stored in GitHub Secrets (never in the repo). Restrict the key's `authorized_keys` `command=`/forced command if possible.
-- Pull images from a registry on the VPS rather than building on the shared host; pass app secrets via env files on the box (or SOPS), never via workflow logs. Mask secrets; avoid `set -x`.
-- Prefer NOT putting a self-hosted runner on the shared VPS; if used, isolate it (container, restricted network egress) and never on the same trust boundary as the existing site.
-- Isolate staging from `andescode.com.ar`: separate Traefik routers, separate Docker networks/volumes, no shared DB.
+- **Normalize the phone** through one function: strip non-digits, ensure `54` + `9` for AR mobiles, validate length; store broker WhatsApp already-normalized (schema has `brokers.whatsapp`).
+- Build `text` with **exactly one** `encodeURIComponent` on the final assembled string; use `\n` (encoded to `%0A`) for line breaks; unit-test that `áéíóú ñ US$` and newlines round-trip.
+- **Keep the message short:** a summary (unidad, precio, anticipo, N cuotas, total) + a link back to the full quote/PDF, **not** the whole table. Budget the URL under ~2000 chars. The authoritative detail lives in the PDF/snapshot, the WhatsApp text is a teaser + contact trigger.
 
 **Warning signs:**
-- Root SSH key in secrets; deploy runs as root.
-- `set -x` or secret values visible in Actions logs.
-- A self-hosted runner installed directly on the host that also serves the main site.
+`+` or spaces in the wa.me phone; missing `9` for AR mobiles; `%25` in the delivered message (double-encode); WhatsApp opening with truncated/garbled text; message length near/over 2000 chars.
 
-**Phase to address:** This milestone (phase 0). Verification: deploy uses non-root scoped user; staging and the existing site are network/volume isolated.
-
----
-
-### Pitfall 11: Sentry/observability wired wrong for App Router RSC (errors silently dropped)
-
-**What goes wrong:**
-With Next.js App Router, server-side and React Server Component errors are NOT captured unless you export `onRequestError` calling `Sentry.captureRequestError` in `instrumentation.ts`. Teams install the SDK, see client errors, and assume server coverage — but RSC render errors (exactly where tRPC/DB/RLS failures surface) vanish. The project's value prop is "we can't learn about outages from the client's WhatsApp", so silent server errors defeat the whole observability deliverable. Separately, naive pino + Next.js (especially edge/serverless contexts) can crash or produce unstructured logs, and over-eager OTel auto-instrumentation floods traces with noise.
-
-**Why it happens:**
-The `onRequestError` hook is new-ish and easy to miss; the SDK's client setup looks complete. pino transports don't always work in all Next runtimes. OTel defaults instrument everything.
-
-**How to avoid:**
-- Add `instrumentation.ts` with `onRequestError` → `Sentry.captureRequestError`; await any async work in it. Verify by deliberately throwing in an RSC and confirming the event lands in Sentry.
-- Configure pino for structured JSON to stdout (let the container/Loki collect it); avoid fragile transports in the request path; ensure it works in the Node runtime used by the apps.
-- Keep OTel minimal in phase 0 (errors + uptime + structured logs are enough per Pitfall 8). Don't enable broad auto-instrumentation/sampling tuning yet.
-
-**Warning signs:**
-- No `instrumentation.ts` `onRequestError` export.
-- A thrown error in a server component never appears in Sentry.
-- Logs are plain strings, or pino throws in the Next runtime.
-
-**Phase to address:** This milestone (phase 0) — "observability from the first deploy" is in scope. Deeper OTel tracing: later milestone.
+**Phase to address:** WhatsApp CTA phase (text built from the snapshot).
 
 ---
 
 ## Technical Debt Patterns
 
-Shortcuts that seem reasonable but create long-term problems.
-
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| `drizzle-kit push` in dev | Instant schema sync | RLS policies silently missing; violates versioned-migration standard | Never (use generate+migrate) |
-| App connects as DB owner/superuser | One DB user, no grants to manage | RLS silently bypassed (Pitfall 2); breach risk | Never for tenant tables |
-| Session-scoped tenant context | Slightly simpler query code | Cross-tenant leak under pooling (Pitfall 1) | Never |
-| Skip the cross-tenant absence test | Faster "done" | False isolation confidence; breach ships | Never |
-| Build full OTel/Grafana/BullMQ in phase 0 | Feels thorough | Blows the 1-week rule; burns Fable window | Never in phase 0 — defer |
-| `COPY . .` monorepo Docker build | Dockerfile "just works" first try | Huge images, secret leakage, broken workspace deps | Only a throwaway spike, never committed |
-| Static `baseURL` only (no proxy header plan) | Auth works on staging fast | Custom client domains later need rework | OK for phase 0 (single staging host); revisit at custom-domain milestone |
-| Single shared VPS for staging + existing site | Zero new infra cost | Blast radius spans unrelated prod site | OK for staging only, with strict network/volume isolation |
-| Stub `apps/worker` as empty shell | Keeps phase 0 small | None — this is the *correct* deferral | Always (recommended) |
+| Do CAC/percentage math in JS `number` (float) | Less code, no decimal lib | Cent drift, totals don't foot, violates CLAUDE.md money rule | **Never** in `packages/quoting` |
+| Hit 100% coverage with example tests + `c8 ignore` | Green gate fast | Value edge cases (remainder, boundaries) untested; false confidence in the diferencial | **Never** — engine is the product |
+| Recompute the quote from IDs at PDF/render time | No snapshot plumbing | Snapshot drift, non-auditable, PDF ≠ what buyer saw | Never once quotes persist |
+| Add anon SELECT/INSERT to `cac_index`/`quotes` to "fix" 42501 | Public path works immediately | Cross-tenant index leak / open write spam / PII exposure | **Never** — compute server-side |
+| Render PDF via Chromium in Alpine without pinning fonts | Familiar HTML→PDF flow | Tofu accents, OOM, heavy image | Only with `font-noto` + concurrency cap tested; JS PDF lib preferred |
+| Rely on `Intl` currency string for UI==PDF equality | One-liner | Invisible U+202F + ICU-version drift → UI/PDF disagree, flaky tests | Only if tested in both runtimes against real output |
+| Compute-and-persist a quote on every public keystroke | Live preview | Quote spam, PDF flood, table bloat | Debounced ephemeral compute; persist only on commit |
 
 ## Integration Gotchas
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| Postgres RLS + connection pool | `set_config(...,false)` / `SET` session var | `set_config(...,true)` inside a transaction via one `withTenant` helper |
-| Postgres RLS + app role | App runs as table owner/superuser | Dedicated non-owner roles (`app_authenticated`, `app_anon`) + `FORCE ROW LEVEL SECURITY` |
-| Drizzle + RLS | Policies via `push`; assume auto-generated | `generate`+`migrate`; hand-write policy SQL where drizzle-kit can't; verify `pg_policies` |
-| Better Auth + Traefik | Wrong base URL / blindly trust forwarded headers | Explicit `BETTER_AUTH_URL` or `trustedProxyHeaders` with Traefik sanitizing `X-Forwarded-*` |
-| Better Auth + Drizzle adapter | Two competing schema sources; duplicate role tables | One migration history; reconcile org-plugin `member` with domain `memberships` |
-| Better Auth multi-app (web+panel) | Cookie domain / `trustedOrigins` / secret mismatch | Shared secret, all origins listed, deliberate cookie-domain decision |
-| Traefik + Let's Encrypt | Non-persisted `acme.json`, prod CA while iterating | Persist `acme.json` (perms 600), use staging CA during build, separate storage files |
-| Sentry + App Router | Only client SDK; no `onRequestError` | `instrumentation.ts` exporting `Sentry.captureRequestError`; verify with a thrown RSC error |
-| pino + Next.js | Fragile transport in request/edge path | Structured JSON to stdout, collected by container/Loki; verify in target runtime |
-| GitHub Actions → VPS | Root SSH key in secrets; secrets in logs | Least-privilege deploy user, masked secrets, registry pull, no self-hosted runner on shared host |
+| RLS + public cotizador | Reading `cac_index`/inserting `quotes` via anon role (→ `42501`) | Compute + persist in a server tx scoped to the published project's org (app role + `SET LOCAL` GUC); anon reads only published `unit_prices`/`payment_plans` |
+| Drizzle `numeric` columns | `parseFloat(anticipoPct/valor)` → float math | Parse strings straight into `Decimal`; keep integers integer |
+| BullMQ retries | Non-idempotent PDF upload → duplicate PDFs on retry | Idempotent by `quoteId`, deterministic R2 key, overwrite (reuse v1.1 media D-04 pattern) |
+| Alpine Node image (worker) | No fonts → accent tofu in PDF; Chromium won't launch | Embed a Latin-Extended font (JS PDF lib) or install `chromium`+`font-noto`; smoke-test accents |
+| Edge rate limiting | Assume Traefik middleware exists (CLAUDE.md) | Staging is nginx (D-01) → `limit_req` in nginx and/or Redis token bucket in-app |
+| wa.me | `+`/spaces/missing `9` phone; double-encode; whole table in text | One phone-normalizer (`54 9…`), single `encodeURIComponent`, short summary + link |
+| `Intl.NumberFormat` | Default locale (`1,234.56`), `$` on USD, browser≠Node ICU spacing | Explicit `es-AR`, own `US$`/`$` label, deterministic grouping, test in both runtimes |
+| Snapshot ↔ engine version | Formula changes, `version` stays 1, old quotes re-read with new math | Bump `version` + store `engineVersion`; renderers read the stored version faithfully |
 
 ## Performance Traps
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| RLS policy with non-sargable / per-row subquery | Slow tenant queries as rows grow | Use simple `current_setting('app.current_tenant')::uuid = organization_id`; index the tenant column; wrap `current_setting` so the planner caches it | Noticeable at 10k+ rows/tenant; severe in `events` (partitioned) |
-| No index on tenant discriminator | Seq scans on every tenant query | Index `organization_id`/`project_id` on every tenant table | As soon as data accumulates |
-| Connection exhaustion on small VPS | "too many connections" under modest load | Plan for transaction-scoped context now so PgBouncer can be added without code change | When concurrency rises (later milestones) — design-only in phase 0 |
-| Turbo/CI cache misconfigured | CI re-runs everything every commit; slow merges | Correct Turborepo task `inputs`/`outputs` and remote/local cache; cache pnpm store | Immediately on a busy repo; wastes the Fable window |
+| Unbounded PDF concurrency in worker | Worker OOM/restart, stuck jobs | Cap PDF job concurrency + timeout; size container | A handful of concurrent quotes on the shared VPS |
+| PDF-per-compute (public preview) | Queue floods, R2 write storm | Persist/PDF only on commit; debounce preview | Any bot or busy launch day |
+| Chromium in Alpine for every PDF | High per-job memory, slow cold start | Pure-JS PDF lib; or warm a single browser pool | Immediately on a small VPS |
+| Live DB re-read on every quote render | Extra queries + drift | Render from snapshot only | As quote views scale |
 
 ## Security Mistakes
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| RLS bypass via owner/superuser app role | Full cross-tenant read/write | Non-owner app roles + `FORCE ROW LEVEL SECURITY` (Pitfall 2) |
-| Session-leaked tenant context under pooling | Silent cross-tenant breach | Transaction-scoped `set_config` (Pitfall 1) |
-| `anon` role too permissive | Public web reads drafts/leads/events | `anon` policy limited to `projects.estado='publicado'`; no read on `leads`/`events`; insert-only with rate limit for `events`/`leads` |
-| Trusting `X-Forwarded-*` without sanitizing | Host-header / CSRF / open redirect | Traefik sets and strips forwarded headers; `trustedOrigins` allowlist |
-| Secrets in image layers / Actions logs | Credential leak | Docker `--secret`, masked GH secrets, no `set -x`, SOPS/age for env at rest |
-| Shared VPS blast radius | Staging compromise reaches existing prod site | Network/volume isolation; non-root deploy user; no shared DB |
-| Self-hosted runner on shared host | Backdoor into the box | Avoid, or isolate runner with restricted egress |
-| Anonymous insert path (events/leads) unbounded | Spam / DoS / cost | Rate-limit at Traefik edge + Zod validation (per master doc §3.3) |
+| Anon policy added to `cac_index` | Every tenant's pricing index leaks cross-tenant | Keep tenant-private; server-side compute only |
+| Anon insert to `quotes` | Open write funnel: spam, forged snapshots, PII dumping | No anon insert; server endpoint, Zod-validated, rate-limited |
+| Trusting client-supplied price/CAC in the quote request | Buyer fabricates a favorable quote / snapshot poisoning | Server re-reads authoritative `unit_prices`/`cac_index` by ID; never trust body amounts |
+| PII (name/phone) inside `snapshot` JSONB | Hard-to-redact PII in an audit blob | Contact lives in `leads`; snapshot is finance-only, linked via `quotes.leadId` |
+| Public quote endpoint unthrottled | Table/queue flooding, cost | nginx `limit_req` + app token bucket (Traefik middleware doesn't exist on staging, D-01) |
+| Running public path with owner/superuser pool | Full RLS bypass, cross-tenant exposure | App role (NOSUPERUSER, NOBYPASSRLS) with project-scoped GUC |
 
 ## UX Pitfalls
 
-(Phase 0 has minimal end-user UX; these are operator/developer-experience pitfalls relevant now.)
-
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| "Works on my machine", not on staging | Demo/integration fails late; control-rule risk | Each phase ends *deployed to staging*, not local-only (master doc rule) |
-| Auth flow only tested on localhost | Login/cookies break on the real staging URL | Test full login/invite/org-switch against `staging.tours.andescode.com.ar` |
-| Restore never rehearsed | "Backup" is illusory at first incident | Master doc rule: rehearse restore before first paying client (later milestone; note now) |
+| `$` shown on a USD price | Argentine reads it as pesos → 1000× misread of the price | `US$` for dollars, `$` reserved for ARS cuotas; label explicitly |
+| Installments that don't sum to the total | Buyer adds cuotas, distrust the diferencial | Enforce footing invariant; show the reconciled breakdown |
+| No "cotización no vinculante" leyenda / implying CAC prediction | Legal exposure; quote read as a binding future-price promise | Mandatory non-binding legend on screen **and** PDF; state CAC is applied at the load-month value, no future CAC is predicted |
+| Quote silently using last month's CAC | Buyer/seller see a stale index vs the stated month | Fail loud on missing month; show the período used |
+| Long unreadable WhatsApp dump | Message truncated/ignored | Short summary + link to full PDF/quote |
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **RLS multi-tenancy:** Often missing the cross-tenant *absence* test run as the app role — verify org A cannot see org B for select/insert/update/delete, and `anon` sees only published projects.
-- [ ] **RLS policies:** Often missing because of `push` — verify `pg_policies` lists every expected policy on a fresh `migrate`.
-- [ ] **App DB role:** Often still the owner/superuser — verify app `DATABASE_URL` is a non-owner role and `FORCE ROW LEVEL SECURITY` is set.
-- [ ] **Tenant context:** Often session-scoped — verify every tenant query goes through the transaction-scoped `withTenant` helper.
-- [ ] **Better Auth on staging:** Often only localhost-tested — verify login + email invite + org switch on the public staging URL with secure cookies.
-- [ ] **Auth schema:** Often outside migration history — verify org-plugin tables are in the Drizzle migrations and roles come from one table.
-- [ ] **Sentry server errors:** Often missing `onRequestError` — verify a deliberate RSC throw appears in Sentry.
-- [ ] **Structured logs:** Often plain strings — verify pino emits JSON to stdout in the Node runtime and reaches Loki.
-- [ ] **TLS:** Often on staging CA in prod or non-persisted `acme.json` — verify prod CA, persisted `acme.json` (perms 600).
-- [ ] **Docker images:** Often whole-monorepo — verify `turbo prune` + Next standalone, small image, internal packages resolve at runtime.
-- [ ] **Deploy security:** Often root SSH key + logged secrets — verify non-root scoped deploy user, masked secrets, staging isolated from existing site.
-- [ ] **Worker app:** Often over-built — verify `apps/worker` is a deployable empty shell (logic deferred), keeping phase 0 small.
-- [ ] **Phase-0 scope:** Often crept — verify exit checklist == PROJECT.md Active list, nothing more, within ~1 week.
+- [ ] **Money math:** Totals foot **exactly** (`anticipo + Σcuotas + Σrefuerzos === precio`) for property-generated inputs — not just the demo case. Verify no `number` in money positions.
+- [ ] **Remainder cent:** A named rule + test decides who absorbs the division remainder; sum reconciles.
+- [ ] **CAC missing month:** Generating a quote when the current período isn't loaded **errors visibly** (with a panel signal), never silently substitutes.
+- [ ] **Non-binding legend:** Present on screen AND PDF; no wording implies a predicted future CAC value.
+- [ ] **Snapshot fidelity:** PDF + UI + WhatsApp all render from the stored snapshot; a price edit after issuance does **not** change an existing quote's numbers.
+- [ ] **Engine version:** `version`/`engineVersion` bumped on any formula change; old snapshots still render correctly.
+- [ ] **RLS path:** Public cotizador computes/persists server-side (app role + project GUC); no anon policy added to `cac_index`/`quotes`; `42501` cannot occur on the happy path.
+- [ ] **Rate limit real:** Quote endpoint throttled in nginx/app (not just a Traefik doc reference).
+- [ ] **PDF fonts:** Accents (á é í ó ú ñ) and `US$` render in the actual Alpine worker image (smoke test), not just locally.
+- [ ] **PDF idempotency:** Retrying a PDF job produces the same R2 object, not a duplicate.
+- [ ] **es-AR format:** `1.234,56` grouping; UI and PDF produce byte-identical money strings (ICU/U+202F drift handled).
+- [ ] **wa.me:** Phone `54 9…` digits-only; single-encode; accents/newlines round-trip; URL < ~2000 chars.
 
 ## Recovery Strategies
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Cross-tenant leak shipped (Pitfall 1/2/3) | HIGH | Rotate to non-owner roles, add FORCE RLS + transaction-scoped helper, write absence tests, audit logs/data for cross-tenant access, notify if a real breach occurred. Cheap if caught in phase 0 (no real data yet) — the reason to do it now |
-| Policies missing from `push` (Pitfall 4) | LOW (in phase 0) | Switch to generate+migrate, write the policy migrations, re-run, verify `pg_policies` |
-| Auth broken behind proxy (Pitfall 5) | LOW–MEDIUM | Set explicit baseURL / configure trusted proxy headers + Traefik; fix `trustedOrigins`/cookie domain; retest on staging |
-| Auth schema drift (Pitfall 6) | MEDIUM | Regenerate auth schema, write reconciling migration, collapse duplicate role tables |
-| Let's Encrypt rate-limited (Pitfall 7) | MEDIUM (time-bound) | Switch to staging CA, persist `acme.json`, wait out the rolling weekly limit; can't be forced faster |
-| Phase 0 over-built (Pitfall 8) | MEDIUM | Cut deferred items back out, recalibrate plan per control rule before continuing |
-| Bloated/broken Docker build (Pitfall 9) | LOW–MEDIUM | Rewrite Dockerfile with `turbo prune` + standalone; set tracing root/transpilePackages |
-| Insecure deploy (Pitfall 10) | MEDIUM | Rotate keys, switch to non-root deploy user, isolate staging, scrub secrets from history/logs |
-| Server errors invisible (Pitfall 11) | LOW | Add `onRequestError`; fix pino transport; verify with a forced error |
+| Float contamination shipped | MEDIUM | Convert engine to decimal/integer, add footing property test; affected quotes are historical snapshots (already frozen) — fix forward, bump `version` |
+| Snapshot drift (renders from live data) | HIGH | Backfill missing fields into snapshots if recoverable; switch all renderers to snapshot-only; some past quotes may be unreconstructable |
+| Anon leak of `cac_index` shipped | HIGH | Drop the anon policy immediately, audit access logs; move compute server-side |
+| Duplicate PDFs from retries | LOW | Switch to deterministic `quoteId` key + overwrite; dedupe R2 objects |
+| es-AR/ICU mismatch UI vs PDF | LOW | Replace `Intl` currency style with own deterministic formatter + literal label; add cross-runtime test |
+| Wrong `$`/`US$` label | LOW | Fix shared formatter; single source of truth means one change |
 
 ## Pitfall-to-Phase Mapping
 
-All eleven pitfalls land in **this milestone (phase 0)** because phase 0 *is* the foundation; the table notes verification and what to deliberately defer.
-
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| 1. Pooled-connection tenant leak | Phase 0 | `withTenant` is the only tenant query path; concurrency test shows no context bleed |
-| 2. Owner/superuser RLS bypass | Phase 0 | App role is non-owner; `FORCE ROW LEVEL SECURITY` on all tenant tables |
-| 3. Isolation untested | Phase 0 | Cross-tenant absence suite green in CI (run as app role) |
-| 4. Drizzle `push` drops policies | Phase 0 | `pg_policies` complete after `migrate`; no `push` script exists |
-| 5. Better Auth behind Traefik | Phase 0 | Full login/invite/org-switch works on staging URL with secure cookies |
-| 6. Auth schema drift | Phase 0 | Auth tables in Drizzle migration history; roles from one table |
-| 7. Let's Encrypt rate limit | Phase 0 (staging) / later (custom domains) | Persisted `acme.json` (600); staging CA during build, prod CA on prod |
-| 8. Over-engineering phase 0 | Phase 0 (discipline) | Exit checklist == PROJECT.md Active list; under ~1 week |
-| 9. Monorepo Docker build | Phase 0 | `turbo prune` + Next standalone; small images; internal packages resolve |
-| 10. Insecure VPS deploy | Phase 0 | Non-root scoped deploy user; staging isolated from existing site; secrets masked |
-| 11. App Router / pino / OTel observability | Phase 0 (errors+logs+uptime) / later (OTel tracing) | Forced RSC error reaches Sentry; pino JSON reaches Loki; Uptime Kuma pings |
+| Float contamination (P1) | Engine (`packages/quoting`) | Branded money types; footing property test exact |
+| Installment remainder (P2) | Engine | Named remainder rule + test; `Σ === precio` |
+| CAC staleness/missing month (P3) | Engine input contract + CAC resolution/panel | Missing-month generates a visible error; período in snapshot |
+| Weak property tests / coverage gaming (P4) | Engine test suite | Invariant-based props, adversarial generators, no `c8 ignore` |
+| Anon RLS wrong-layer (P5) | Persistence / API wiring | Server-side compute in project-scoped tx; `cac_index`/`quotes` stay tenant-private |
+| Quote spam / PII (P6) | Persistence + edge rate-limit (nginx) | Throttle test; snapshot PII-free; PDF only on commit |
+| Snapshot drift / version (P7) | Persistence + PDF + UI | Golden render from stored snapshot; `version` bumped on change |
+| PDF fonts/memory/retry (P8) | PDF worker | Accent smoke test in Alpine image; idempotent `quoteId` key |
+| es-AR / ICU formatting (P9) | UI + PDF (shared formatter) | `1.234,56`; UI==PDF byte-identical; tested in both runtimes |
+| wa.me phone/encode/length (P10) | WhatsApp CTA | Phone normalizer + single-encode round-trip test; URL length budget |
 
 ## Sources
 
-- Postgres RLS footguns & pooling: [Bytebase — Postgres RLS Footguns](https://www.bytebase.com/blog/postgres-row-level-security-footguns/), [PlanetScale — RLS sounds great until it isn't](https://planetscale.com/blog/rls-sounds-great-until-it-isnt), [MVP Factory — RLS tenant isolation](https://mvpfactory.io/blog/row-level-security-in-postgresql-multi-tenant-data-isolation-for-your-saas) (MEDIUM, cross-checked)
-- Drizzle RLS: [Drizzle ORM — RLS docs](https://orm.drizzle.team/docs/rls), [drizzle-orm issue #3504 — push vs migrate](https://github.com/drizzle-team/drizzle-orm/issues/3504), [Neon — Simplify RLS with Drizzle](https://neon.com/docs/guides/rls-drizzle) (HIGH)
-- Better Auth proxy/security: [Better Auth — Security reference](https://better-auth.com/docs/reference/security), [better-auth issue #3215 — wrong baseURL](https://github.com/better-auth/better-auth/issues/3215) (MEDIUM, evolving API)
-- Monorepo Docker: [Turborepo — Docker guide](https://turborepo.dev/docs/guides/tools/docker), [vercel/next.js discussion #85099 — self-hosting App Router + Turborepo](https://github.com/vercel/next.js/discussions/85099) (HIGH)
-- Traefik ACME: [Traefik v3.4 — Let's Encrypt docs](https://doc.traefik.io/traefik/v3.4/https/acme/) (HIGH)
-- Sentry App Router: [Sentry — Capturing Errors (Next.js)](https://docs.sentry.io/platforms/javascript/guides/nextjs/usage/), [Next.js — instrumentation.js conventions](https://nextjs.org/docs/app/api-reference/file-conventions/instrumentation) (HIGH)
-- CI/CD VPS security: [Sysdig — self-hosted runners as backdoors](https://www.sysdig.com/blog/how-threat-actors-are-using-self-hosted-github-actions-runners-as-backdoors) (MEDIUM)
-- Project context: `docs/modelo-mvp.md`, `CLAUDE.md`, `.planning/PROJECT.md` (HIGH — authoritative for scope/control rules)
+- `packages/db/src/schema/{quotes,cac-index,unit-prices,payment-plans,json-schemas}.ts` (committed v1.1 schema) — money column types, tenant-private RLS posture of `cac_index`/`quotes`, versioned snapshot envelope. **HIGH**
+- `docs/modelo-mvp.md` §3.3, §3.4, §5 — data model, cotizador spec (pure/deterministic, 100% coverage, property tests, snapshot + engine version), non-binding legend risk, anon insert + edge rate-limit pattern. **HIGH**
+- `CLAUDE.md` + `.planning/PROJECT.md` — money-in-integers rule, es-AR/voseo, D-01 (nginx not Traefik on staging), D-04 (deterministic-key + overwrite media idempotency pattern to reuse). **HIGH**
+- [Node.js issue #15223 — Intl.NumberFormat currency spacing changed on ICU bump](https://github.com/nodejs/node/issues/15223) — confirms currency symbol/spacing drift across ICU versions (browser vs Node). **MEDIUM→HIGH**
+- [MDN — Intl.NumberFormat constructor](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/NumberFormat/NumberFormat) — locale/currency display behavior. **HIGH**
+- [Oracle — Notes on deep link URL length](https://docs.oracle.com/cd/E49933_01/studio.320/studio_users/src/csu_deeplinking_url_length.html) + [URL length limits guide](https://www.lineserve.net/blog/ultimate-guide-to-url-length-limits-browsers-http-specs-and-best-practices) — ~2000-char practical ceiling for deep links / custom protocols. **MEDIUM**
+- General Alpine/Puppeteer + BullMQ at-least-once retry semantics — known ecosystem gotchas (fonts via `font-noto`/`fontconfig`, idempotent job side-effects). **MEDIUM**
 
 ---
-*Pitfalls research for: multi-tenant SaaS foundation (Next.js + tRPC + Drizzle/Postgres RLS + Better Auth + Docker/Traefik), phase 0*
-*Researched: 2026-06-12*
+*Pitfalls research for: Argentine CAC-adjusted quoting engine added to a multi-tenant Next.js/Drizzle/BullMQ SaaS*
+*Researched: 2026-07-01*

@@ -1,196 +1,247 @@
 # Feature Research
 
-**Domain:** Production-grade multi-tenant SaaS foundation (phase 0) — solo-operated, AI-first build, Argentina real-estate presale showroom
-**Researched:** 2026-06-12
-**Confidence:** HIGH
+**Domain:** Argentine off-plan (preventa en pozo) property quoting/financing — the ImBau cotizador (P4), milestone v1.2 / Fase 3
+**Researched:** 2026-07-01
+**Confidence:** HIGH (domain mechanics cross-checked against Argentine industry sources + grounded in the already-built v1.1 schema & seed)
 
-> Scope note: This file covers the **technical foundation** (phase 0) only — auth, tenancy, RLS isolation, CI gates, deploy pipeline, observability. It does NOT cover product/user features (building explorer, quoting engine, panel, leads); those are later milestones. "Features" here means *foundation capabilities*.
->
-> Framing note: The general industry advice for solo founders is "skip CI/CD and observability until you have demand." This project **deliberately rejects that** (CLAUDE.md: "el código es la carta de presentación"; PROJECT.md discards PocketBase). The product *sells* "disponibilidad y precios en tiempo real" and benchmarks against Hauzd — a foundation that can't prove tenant isolation or notice its own outages would undercut the pitch. So the bar here is higher than a throwaway MVP, and "over-engineering" is judged against *that* bar, not against a generic micro-SaaS. The real risk at phase 0 is not under-building the foundation; it is gold-plating it past what one operator can run in 3-4 days.
+## Scope note
+
+This researches ONLY the NEW quoting feature set. The multi-tenant foundation, full data model
+(`quotes`, `payment_plans`, `cac_index`, `price_lists`, `unit_prices`, `units`), media pipeline, and
+the deterministic "Brigos Recoleta" seed already exist and ship unchanged. There is **no public
+product UI yet** — the explorador/ficha are a LATER milestone (Fase 2). So the cotizador is the
+*first* public-facing surface and must reach a unit **without** the building explorer.
+
+---
+
+## Domain mechanics (the accuracy baseline)
+
+How Argentine developers/brokers actually present pozo financing (confirmed by industry sources,
+matches the seed):
+
+- **Precio de lista en USD.** Off-plan units are priced in whole USD. Two price lists are standard
+  and already seeded: *Financiado* (list price) and *Contado* (discounted; the seed applies **−12%**).
+- **Anticipo (down payment) in USD**, typically **20–40%** (30% is the modal case). Seeded plans:
+  30/70 and 20/80.
+- **Saldo en cuotas mensuales ajustadas por índice CAC.** The balance is paid over **24–48 months**
+  (seed: 36 and 48). Cuotas are **paid in pesos** and re-priced monthly by the **CAC index** (Cámara
+  Argentina de la Construcción) — a public monthly construction-cost index that keeps the balance in
+  "construction-cost-constant" terms (an inflation proxy, not an FX rate). Seed carries an 18-month
+  synthetic monotonic-up series, one value per org per período (`cac_index`).
+- **Refuerzos (balloon payments)**, usually **semestrales/anuales**, timed to *aguinaldos* (June/Dec).
+  Seeded as `Refuerzo[] = { cuota: int, montoUsd: int }` — one every 6 cuotas.
+- **Contado con descuento** — paying cash up-front earns a real discount (seed: −12%), presented
+  side-by-side with the financed plan.
+- **Leyenda de ajuste + no-vinculante.** Real cotizaciones always carry a disclaimer that peso values
+  are referential "al valor del mes" and adjust by CAC, and that the quote is **not binding** (valores
+  sujetos a la lista de precios vigente al momento del boleto). This is already encoded in the seed's
+  `notasLegales` per plan.
+
+**What a real cotización screen/PDF shows:** unit id + m²/tipología/orientación; price (USD);
+anticipo (USD + %); number of cuotas; **the first cuota expressed in ARS "al valor del mes"** with
+the adjustment disclaimer; refuerzos listed; total financed; and a contado-vs-financiado comparison.
+Additional real-world costs (sellos ~3.5%, escribanía ~2%) are sometimes shown but are **out of MVP
+scope** unless the plan explicitly adds them (see anti-features).
+
+### ⚠️ Load-bearing design decision (flag for the roadmap)
+
+The spec's stated engine inputs are exactly **`unidad + lista de precios + plan de pago + índice CAC
+vigente`** — there is **no USD→ARS FX rate** anywhere in the schema or inputs. Yet §3.4 wants "cuota
+inicial **en pesos** al valor del mes." A USD balance cannot become a peso installment without a
+conversion basis. The planner MUST resolve one of:
+
+1. **Cuotas in USD, CAC as the peso multiplier** — express each cuota's peso value as
+   `cuota_usd_share × CAC_valor_vigente` (treating the balance as a fixed number of CAC "unidades" at
+   boleto). Computable from the stated inputs; the pesos figure is illustrative and moves with CAC.
+2. **Cuotas presented in USD only**, with CAC shown purely as the textual adjustment legend (no hard
+   peso number). Safest, but weaker as the "#1 differentiator."
+3. **Add an explicit FX/base input** to the engine (a reference `valorCuotaBaseArs` on the plan, or a
+   quote-time USD→ARS) — a schema/contract addition, so scope-relevant.
+
+Recommendation: option **1** for the engine (keeps money in USD as the invariant, uses only stated
+inputs, honors "en pesos al valor del mes"), and NEVER predict future CAC (anti-feature). This is the
+single most important domain-accuracy decision and belongs in the engine SPEC before the UI is built.
+
+---
 
 ## Feature Landscape
 
-### Table Stakes (Foundation fails its purpose without these)
+### Table Stakes (Users Expect These)
 
-Capabilities a production multi-tenant SaaS foundation must have. Missing any = the foundation is not the thing it claims to be.
+Missing these = the cotizador feels incomplete or untrustworthy for the AR pozo market.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| **Monorepo skeleton (pnpm + Turborepo)** — apps `web`/`panel`/`worker`, packages `db`/`api`/`quoting`/`ui`/`config` as empty-but-wired stubs | Every later phase imports from these; without the boundaries, later work has nowhere to land | MEDIUM | Stubs only — real logic comes later. Get the dependency graph and `turbo` task pipeline right now; it is painful to refactor once code exists. |
-| **Strict TypeScript + lint + format config (shared `packages/config`)** | Quality standard is non-negotiable; `any`-free strictness is hard to retrofit | LOW | `tsconfig` base + ESLint/Biome flat config + Prettier, consumed by all packages. One source of truth. |
-| **CI pipeline that blocks merge: lint → type-check → unit tests → coverage gate** | "CI roja = no merge" is a stated rule; the quoting engine demands 100% coverage later | MEDIUM | GitHub Actions, pnpm cache, turbo remote/local cache. Coverage threshold enforced even though phase-0 code is thin — establishes the gate before code lands. |
-| **Better Auth: email/password sessions** | No app surface works without authenticated users | MEDIUM | Server + client plugin wiring. Sessions in Postgres (same DB), httpOnly cookies. |
-| **Better Auth organization plugin: orgs + memberships + roles (owner/developer/viewer)** | Multi-tenancy is "what turns service-per-project into SaaS"; roles gate the panel | MEDIUM | Map Better Auth default `owner/admin/member` to project's `owner/developer/viewer` via custom roles. A user can belong to many orgs — model accordingly. |
-| **Email invitations to an org (with expiry + pre-assigned role)** | Onboarding a developer's team without manual DB edits; required for self-service later | MEDIUM | Better Auth handles the lifecycle (default 48h expiry). Needs Resend + React Email wired to send the invite. Depends on org plugin. |
-| **Postgres 16 + Drizzle migrations (versioned, in-repo)** | "Nunca cambios manuales al schema"; reproducible DB across staging/prod | MEDIUM | `drizzle-kit` generate + migrate. `pnpm db:migrate` / `db:seed` commands. Migrations run in CI and on deploy. |
-| **RLS tenant isolation: policies on every tenant table, `FORCE ROW LEVEL SECURITY`, non-superuser app role** | The core promise — "aislamiento verificable por RLS". This is the differentiator's foundation. | HIGH | See PITFALLS. App connects as a **non-owner, non-superuser** role with `FORCE RLS`. Tenant context via `SET LOCAL` inside a transaction (never `SET`), so pooled connections don't leak. Secure-by-default: no context → zero rows. |
-| **`anon` read role limited to `publicado` projects** | Public web must read published projects only, never drafts/other tenants | MEDIUM | Separate Postgres role with policies allowing read of `estado = 'publicado'` rows. Anonymous insert (events/leads) deferred to later phases but role boundary set now. |
-| **RLS isolation tests in CI (proof, not assertion)** | "Verificable por RLS" must be *verified* — a test that a tenant cannot read another's rows | MEDIUM | Integration tests against a real Postgres (testcontainer or compose). This is the single most valuable phase-0 test — it guards the product's central claim. |
-| **Docker Compose: Postgres + Redis + app services, one command** | "Levantando con un comando"; staging and local must be reproducible | MEDIUM | `docker compose up -d`. Redis present even if BullMQ jobs come later — establishes the topology. |
-| **Auto-deploy to staging on merge to main** | "Cada commit a main termina en software corriendo en staging" — the core value of this milestone | HIGH | Build Docker images → registry → VPS pull + restart via Traefik. Traefik for TLS. Hardest-to-debug part (DNS/TLS/registry auth) — budget time. |
-| **Manual promotion to prod (gate)** | Prod must not deploy on every merge; separation of staging/prod | LOW | GitHub Actions `workflow_dispatch` / environment protection. Prod VPS itself deferred until first paying client (PROJECT.md). |
-| **Error tracking (Sentry)** | "Errores observables, nunca silenciados"; a realtime SaaS can't learn of outages via client WhatsApp | LOW | Free tier sufficient. Wire into web/panel/worker. Source maps in CI. |
-| **Structured logs (pino) → centralized (Grafana/Loki)** | Debugging integration issues (the part AI doesn't compress) needs queryable logs | MEDIUM | pino JSON logs, shipped to Loki in compose. Request/tenant context in log fields. |
-| **Uptime monitoring (Uptime Kuma)** | Knowing staging is down before a demo or client does | LOW | Self-hosted in compose; HTTP checks on web/panel. |
-| **Secrets management (not committed plaintext)** | Staging/prod secrets must not live in the repo as plaintext | MEDIUM | SOPS/age (per modelo-mvp §3.5). Establishes the pattern before prod secrets exist. |
+| Pure deterministic quote engine (`packages/quoting`) | The differentiator dies on any calc error; CLAUDE.md mandates 100% coverage + property-based tests | HIGH | Inputs: unit price (USD) + payment_plan + CAC vigente. Pure, no I/O. Emits one typed struct feeding UI + PDF + WhatsApp. Money as integers/decimal, never float. |
+| Contado (USD) result | The cash path is half of every AR pozo pitch | LOW | Read `unit_prices` on the *Contado* list; show discounted total. Trivial once engine exists. |
+| Financiado result: anticipo + N cuotas ajustadas por CAC + refuerzos | The core AR financing model | HIGH | Anticipo USD, saldo, cuota (see design decision above), refuerzos from `payment_plans.refuerzos`. Present first cuota "al valor del mes". |
+| Adjustment + non-binding legend on screen and PDF | Legal/trust table stakes; already in `notasLegales` | LOW | Surface `payment_plans.notasLegales` + a fixed "cotización no vinculante" line. |
+| Server-side PDF of the quote (worker) | Buyers/brokers expect a shareable/downloadable artifact | MEDIUM | Generated in `apps/worker` (BullMQ), stored to R2, key → `quotes.pdfKey`. Branding-consistent, archived (probative value). |
+| WhatsApp CTA with the quote pre-filled | P7/P4: the whole funnel ends in WhatsApp; "portada→cotización por WhatsApp <2 min" | LOW | `wa.me/<broker.whatsapp>?text=<encoded summary>`. Broker number when arriving via `/b/<slug>`, else project default. |
+| Reaching a unit WITHOUT the explorer | Explorer ships later; the quoter is the first public surface | MEDIUM | Needs a standalone entry: URL param (`/cotizar?unit=<id>` or `/u/<projectSlug>/<unitId>`) and/or a minimal unit picker (floor→unit select) reading published units. **New requirement, not in original P4 wording.** |
+| Plan presets (select from the project's payment_plans) | Developers define the offered plans; buyer picks, not free-form | LOW | Drive selects from seeded `payment_plans`; do not invent plans in the UI. |
+| Full quote snapshot persistence (inputs + outputs + engine version) | §3.4 "auditabilidad total"; probative value in price disputes | MEDIUM | `quotes.snapshot` is a versioned envelope `{ version: 1, ... }.passthrough()` — engine owns the interior; bump `version` to evolve without a migration. Persist on quote emission. |
 
-### Differentiators (What makes THIS foundation strong)
+### Differentiators (Competitive Advantage)
 
-Not strictly required to "boot," but they are why this foundation outclasses a typical MVP scaffold and directly serve the product's pitch.
+Where ImBau beats Urbania3D/Hauzd/Web3D — "nadie resuelve bien la financiación argentina."
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **RLS as the *primary* isolation guarantee (not app-layer `WHERE`)** | Even raw SQL / a forgotten filter can't leak across tenants — the isolation is provably at the DB. This is what lets the pitch say "verificable". | HIGH | App-layer tenant filtering is the readable primary path; RLS is the unbypassable safety net (defense in depth). |
-| **Reproducible env: staging ≡ prod via same compose** | "Funciona en mi máquina" is structurally impossible; new tenant = a DB row, not a deploy | MEDIUM | Same images, different secrets/domains. Pays off every later phase. |
-| **Observability from the *first* deploy, with tenant/request context** | Day-one operability; a "tiempo real" product that notices its own failures first | MEDIUM | Sentry + structured logs + uptime together, not bolted on at the end. Tenant id propagated into traces/logs. |
-| **Coverage gate live before product code** | The quoting engine's mandated 100% coverage has a home from day zero; quality is structural, not aspirational | LOW | Establishing the gate now means it is never "added later" (which never happens). |
-| **Traefik TLS on-demand topology pre-wired** | Custom client domains via CNAME later cost zero infra change | MEDIUM | The mechanism need not be exercised in phase 0, but the routing shape should not need rework. |
-| **AI-first repo conventions encoded (CLAUDE.md, Conventional Commits, `fase-N/` branches)** | Lets Fable generate consistent, reviewable code at speed during the temporary window | LOW | Conventions-as-config. Cheap to set up, compounding payoff. |
+| Genuinely correct CAC-adjusted math, provably tested | Trust is the product; 100%-covered pure engine is a demoable claim competitors can't make | HIGH | The property-based + unit suite IS the differentiator. Test invariants: anticipo+saldo+refuerzos reconcile to price; monotonic CAC ⇒ monotonic peso cuota; determinism. |
+| Contado-vs-financiado comparison, side by side | Buyers instantly grasp the cost of financing; a common friction point in AR sales | LOW-MED | Two engine runs (Contado list vs Financiado list+plan) rendered together. High value, low cost. |
+| Interactive inputs (anticipo % / plazo) within developer-allowed bounds | "Play with the plan" converts better than a static table | MEDIUM | Sliders/selects, but **only within values the developer authorized** (preset plans, or bounded anticipo range). Do NOT let buyers invent terms the developer won't honor. |
+| Pre-filled, human-readable WhatsApp handoff | Turns a cold "info?" into a warm, specific lead the broker can act on | LOW | See handoff spec below. Differentiator #1 of the funnel. |
+| Shareable/branded PDF as a leave-behind | Broker forwards a professional PDF, not a screenshot | MEDIUM | Reuses the worker/R2/PDF stack from earlier phases. |
 
-### Anti-Features (Tempting at phase 0, but wrong here)
-
-Things that look like "good engineering" but would burn the 3-4 day budget or add operational weight a solo operator can't carry yet.
+### Anti-Features (Commonly Requested, Often Problematic)
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| **Schema- or database-per-tenant isolation** | "Strongest" isolation; some guides push it | Operational explosion for a solo op (N migrations, N backups, connection sprawl); contradicts "new project = a DB row" | Shared schema + RLS (already the decision). Revisit only at enterprise scale. |
-| **Provisioning the dedicated prod VPS now** | "Be ready for the first client" | No paying client yet; doubles infra to maintain during the densest build window | Staging-only on existing VPS (PROJECT.md). Stand up prod when first client signs. |
-| **Full backups + rehearsed PITR restore in phase 0** | "A backup not tested doesn't exist" (true!) | Real value only when there is real data; staging data is reproducible from seed | Defer to before first paying client (modelo-mvp §3.5 already places it there). Note the requirement, don't build it. |
-| **Kubernetes / autoscaling / microservices** | "Scale like Hauzd" | Massive operational tax for zero current traffic; the monorepo is a modular monolith by design | Docker Compose + Traefik on a VPS. Scale vertically until metrics demand otherwise. |
-| **OpenTelemetry distributed tracing fully built out** | Stack lists OTel | Full tracing pipeline is heavy; little to trace with stub apps | Sentry covers errors/perf now. Add OTel spans incrementally as real request paths (explorer, quoting) appear. Wire the SDK, don't over-instrument. |
-| **SSO / OAuth providers / 2FA / passkeys** | "Enterprise auth" | Developers onboard via email invite; no enterprise buyer at MVP | Email/password + org invitations. Better Auth makes adding providers cheap later. |
-| **Brokers as login users** | Data model contemplates brokers | "Brokers no loguean en MVP" (modelo-mvp §3.2) — modeling membership is enough | Membership schema accommodates them; no auth flow built now. |
-| **Anonymous event/lead ingestion endpoints + rate limiting** | Public web will need them | Belongs to phases with public web (2/5); building the edge rate-limit now is premature | Set the `anon` role boundary; build ingestion when the public surface exists. |
-| **Feature flags / A-B infra / multi-region** | "Mature SaaS has these" | Solo op, single region (es-AR), one design partner | Branch-based delivery + manual prod gate is enough. |
-| **Admin "god mode" via BYPASSRLS/superuser app connection** | "Admin needs to see everything" | Bypassing RLS makes isolation unauditable and one bug = cross-tenant leak | Policy-based admin access (a policy that grants platform-admins broad read), auditable and revocable — never run the app as superuser/owner. |
+| Predicting/projecting future CAC values ("your cuota in month 24 will be $X") | Buyers want certainty about future cost | CAC is unknowable; a wrong projection is a legal/trust landmine and contradicts "no vinculante" | Show ONLY today's cuota "al valor del mes" + the adjustment legend. Never forecast. |
+| Binding/committal quotes ("precio garantizado") | Feels stronger to the buyer | Prices track the lista vigente al boleto; a binding quote is a legal liability | Prominent "cotización no vinculante" legend on screen + PDF; snapshot for audit, not for guarantee. |
+| Free-form anticipo/plazo the developer never offered | "Let me pay 5% down over 120 months" | Generates leads for terms the developer will reject → wasted broker time, bad UX | Constrain to `payment_plans` presets or developer-authorized bounded ranges only. |
+| Inventing a USD→ARS exchange rate to show pesos | "Buyers think in pesos" | A made-up FX rate is wrong the instant it's shown and invites disputes | Use CAC as the peso basis per the design decision, or show USD + CAC legend. No FX guessing. |
+| Full amortization schedule (every one of 48 cuotas with projected CAC) | Looks thorough | Implies forecasting CAC (see above) + heavy UI for little conversion lift on mobile | First cuota + refuerzo schedule (by cuota index, USD) + totals. |
+| Sellos/escribanía/IVA/closing-cost calculator | "Show the true total cost" | Jurisdiction-variable, changes over time, scope creep on a v1 differentiator | Defer to v1.x; optionally a static informational note, not a computed line. |
+| Persisting a lead/PII on every quote view | "Capture everyone who quotes" | Privacy + noise; a quote isn't a lead until the buyer acts | Persist the `quotes` snapshot (allowed anon insert) but create a `lead` only on the WhatsApp/CTA action. |
+| Live CAC scraping now | "Keep the index current automatically" | Fragile scraping for a value that's loaded monthly; §3.3 says manual load now, scraping later | Manual `cac_index` load (panel is a later milestone; seed already has the series). |
+
+---
 
 ## Feature Dependencies
 
 ```
-Monorepo skeleton (pnpm + Turborepo)
-    └──requires──> Strict TS + shared config (packages/config)
-                       └──enables──> CI: lint → type-check → tests → coverage
+packages/quoting (pure engine)
+    └──consumes──> unit_prices (USD) + payment_plans + cac_index   [EXIST from v1.1]
+    └──resolves──> USD→pesos basis DESIGN DECISION                 [must precede UI + PDF]
 
-Postgres 16 + Drizzle migrations
-    └──requires──> Docker Compose (Postgres service)
-    └──enables──> RLS policies + FORCE RLS + non-superuser app role
-                       └──requires──> Better Auth org/membership tables (tenant identity source)
-                       └──enables──> anon read role (publicado-only)
-                       └──verified-by──> RLS isolation tests in CI
+Cotizador UI (web público)
+    └──requires──> packages/quoting
+    └──requires──> standalone unit entry (URL param / minimal picker)  [NEW — explorer not built]
+    └──reads─────> published units + price_lists via anon RLS role
 
-Better Auth sessions
-    └──requires──> Postgres (session store)
-    └──enables──> Organization plugin (orgs + memberships + roles)
-                       └──enables──> Email invitations
-                                          └──requires──> Resend + React Email
+Server-side PDF (worker)
+    └──requires──> packages/quoting (same typed output)
+    └──requires──> R2 + worker + BullMQ  [EXIST]
+    └──writes────> quotes.pdfKey
 
-Auto-deploy to staging
-    └──requires──> Docker images build (CI) + registry + Traefik on VPS
-    └──requires──> Secrets management (SOPS/age)
-    └──enables──> Manual prod promotion (gate)
+WhatsApp CTA
+    └──requires──> quote output (summary text)
+    └──enhanced-by──> broker context (/b/<slug> → broker.whatsapp)  [broker links are Fase 5]
 
-Observability (Sentry / pino→Loki / Uptime Kuma)
-    └──requires──> Services deployed (staging) to observe
-    └──enhances──> every later phase (debuggable from day one)
+Quote snapshot persistence
+    └──requires──> packages/quoting output + quotes table  [table EXISTS, versioned envelope]
+    └──feeds─────> PDF (pdfKey) and (optionally) lead on CTA
 
-RLS isolation (primary guarantee) ──conflicts──> Admin BYPASSRLS/superuser connection
+lead creation ──triggered-by──> WhatsApp/CTA action (NOT on quote view)
 ```
 
 ### Dependency Notes
 
-- **RLS requires Better Auth org/membership tables:** RLS policies key off tenant identity (`organization_id`), which lives in the auth-managed membership model. Auth schema must exist before isolation policies are meaningful — but the *app role / FORCE RLS* setup can be scaffolded in parallel.
-- **Email invitations require Resend wiring:** The org plugin manages invitation state, but a real email must be sent. This pulls Resend + React Email into phase 0 even though broader email (lead alerts) is later.
-- **RLS isolation tests require a real Postgres in CI:** A mocked DB cannot prove policies; use a testcontainer or the compose Postgres. This is the load-bearing test of the milestone.
-- **Auto-deploy requires secrets management:** The pipeline can't push to a VPS or configure services without secrets, so SOPS/age comes in with the deploy pipeline, not after.
-- **Admin access conflicts with RLS bypass:** Granting admins via superuser/BYPASSRLS defeats the central guarantee. Use a policy-based admin path so isolation stays provable.
+- **Engine before everything:** UI, PDF, and WhatsApp text all consume the *same* typed engine
+  output. Build/verify `packages/quoting` first (it's also the densest pure-logic work — ideal for
+  the Fable window).
+- **USD→pesos decision gates the engine's public contract:** resolve it in the engine SPEC before UI,
+  because it changes the output shape (whether a peso figure exists and how it's labeled).
+- **Standalone entry is a genuinely new requirement:** original P4 assumed arrival from the ficha
+  (Fase 2). Since the explorer ships later, the quoter needs its own entry (URL param and/or a minimal
+  floor→unit picker over published units). Keep it thin so the later ficha just deep-links in.
+- **Broker context is partial:** per-broker WhatsApp links (P8) are a later milestone. For v1.2, the
+  CTA should degrade gracefully to a project-level WhatsApp number, with a `broker` slot ready.
+- **Snapshot envelope already reserved:** `quotes.snapshot` is `{ version: 1 }.passthrough()` and
+  `quotes` is tenant-private (no anon read). Engine owns the interior shape and its version.
+
+---
 
 ## MVP Definition
 
-### Launch With (phase-0 / milestone v1)
+### Launch With (v1.2 — this milestone)
 
-The foundation is "done" when each commit to main ships to staging with provable tenant isolation.
+- [ ] **`packages/quoting`** pure engine, 100% coverage + property-based tests — the differentiator; a calc error kills the product.
+- [ ] **Contado + Financiado (CAC) results on screen**, mobile-first — the core value.
+- [ ] **First cuota "al valor del mes" + refuerzos + totals**, with adjustment & non-binding legend — table-stakes trust.
+- [ ] **Standalone entry to a unit** (URL param and/or minimal picker) — explorer isn't built yet.
+- [ ] **Server-side PDF** generated in worker, stored to R2 (`pdfKey`) — shareable artifact.
+- [ ] **WhatsApp CTA** with pre-filled summary — the funnel endpoint.
+- [ ] **Full quote snapshot persistence** (inputs + outputs + engine version) — auditability.
 
-- [ ] **Monorepo skeleton + shared strict-TS/lint config** — everything else lands here
-- [ ] **CI gate: lint + type-check + tests + coverage threshold, blocks merge** — quality is structural from commit one
-- [ ] **Docker Compose: Postgres 16 + Redis + services, one command** — reproducible local/staging
-- [ ] **Drizzle migrations versioned + `db:migrate`/`db:seed` commands** — no manual schema changes
-- [ ] **Better Auth: sessions + org plugin (owner/developer/viewer) + email invitations** — multi-tenancy identity
-- [ ] **RLS: policies on tenant tables, FORCE RLS, non-superuser app role, `anon` published-only role** — the central promise
-- [ ] **RLS isolation tests in CI** — the promise, *verified*
-- [ ] **Auto-deploy to staging on merge to main + manual prod gate** — the core value
-- [ ] **Observability live on first deploy: Sentry + pino→Loki + Uptime Kuma** — operable from day one
-- [ ] **Secrets via SOPS/age** — no plaintext secrets in repo
+### Add After Validation (v1.x)
 
-### Add After Validation (next milestones, not v1)
+- [ ] Contado-vs-financiado **side-by-side** comparison view — trigger: engine + both paths stable.
+- [ ] **Interactive anticipo/plazo** within developer bounds — trigger: presets working + real developer-authorized ranges.
+- [ ] Deep-link from the **ficha de unidad** — trigger: Fase 2 explorer/ficha ships.
+- [ ] Per-**broker** WhatsApp routing on the CTA — trigger: Fase 5 broker links ship.
 
-Triggered by phase 1+ work needing them.
+### Future Consideration (v2+)
 
-- [ ] **Full schema (floors/units/prices/quotes/leads…) + media pipeline (R2 + sharp + blurhash)** — phase 1
-- [ ] **BullMQ job processing (image variants, PDFs, emails, alerts)** — when there is work to queue (phase 1/3)
-- [ ] **Anonymous event/lead ingestion + edge rate limiting** — when public web exists (phase 2/5)
-- [ ] **SSE realtime via LISTEN/NOTIFY** — phase 2 (live prices/states)
-- [ ] **OTel span instrumentation on real request paths** — incrementally as paths appear
-- [ ] **Lighthouse / page-weight budget in CI** — when public web exists
-
-### Future Consideration (defer until PMF / first paying client)
-
-- [ ] **Dedicated prod VPS + custom-domain TLS on-demand exercised** — first paying client
-- [ ] **Backups (pgBackRest/wal-g) + rehearsed PITR restore** — before first real data / first client
-- [ ] **Self-service tenant signup / reseller mode** — post-PMF
-- [ ] **SSO / OAuth / 2FA / passkeys** — first enterprise buyer
-- [ ] **ClickHouse analytics path** — when event volume demands it
+- [ ] Closing-cost (sellos/escribanía) informational module — defer: jurisdiction-variable scope creep.
+- [ ] Automated CAC ingestion (scraping/API) — defer: manual load is fine at MVP volume.
+- [ ] Buyer-facing saved/emailed quote history — defer: needs auth/PII handling not in scope.
 
 ## Feature Prioritization Matrix
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| RLS isolation + FORCE RLS + non-superuser role | HIGH | HIGH | P1 |
-| RLS isolation tests in CI | HIGH | MEDIUM | P1 |
-| Better Auth sessions + org/roles + invitations | HIGH | MEDIUM | P1 |
-| Auto-deploy to staging on merge | HIGH | HIGH | P1 |
-| Monorepo + shared strict config | HIGH | MEDIUM | P1 |
-| CI gate (lint/type/test/coverage) | HIGH | MEDIUM | P1 |
-| Drizzle migrations + commands | HIGH | MEDIUM | P1 |
-| Docker Compose one-command up | HIGH | MEDIUM | P1 |
-| Sentry error tracking | HIGH | LOW | P1 |
-| pino → Loki structured logs | MEDIUM | MEDIUM | P1 |
-| Uptime Kuma | MEDIUM | LOW | P1 |
-| Manual prod promotion gate | MEDIUM | LOW | P1 |
-| Secrets (SOPS/age) | MEDIUM | MEDIUM | P1 |
-| `anon` published-only role | MEDIUM | MEDIUM | P2 (boundary set in P1; exercised later) |
-| Backups + PITR restore | HIGH (later) | MEDIUM | P3 (pre-first-client) |
-| Dedicated prod VPS | MEDIUM | MEDIUM | P3 (first client) |
+| Pure quoting engine (100% tested) | HIGH | HIGH | P1 |
+| Financiado (CAC) on-screen result | HIGH | HIGH | P1 |
+| Contado result | HIGH | LOW | P1 |
+| Adjustment + non-binding legend | HIGH | LOW | P1 |
+| Standalone unit entry (param/picker) | HIGH | MEDIUM | P1 |
+| Quote snapshot persistence | MEDIUM | MEDIUM | P1 |
+| Server-side PDF | HIGH | MEDIUM | P1 |
+| WhatsApp CTA pre-filled | HIGH | LOW | P1 |
+| Contado-vs-financiado comparison | HIGH | LOW-MED | P2 |
+| Interactive anticipo/plazo (bounded) | MEDIUM | MEDIUM | P2 |
+| Broker-routed WhatsApp | MEDIUM | LOW | P2 (blocked on Fase 5) |
+| Closing-cost calculator | LOW | MEDIUM | P3 |
+| CAC scraping | LOW | MEDIUM | P3 |
 
-**Priority key:** P1 = must have for milestone v1 / P2 = boundary established now, fully built next milestone / P3 = deferred (documented requirement)
+## WhatsApp handoff message (what it typically contains)
+
+A good pre-filled `wa.me` text for AR pozo is short, specific, and copy-paste-ready for the broker:
+
+- Greeting + intent: *"Hola, me interesa el/la [Unidad 4°B] en [Proyecto]."*
+- Unit essence: identificador, tipología, m², orientación.
+- The chosen quote: precio (USD), plan (ej. "Anticipo 30% + 36 cuotas CAC"), anticipo (USD), primera cuota "al valor del mes" (ARS), refuerzos.
+- A link back to the quote/ficha (so the broker sees the same numbers) and an implicit non-binding framing.
+- Keep it URL-encoded and under WhatsApp's practical length; prefer a compact summary + link over dumping the full table.
+
+The message is generated from the **same engine output** as the screen/PDF (single source of truth),
+so the three surfaces never disagree.
+
+## Quote persistence / auditability expectations
+
+- Persist a **snapshot** on emission containing: the resolved **inputs** (unit id, price used, plan
+  params, CAC período+valor vigente), the **outputs** (anticipo, saldo, cuota, refuerzos, totals), and
+  the **engine version**. Already modeled as `quotes.snapshot = { version, ... }` (versioned envelope).
+- Store the generated **PDF key** (`quotes.pdfKey`) so the exact document is retrievable — probative
+  value in price disputes (§3.2).
+- `quotes` is **tenant-private** (no anon SELECT); an anonymous buyer can trigger a quote insert
+  (like `events`/`leads`) but cannot read others' quotes.
+- Because CAC and lista vigente change, a snapshot is a **point-in-time record**, never a live
+  recompute — reproducibility is the whole point of pinning inputs + version.
 
 ## Competitor Feature Analysis
 
-Direct competitors (Urbania3D, Hauzd, Web3D) compete on the *product* surface, not on a publicly visible foundation. The foundation comparison is therefore against **SaaS engineering norms** rather than rival showrooms.
-
-| Capability | Typical "ship-fast" MVP | Mature SaaS norm | Our phase-0 approach |
-|------------|-------------------------|------------------|----------------------|
-| Tenant isolation | App-layer `WHERE tenant_id` (leak-prone) | RLS + app filtering (defense in depth) | RLS + FORCE + non-superuser + CI proof — mature norm from day zero |
-| Auth | Roll-your-own / single user | Managed multi-tenant auth + invites | Better Auth org plugin (mature norm) |
-| Deploy | Manual / push-to-deploy single env | CI → staging → manual prod | Auto-staging + manual prod gate (mature norm) |
-| Observability | Added after first incident | Errors + logs + uptime from launch | All three on first deploy (ahead of typical MVP) |
-| Backups/PITR | Often absent early | Tested restore | Deliberately deferred to pre-first-client (pragmatic) |
-| Infra | PaaS click-deploy | K8s/managed | Docker Compose + Traefik on VPS (deliberately simpler than "mature" — right for solo op) |
-
-The shape: **mature on isolation, auth, deploy, and observability** (where the product's credibility lives), **deliberately lean on infra and deferred on backups/prod** (where solo-operator cost outweighs current value).
+| Feature | Urbania3D / Hauzd / Web3D | Our Approach |
+|---------|---------------------------|--------------|
+| AR-specific CAC financing math | Weak/absent — generic or none ("nadie lo resuelve bien") | Purpose-built, 100%-tested pure engine; contado + CAC + refuerzos |
+| Quote → PDF | Varies; often manual/broker-made | Server-side branded PDF, archived snapshot |
+| Quote → WhatsApp | Generic contact forms | Pre-filled `wa.me` with the exact quote + broker routing |
+| Time-to-quote on mobile | Heavy 3D engines, slow on 4G | Mobile-first, <3s budget; quoter works before the explorer even exists |
+| Auditability | Not a stated concern | Full input+output+version snapshot per quote |
 
 ## Sources
 
-- [Shipping multi-tenant SaaS using Postgres Row-Level Security — Nile](https://www.thenile.dev/blog/multi-tenant-rls) — MEDIUM
-- [Postgres RLS Implementation Guide: Best Practices and Common Pitfalls — Permit.io](https://www.permit.io/blog/postgres-rls-implementation-guide) — MEDIUM
-- [Mastering PostgreSQL RLS for Rock-Solid Multi-Tenancy — Rico Fritzsche](https://ricofritzsche.me/mastering-postgresql-row-level-security-rls-for-rock-solid-multi-tenancy/) — MEDIUM
-- [Better Auth — Organization plugin docs](https://better-auth.com/docs/plugins/organization) — HIGH (official)
-- [Members, Roles & Invitations — better-auth DeepWiki](https://deepwiki.com/better-auth/better-auth/5.2-organization-plugin) — MEDIUM
-- [Multi-Tenant SaaS with Better-Auth: production lessons — Medium](https://benharundev.medium.com/multi-tenant-saas-with-nestjs-better-auth-what-we-learned-in-production-6d3414239121) — LOW
-- [pgvpd — transparent multi-tenancy for Drizzle via Postgres RLS — drizzle-orm discussion #5411](https://github.com/drizzle-team/drizzle-orm/discussions/5411) — MEDIUM
-- [Drizzle ORM + Postgres RLS for Multi-Tenancy — ECOSIRE](https://ecosire.com/blog/drizzle-orm-postgres-rls-multitenancy) — LOW
-- [The Solo-Founder Playbook — ProductLed](https://productled.com/blog/the-solo-founder-playbook-how-to-run-a-1m-arr-saas-with-one-person) — LOW (context for anti-features framing)
-- Project docs: `docs/modelo-mvp.md` §3.1–§3.6, `CLAUDE.md`, `.planning/PROJECT.md` — HIGH (authoritative for scope)
+- [Modalidades de Pago de Departamentos en Pozo — Estudio Kohon](https://estudiokohon.com/modalidades-pago-departamentos-en-pozo/) — anticipo 30%, saldo 70% en cuotas pesos ajustadas por CAC, boleto de compraventa. **HIGH**
+- [Índice CAC en Argentina — Spazios](https://spazios.com.ar/blogs/que-es-el-indice-cac-y-como-influye-en-tu-camino-a-ser-dueno-en-argentina/) — CAC = Cámara Argentina de la Construcción, ajuste mensual, referencia objetiva y pública. **MEDIUM** (developer blog; cross-checked → effectively HIGH)
+- [Índice CAC y cuotas en pozo — psocialista.org](https://psocialista.org/indice-cac-y-cuotas-en-pozo-como-entender-los-ajustes-inmobiliarios) — cuotas no fijas pero no arbitrarias, mantienen valor real. **MEDIUM**
+- [Claves para comprar en pozo — Infobae](https://www.infobae.com/economia/2025/03/23/claves-para-comprar-departamentos-en-pozo-y-evitar-complicaciones-legales-y-financieras/) — refuerzos semestrales atados a aguinaldos, sellos ~3.5%, escribanía ~2%, contrato vincula pagos a CAC. **HIGH**
+- [Roomix — Comprar en pozo Argentina 2026](https://roomix.ai/blog/que-es-pozo) — anticipo 20–40%, 24–30 meses, financiación directa del desarrollador. **MEDIUM**
+- Existing codebase (v1.1 SHIPPED): `packages/db/src/schema/{quotes,payment-plans,cac-index,price-lists}.ts`, `json-schemas.ts`, `seed/{content,pricing}.ts` — seeded presets (30/70 CAC 36, 20/80 CAC 48, semestral refuerzos, contado −12%, 18-month CAC series), versioned snapshot envelope, money-as-integers. **HIGH**
+- `docs/modelo-mvp.md` §2.3, §3.3, §3.4 — user flow, data model, engine spec. **HIGH**
 
 ---
-*Feature research for: production-grade multi-tenant SaaS foundation (phase 0)*
-*Researched: 2026-06-12*
+*Feature research for: Argentine off-plan (preventa en pozo) property quoting — ImBau cotizador (P4)*
+*Researched: 2026-07-01*
