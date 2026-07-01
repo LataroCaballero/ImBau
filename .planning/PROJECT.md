@@ -4,22 +4,17 @@
 
 SaaS multi-tenant para que desarrolladores inmobiliarios argentinos vendan unidades en pozo: un showroom web mobile-first (explorador del edificio por pisos con hotspots SVG sobre renders estáticos, ficha de unidad, cotizador con financiación argentina USD + cuotas CAC, avance de obra, leads por WhatsApp) más un panel de autogestión (precios, disponibilidad, leads, métricas, brokers). Lo construye Lautaro (Andescode) con desarrollo AI-first; el documento maestro de producto es `docs/modelo-mvp.md`.
 
-**Estado actual:** el milestone **v1.0 Fundación (Fase 0)** está SHIPPED (2026-06-26) — monorepo, CI/CD, Docker Compose + staging vivo, observabilidad, y auth + multi-tenancy + RLS, todo desplegado y operable en `staging.tours.andescode.com.ar`. Cada fase del modelo-mvp.md es su propio milestone GSD, en el orden ventana-Fable: 0 → 1 → 3 → 4 → 2 → 5 → 6. **Próximo:** v1.1 (Fase 1 — schema completo + media + seed).
+**Estado actual:** **v1.0 Fundación (Fase 0)** SHIPPED 2026-06-26 y **v1.1 Schema + Media + Seed (Fase 1)** SHIPPED 2026-07-01 — sobre la fundación (staging vivo, CI/CD, auth, RLS) ahora existe el modelo de datos completo de modelo-mvp §3.3 con RLS por tenant, el pipeline de media R2 + sharp + blurhash, y el seed determinista de "Brigos Recoleta" poblando todo. Cada fase del modelo-mvp.md es su propio milestone GSD, en el orden ventana-Fable: 0 → 1 → 3 → 4 → 2 → 5 → 6. **Próximo:** v1.2 (Fase 3 del plan maestro — el cotizador).
 
 ## Core Value
 
 La fundación técnica queda desplegada y operable desde el día uno: cada commit a main termina en software corriendo en staging (`staging.tours.andescode.com.ar`) con aislamiento multi-tenant verificable por RLS — no "funciona en mi máquina".
 
-## Current Milestone: v1.1 Schema + Media + Seed (Fase 1)
+## Next Milestone: v1.2 Cotizador (Fase 3 del plan maestro)
 
-**Goal:** Completar el modelo de datos del producto con RLS, montar el pipeline de media (R2 + sharp + blurhash) en el worker, y sembrar el edificio ficticio realista — todo desplegado en staging.
+**Goal (a definir con `/gsd-new-milestone`):** el motor de cotización `packages/quoting` — funciones puras sin I/O, cobertura 100% exigida, property-based tests — más la UI del cotizador (USD + cuotas CAC), generación de PDF server-side en el worker y handoff a WhatsApp. Consume el schema de quotes/payment_plans/cac_index que quedó listo en v1.1 y los datos del seed "Brigos Recoleta".
 
-**Target features:**
-- Schema completo de modelo-mvp §3.3 (floors, units, price_lists, unit_prices, payment_plans, cac_index, quotes, brokers, leads, progress_posts, galleries, media, events particionada por mes) con RLS por tenant y migraciones Drizzle versionadas.
-- Pipeline de media: upload a Cloudflare R2 + procesamiento sharp en el worker (BullMQ), variantes AVIF/WebP con srcset, blurhash, keys/dimensiones persistidas en `media`.
-- Seed determinista del edificio ficticio ~13 pisos estilo "Brigos Recoleta" con pisos, unidades, listas de precios, planes de pago y CAC realistas.
-
-**Numeración:** fases GSD reinician en Fase 1 para este milestone; los directorios de fase de v1.0 se archivan.
+**Por qué ahora:** orden ventana-Fable (0 → 1 → **3** → 4 → 2 → 5 → 6) — el cotizador es la fase más densa en lógica pura, ideal para front-loadear mientras dura el acceso al modelo. Es además el diferencial competitivo #1 (nadie resuelve bien la financiación argentina).
 
 ## Requirements
 
@@ -53,7 +48,7 @@ Milestone **v1.1 Schema + Media + Seed** completo (3/3 fases) — sin requiremen
 
 ## Context
 
-- **Estado del código (post v1.0):** ~682 archivos, monorepo con 3 apps + 5 packages compilando estricto. Staging vivo en `staging.tours.andescode.com.ar` (web) y `panel.staging.tours.andescode.com.ar` (panel) detrás de nginx-host + certbot. Fase 0 entregada en 14 días calendario (vs. estimación 3-4 días con Fable; el grueso fue infra de staging real sobre un VPS compartido con prod).
+- **Estado del código (post v1.1):** monorepo con 3 apps + 6 packages (se sumó `@imbau/storage`) compilando estricto; v1.1 agregó +17.8k LOC en 204 archivos (94 commits, 5 días). Schema §3.3 completo (13 tablas nuevas, events particionada), pipeline de media R2+sharp operativo, seed "Brigos Recoleta" idempotente. Staging vivo en `staging.tours.andescode.com.ar` (web) y `panel.staging.tours.andescode.com.ar` (panel) detrás de nginx-host + certbot. Fase 0 entregada en 14 días calendario (vs. estimación 3-4 días con Fable; el grueso fue infra de staging real sobre un VPS compartido con prod); Fase 1 (v1.1) entregada en 5 días.
 - **Reverse proxy en staging — nginx, no Traefik (D-01):** el VPS de staging comparte caja con `andescode.com.ar` (prod), cuyo nginx-host ya posee :80/:443. Meter Traefik habría requerido reconfigurar el proxy de prod (riesgo real). Se entregó con nginx-vhost + certbot webroot; el patrón Traefik del CLAUDE.md queda diferido a un box dedicado. Actualizar CLAUDE.md/modelo-mvp.md si esta topología persiste en prod.
 - **Documento maestro:** `docs/modelo-mvp.md` (junio 2026). Ante conflicto con él, manda `CLAUDE.md`.
 - **Estrategia de dos ramas:** Rama A (núcleo agnóstico, arranca ya, table stakes + cotizador) / Rama B (material real de Pablo, post-reunión). La reunión con Pablo conviene tenerla al final de la fase 2-3 (~3-4 semanas) con la demo wow lista.
@@ -106,4 +101,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-01 — Phase 3 (Seed del edificio ficticio) completa: seed determinista e idempotente de "Brigos Recoleta" (13 pisos, 38 unidades, precios USD, planes CAC, brokers/leads/galerías/obra/events) con media por el pipeline real R2+worker. SEED-01..04 validados; UAT live-R2 2/2 verde (2026-07-01). **Milestone v1.1 Schema + Media + Seed: 3/3 fases (100%)** — listo para `/gsd-complete-milestone`. Próximo milestone: cotizador (fase 3 del modelo maestro, orden ventana-Fable).*
+*Last updated: 2026-07-01 after v1.1 milestone — **v1.1 Schema + Media + Seed SHIPPED** (3 fases, 12 plans, 17/17 requirements, verified_closeout). Archivado en `milestones/v1.1-*`. Próximo: `/gsd-new-milestone` para v1.2 Cotizador (fase 3 del modelo maestro, orden ventana-Fable).*

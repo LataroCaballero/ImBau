@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Schema + Media + Seed
-current_phase: 3
-status: milestone complete
-stopped_at: Phase 3 complete — milestone v1.1 100%, ready to archive
-last_updated: "2026-07-01T22:18:13.341Z"
+current_phase: 1
+status: Awaiting next milestone
+stopped_at: Milestone v1.1 archived (verified_closeout) — next is /gsd-new-milestone (v1.2 cotizador)
+last_updated: "2026-07-01T22:29:08.080Z"
 last_activity: 2026-07-01
-last_activity_desc: Phase 3 complete
+last_activity_desc: Milestone v1.1 completed and archived
 progress:
   total_phases: 3
   completed_phases: 3
@@ -24,16 +24,14 @@ current_phase_name: seed-del-edificio-ficticio
 See: .planning/PROJECT.md (updated 2026-07-01)
 
 **Core value:** La fundación técnica queda desplegada y operable desde el día uno: cada commit a main termina en software corriendo en staging con aislamiento multi-tenant verificable por RLS.
-**Current focus:** Completar milestone v1.1 (archivar) y definir el próximo (cotizador)
+**Current focus:** Definir el próximo milestone — v1.2 Cotizador (fase 3 del modelo maestro) vía `/gsd-new-milestone`
 
 ## Current Position
 
-Phase: 3 (seed-del-edificio-ficticio) — COMPLETE (UAT 1/1 passed 2026-07-01)
-Plan: 3 of 3 complete
-Status: Milestone v1.1 complete — ready for /gsd-complete-milestone
-Last activity: 2026-07-01 — Phase 3 verified complete (live-R2 UAT 2/2 green)
-
-Progress (v1.1 plans ejecutados): [████████████████████] 12/12 plans (100%)
+Phase: Milestone v1.1 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-07-01 — Milestone v1.1 completed and archived
 
 ## Performance Metrics
 
@@ -59,18 +57,11 @@ Progress (v1.1 plans ejecutados): [███████████████
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
+Decisions are logged in PROJECT.md Key Decisions table (full log). v1.1 cerrado — las decisiones estructurales que arrastra el próximo milestone:
 
-- [Roadmap v1.1]: 3 fases en orden de dependencias — Schema+RLS → Media (depende de tabla `media`/SCHEMA-05) → Seed (depende de schema + media procesada). Numeración GSD reiniciada en Phase 1; v1.0 archivado.
-- [Roadmap v1.1]: SCHEMA-08 (suite de aislamiento cross-tenant extendida a todas las tablas nuevas) es la puerta de salida de Phase 1; corre en CI contra Postgres 16 real con roles sin BYPASSRLS.
-- [Carry v1.0 / A1]: RLS = GUC transaction-scoped (`SET LOCAL`) + roles app/anon sin BYPASSRLS; Better Auth escribe tablas RLS-FORCED vía owner pool. Las tablas nuevas con tenant heredan este patrón (`withTenant`/`withAnon`, `FORCE ROW LEVEL SECURITY`).
-- [Carry CLAUDE.md]: dinero en enteros (USD precios) / decimal (ARS cuotas), nunca floats; migraciones Drizzle versionadas (nunca `push` ni manual); errores observables (Sentry + pino).
-- [Phase 3 / 03-01]: idempotencia = seedId(name)=uuidv5(name, SEED_NS) + onConflictDoNothing en cada insert; cac_index conflicta por clave natural (org_id, periodo); db:seed corre via tsx; owner pool solo para org root + DDL particiones, resto via withTenant.
-- [Phase 3 / 03-02]: Seed media is cycle-safe: composes @imbau/storage + bullmq/ioredis/@aws-sdk directly with deterministic mediaId + onConflictDoNothing, not @imbau/api registerAndEnqueue.
-- [Phase 3 / 03-02]: seedContentRows derives media ids via mediaSeedId so galleries/progress stay coherent under skipMedia.
-- [Phase 3 / 03-03]: SEED-04 proven by an always-on run-twice count-invariance gate (skipMedia) + RLS-correctness (anon reads publicado rows, foreign-tenant GUC reads zero seeded rows); media invariance env-gated.
-- [Phase 3 / UAT 2026-07-01]: live-R2 media resolvability confirmada — 13/13 media con variants+blurhash+dims via worker real, segunda corrida sin filas nuevas (2/2 tests verde).
+- [Carry v1.0 / A1]: RLS = GUC transaction-scoped (`SET LOCAL`) + roles app/anon sin BYPASSRLS; tabla nueva = clon del template RLS (`projects.ts`) verificado por la suite cross-tenant.
+- [Carry CLAUDE.md]: dinero en enteros (USD precios) / decimal (ARS cuotas), nunca floats; migraciones Drizzle versionadas; errores observables (Sentry + pino).
+- [Carry v1.1]: el schema de quotes/payment_plans/cac_index y el seed "Brigos Recoleta" quedaron listos para que el cotizador (v1.2) los consuma sin cambios de schema previstos.
 
 ### Pending Todos
 
@@ -78,9 +69,7 @@ None yet.
 
 ### Blockers/Concerns
 
-- ~~[Phase 3]: el seed de contenido (SEED-03) depende de media procesada — galleries con variantes + blurhash~~ — **RESUELTO 2026-07-01**: seedMedia re-compone el pipeline real (storage primitives, mediaId determinista); UAT live-R2 confirmó 13/13 media resueltas + idempotencia.
-- ~~[Phase 2]: pipeline de media depende de credenciales/buckets R2 reales para verificación end-to-end en staging~~ — **RESUELTO 2026-06-30**: UAT confirmó round-trip live-R2 + observabilidad de fallo (Sentry + pino + row recuperable) en staging.
-- ~~[Phase 1]: re-verificar APIs pineadas + reconciliar nombres `member` vs tablas nuevas~~ — resuelto en Phase 1 (suite cross-tenant verde).
+None — los blockers de v1.1 se resolvieron todos antes del cierre (ver milestones/v1.1-ROADMAP.md y RETROSPECTIVE.md).
 
 ## Deferred Items
 
@@ -94,11 +83,10 @@ Items acknowledged and deferred at the v1.0 milestone close on 2026-06-26 (overr
 
 ## Session Continuity
 
-Last session: 2026-07-01T22:20:00Z
-Stopped at: Phase 3 complete — milestone v1.1 100%, ready to complete milestone
+Last session: 2026-07-01T22:30:00Z
+Stopped at: Milestone v1.1 archived (verified_closeout, tag v1.1) — phases en milestones/v1.1-phases/
 Resume file: None
 
 ## Operator Next Steps
 
-- `/gsd-complete-milestone v1.1` — archivar el milestone y preparar el próximo
-- Después: `/gsd-new-milestone` — definir el milestone del cotizador (fase 3 del modelo maestro)
+- `/gsd-new-milestone` — definir v1.2 Cotizador (fase 3 del modelo maestro, orden ventana-Fable)
