@@ -112,7 +112,7 @@ Plans:
   3. El seed puebla contenido de ejemplo — progress_posts, galleries con media procesada (variantes + blurhash), brokers y algunos leads/events — suficiente para poblar panel y métricas. (SEED-03)
   4. `pnpm db:seed` es idempotente: re-ejecutarlo no duplica filas en corridas sucesivas, y el comando está documentado en el README/comandos. (SEED-04)
 
-**Plans**: 1/3 plans executed
+**Plans**: 2/3 plans executed
 
 Plans:
 **Wave 1**
@@ -121,7 +121,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 03-02-PLAN.md — Contenido + media por el pipeline REAL R2+worker: assets de stock libre + LICENSES, content-rows (brokers, 10-20 leads en 4 estados con timeline, progress_posts, galleries, events cruzando ≥2 particiones mensuales), media determinista cycle-safe (compone primitivas `@imbau/storage`, NO `registerAndEnqueue`, NO import de `@imbau/api`; mediaId determinístico + onConflictDoNothing + waiter fail-fast) (SEED-03) [wave 2]
+- [x] 03-02-PLAN.md — Contenido + media por el pipeline REAL R2+worker: assets de stock libre + LICENSES, content-rows (brokers, 10-20 leads en 4 estados con timeline, progress_posts, galleries, events cruzando ≥2 particiones mensuales), media determinista cycle-safe (compone primitivas `@imbau/storage`, NO `registerAndEnqueue`, NO import de `@imbau/api`; mediaId determinístico + onConflictDoNothing + waiter fail-fast) (SEED-03) [wave 2]
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -136,4 +136,4 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|-----------|----------------|--------|-----------|
 | 1. Schema completo + RLS | v1.1 | 6/6 | Complete    | 2026-06-29 |
 | 2. Pipeline de media | v1.1 | 3/3 | Complete    | 2026-06-30 |
-| 3. Seed del edificio ficticio | v1.1 | 1/3 | In Progress|  |
+| 3. Seed del edificio ficticio | v1.1 | 2/3 | In Progress|  |

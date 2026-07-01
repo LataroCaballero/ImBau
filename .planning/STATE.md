@@ -6,14 +6,14 @@ current_phase: 03
 current_phase_name: seed-del-edificio-ficticio
 status: executing
 stopped_at: Phase 3 context gathered
-last_updated: "2026-07-01T16:41:32.206Z"
+last_updated: "2026-07-01T16:57:51.670Z"
 last_activity: 2026-07-01
 last_activity_desc: Phase 03 execution started
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 12
-  completed_plans: 10
+  completed_plans: 11
   percent: 67
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-06-30)
 ## Current Position
 
 Phase: 03 (seed-del-edificio-ficticio) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-07-01 — Phase 03 execution started
 
@@ -52,6 +52,7 @@ Progress (v1.1 plans ejecutados): [███████████████
 
 *Updated after each plan completion*
 | Phase 03 P01 | 40min | 3 tasks | 12 files |
+| Phase 03 P02 | 35min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -65,6 +66,8 @@ Recent decisions affecting current work:
 - [Carry v1.0 / A1]: RLS = GUC transaction-scoped (`SET LOCAL`) + roles app/anon sin BYPASSRLS; Better Auth escribe tablas RLS-FORCED vía owner pool. Las tablas nuevas con tenant heredan este patrón (`withTenant`/`withAnon`, `FORCE ROW LEVEL SECURITY`).
 - [Carry CLAUDE.md]: dinero en enteros (USD precios) / decimal (ARS cuotas), nunca floats; migraciones Drizzle versionadas (nunca `push` ni manual); errores observables (Sentry + pino).
 - [Phase ?]: [Seed 03-01]: idempotencia = seedId(name)=uuidv5(name, SEED_NS) + onConflictDoNothing en cada insert; cac_index conflicta por clave natural (org_id, periodo); db:seed corre via tsx; owner pool solo para org root + DDL particiones, resto via withTenant.
+- [Phase ?]: Seed media is cycle-safe: composes @imbau/storage + bullmq/ioredis/@aws-sdk directly with deterministic mediaId + onConflictDoNothing, not @imbau/api registerAndEnqueue (03-02)
+- [Phase ?]: seedContentRows derives media ids via mediaSeedId so galleries/progress stay coherent under skipMedia; live-R2 media resolvability deferred to UAT (03-02)
 
 ### Pending Todos
 
@@ -88,7 +91,7 @@ Items acknowledged and deferred at the v1.0 milestone close on 2026-06-26 (overr
 
 ## Session Continuity
 
-Last session: 2026-07-01T16:41:02.897Z
+Last session: 2026-07-01T16:57:23.516Z
 Stopped at: Phase 3 context gathered
 Resume file: .planning/phases/03-seed-del-edificio-ficticio/03-CONTEXT.md
 
