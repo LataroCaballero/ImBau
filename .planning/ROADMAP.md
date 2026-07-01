@@ -112,12 +112,12 @@ Plans:
   3. El seed puebla contenido de ejemplo — progress_posts, galleries con media procesada (variantes + blurhash), brokers y algunos leads/events — suficiente para poblar panel y métricas. (SEED-03)
   4. `pnpm db:seed` es idempotente: re-ejecutarlo no duplica filas en corridas sucesivas, y el comando está documentado en el README/comandos. (SEED-04)
 
-**Plans**: 3 plans
+**Plans**: 1/3 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 03-01-PLAN.md — Fundación determinista + building + pricing: deps (uuid@11.1.1 pin), `ids.ts` (seedId UUIDv5 + mulberry32), fail-fast prereq guard (D-05), `seed.ts` owner scaffold (org + proyecto publicado + pre-create de particiones mensuales), floors/units con curva de venta pozo, price_lists (Contado/Financiado) + unit_prices (USD enteros) + payment_plans CAC/Refuerzo[] + cac_index 12-24 meses (SEED-01, SEED-02) [wave 1]
+- [x] 03-01-PLAN.md — Fundación determinista + building + pricing: deps (uuid@11.1.1 pin), `ids.ts` (seedId UUIDv5 + mulberry32), fail-fast prereq guard (D-05), `seed.ts` owner scaffold (org + proyecto publicado + pre-create de particiones mensuales), floors/units con curva de venta pozo, price_lists (Contado/Financiado) + unit_prices (USD enteros) + payment_plans CAC/Refuerzo[] + cac_index 12-24 meses (SEED-01, SEED-02) [wave 1]
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -136,4 +136,4 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|-----------|----------------|--------|-----------|
 | 1. Schema completo + RLS | v1.1 | 6/6 | Complete    | 2026-06-29 |
 | 2. Pipeline de media | v1.1 | 3/3 | Complete    | 2026-06-30 |
-| 3. Seed del edificio ficticio | v1.1 | 0/3 | Not started | - |
+| 3. Seed del edificio ficticio | v1.1 | 1/3 | In Progress|  |

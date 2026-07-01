@@ -34,8 +34,8 @@ Pipeline de media: upload a Cloudflare R2, procesamiento sharp en el worker (Bul
 
 Seed determinista y re-ejecutable del edificio ficticio realista, suficiente para poblar panel, web pública y futuras métricas.
 
-- [ ] **SEED-01**: seed del edificio "Brigos Recoleta" ~13 pisos — organización, proyecto `publicado`, floors y units realistas (tipologías, m2, orientaciones, estados variados disponible/reservado/vendido)
-- [ ] **SEED-02**: pricing realista — price_lists (contado USD / financiado), unit_prices, payment_plans con ajuste CAC, y cac_index con histórico de varios períodos
+- [x] **SEED-01**: seed del edificio "Brigos Recoleta" ~13 pisos — organización, proyecto `publicado`, floors y units realistas (tipologías, m2, orientaciones, estados variados disponible/reservado/vendido)
+- [x] **SEED-02**: pricing realista — price_lists (contado USD / financiado), unit_prices, payment_plans con ajuste CAC, y cac_index con histórico de varios períodos
 - [ ] **SEED-03**: contenido de ejemplo — progress_posts, galleries con media, brokers, y algunos leads/events para poblar panel y métricas
 - [ ] **SEED-04**: `pnpm db:seed` es idempotente y re-ejecutable (no duplica filas en corridas sucesivas) y está documentado en el README/comandos
 
@@ -85,8 +85,8 @@ Qué fases cubren qué requirements. Completado durante la creación del roadmap
 | MEDIA-03 | Phase 2 | Complete |
 | MEDIA-04 | Phase 2 | Complete |
 | MEDIA-05 | Phase 2 | Complete |
-| SEED-01 | Phase 3 | Pending |
-| SEED-02 | Phase 3 | Pending |
+| SEED-01 | Phase 3 | Complete |
+| SEED-02 | Phase 3 | Complete |
 | SEED-03 | Phase 3 | Pending |
 | SEED-04 | Phase 3 | Pending |
 

@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Schema + Media + Seed
-current_phase: 3
-current_phase_name: Seed del edificio ficticio
+current_phase: 03
+current_phase_name: seed-del-edificio-ficticio
 status: executing
 stopped_at: Phase 3 context gathered
-last_updated: "2026-07-01T15:52:13.893Z"
-last_activity: 2026-06-30
-last_activity_desc: Phase 2 complete (UAT 2/2 passed), transitioned to Phase 3
+last_updated: "2026-07-01T16:41:32.206Z"
+last_activity: 2026-07-01
+last_activity_desc: Phase 03 execution started
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 9
-  completed_plans: 9
+  total_plans: 12
+  completed_plans: 10
   percent: 67
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-30)
 
 **Core value:** La fundación técnica queda desplegada y operable desde el día uno: cada commit a main termina en software corriendo en staging con aislamiento multi-tenant verificable por RLS.
-**Current focus:** Phase 3 — seed-del-edificio-ficticio
+**Current focus:** Phase 03 — seed-del-edificio-ficticio
 
 ## Current Position
 
-Phase: 3 — Seed del edificio ficticio
-Plan: Not started
+Phase: 03 (seed-del-edificio-ficticio) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-06-30 — Phase 2 complete (UAT 2/2 passed), transitioned to Phase 3
+Last activity: 2026-07-01 — Phase 03 execution started
 
 Progress (v1.1 plans ejecutados): [████████████████████] 9/9 plans (100%)
 
@@ -51,6 +51,7 @@ Progress (v1.1 plans ejecutados): [███████████████
 | 3. Seed del edificio ficticio | 0/~2 | Not started |
 
 *Updated after each plan completion*
+| Phase 03 P01 | 40min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -63,6 +64,7 @@ Recent decisions affecting current work:
 - [Roadmap v1.1]: SCHEMA-08 (suite de aislamiento cross-tenant extendida a todas las tablas nuevas) es la puerta de salida de Phase 1; corre en CI contra Postgres 16 real con roles sin BYPASSRLS.
 - [Carry v1.0 / A1]: RLS = GUC transaction-scoped (`SET LOCAL`) + roles app/anon sin BYPASSRLS; Better Auth escribe tablas RLS-FORCED vía owner pool. Las tablas nuevas con tenant heredan este patrón (`withTenant`/`withAnon`, `FORCE ROW LEVEL SECURITY`).
 - [Carry CLAUDE.md]: dinero en enteros (USD precios) / decimal (ARS cuotas), nunca floats; migraciones Drizzle versionadas (nunca `push` ni manual); errores observables (Sentry + pino).
+- [Phase ?]: [Seed 03-01]: idempotencia = seedId(name)=uuidv5(name, SEED_NS) + onConflictDoNothing en cada insert; cac_index conflicta por clave natural (org_id, periodo); db:seed corre via tsx; owner pool solo para org root + DDL particiones, resto via withTenant.
 
 ### Pending Todos
 
@@ -86,7 +88,7 @@ Items acknowledged and deferred at the v1.0 milestone close on 2026-06-26 (overr
 
 ## Session Continuity
 
-Last session: 2026-07-01T14:59:27.572Z
+Last session: 2026-07-01T16:41:02.897Z
 Stopped at: Phase 3 context gathered
 Resume file: .planning/phases/03-seed-del-edificio-ficticio/03-CONTEXT.md
 
