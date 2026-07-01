@@ -5,10 +5,10 @@ milestone_name: Schema + Media + Seed
 current_phase: 3
 current_phase_name: Seed del edificio ficticio
 status: ready_to_plan
-stopped_at: Phase 2 complete, ready to plan Phase 3
-last_updated: "2026-06-30T20:12:41.190Z"
+stopped_at: Phase 3 context gathered
+last_updated: "2026-07-01T14:59:27.581Z"
 last_activity: 2026-06-30
-last_activity_desc: Phase 2 complete, transitioned to Phase 3
+last_activity_desc: Phase 2 complete (UAT 2/2 passed), transitioned to Phase 3
 progress:
   total_phases: 3
   completed_phases: 2
@@ -86,9 +86,9 @@ Items acknowledged and deferred at the v1.0 milestone close on 2026-06-26 (overr
 
 ## Session Continuity
 
-Last session: 2026-06-30
-Stopped at: Phase 2 complete (UAT passed 2/2), ready to plan Phase 3
-Resume file: None
+Last session: 2026-07-01T14:59:27.572Z
+Stopped at: Phase 3 context gathered
+Resume file: .planning/phases/03-seed-del-edificio-ficticio/03-CONTEXT.md
 
 ## Operator Next Steps
 
