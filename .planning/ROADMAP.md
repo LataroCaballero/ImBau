@@ -61,7 +61,13 @@ Full detail: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · Require
   4. Todo el dinero fluye en enteros (USD) / decimal (ARS) con una regla de redondeo y asignación de resto documentada y testeada — los totales cierran al centavo, nunca un float. (ENGINE-05)
   5. El motor exporta `ENGINE_VERSION`, embebible en un snapshot y bumpeable ante cualquier cambio de fórmula. (ENGINE-06)
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Fundación: deps (decimal.js/fast-check) + gate de cobertura 100% package-scoped + primitivas money (redondeo half-up, regla de resto, ARS decimal) + `ENGINE_VERSION` (ENGINE-05, ENGINE-06)
+- [ ] 04-02-PLAN.md — Contrato: `QuoteInput`/`QuoteResult` (unión discriminada por modalidad) + `QuoteError` (rechazo tipado D-07) + formateador es-AR determinista (ENGINE-03)
+- [ ] 04-03-PLAN.md — Motor: `calcQuote` puro (contado + financiado CAC/refuerzos) + tabla unitaria + suite property-based fast-check (ENGINE-01, ENGINE-02, ENGINE-04)
+- [ ] 04-04-PLAN.md — Superficies + barrel + gate: `compareQuotes` + `toWhatsAppText`/`toPdfModel` + barrel público + cobertura 100% verde (ENGINE-03, ENGINE-04)
 
 ### Phase 5: Emisión y persistencia server-side (API + RLS + rate limit)
 
@@ -118,7 +124,7 @@ Phases execute in numeric order: 4 → 5 → 6 → 7
 | 1. Schema completo + RLS | v1.1 | 6/6 | Complete | 2026-06-29 |
 | 2. Pipeline de media | v1.1 | 3/3 | Complete | 2026-06-30 |
 | 3. Seed del edificio ficticio | v1.1 | 3/3 | Complete | 2026-07-01 |
-| 4. Motor de cotización puro | v1.2 | 0/TBD | Not started | - |
+| 4. Motor de cotización puro | v1.2 | 0/4 | Not started | - |
 | 5. Emisión y persistencia server-side | v1.2 | 0/TBD | Not started | - |
 | 6. UI pública del cotizador + WhatsApp | v1.2 | 0/TBD | Not started | - |
 | 7. PDF asíncrono en el worker | v1.2 | 0/TBD | Not started | - |
