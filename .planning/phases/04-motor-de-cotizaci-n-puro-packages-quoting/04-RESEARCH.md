@@ -396,17 +396,19 @@ export const ENGINE_VERSION = 1 as const;   // bump ONLY on calc-semantics chang
 | A2 | `QuoteInput` supplies **both** resolved USD prices on every call (contado + financiado) even for a single-modalidad run, mirroring D-09's "dos precios ya resueltos". Alternative: only the price relevant to the requested modalidad. | types.ts | Low — a typing-shape choice within Claude's discretion; affects the input contract fases 5/6 map rows into. Planner should pick and document. |
 | A3 | ENGINE-02's "primera cuota en ARS" is realized by giving **every** cuota line an `ars` field (first cuota is `cuotas[0].ars`), rather than a single scalar first-cuota field. | Pattern 1 / types.ts | Low — internal shape (discretion); all surfaces read from the same result either way. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Domain-error idiom (union code vs error class vs `Result` type).**
-   - What we know: D-07 mandates explicit, typed, exhaustive rejection of degenerate plans; the specific idiom is explicitly Claude's discretion.
-   - What's unclear: which idiom is most natural for TS-strict + the fase-5 tRPC boundary (a thrown `QuoteError` maps to a tRPC error; a `Result` type forces callers to branch).
-   - Recommendation: pick during planning; a discriminated `QuoteError` with a `code` union (`SALDO_NO_POSITIVO | REFUERZO_FUERA_DE_PLAZO | CAC_PERIODO_DUPLICADO | ...`) thrown from `calcQuote` reads cleanly and maps to tRPC — but keep the code set exhaustive and unit-test each branch (needed for 100% coverage anyway).
+> Both open questions were resolved in `04-CONTEXT.md` (`/gsd-discuss-phase`) and are implemented in the phase plans. Retained here with inline resolutions for traceability.
 
-2. **`toWhatsAppText` / `toPdfModel` initial copy fidelity.**
-   - What we know: D-12/CONTEXT mark the initial copy as "borradores razonables"; final copy is validated against surfaces in fases 6/7 and does **not** bump `ENGINE_VERSION` (D-13).
-   - What's unclear: exact es-AR voseo wording and PDF model field names.
-   - Recommendation: ship reasonable drafts now; do not over-invest — the contract (shape) is load-bearing, the copy is not.
+1. **Q1 RESOLVED — Domain-error idiom (union code vs error class vs `Result` type).**
+   - **Resolution:** a discriminated `QuoteError` class carrying a `QuoteErrorCode` union (`SALDO_NO_POSITIVO | REFUERZO_FUERA_DE_PLAZO | CAC_PERIODO_DUPLICADO | ...`) thrown from `calcQuote` (D-07). Implemented in **plan 04-02**; each code branch is unit-tested for the 100% coverage gate.
+   - What we knew: D-07 mandates explicit, typed, exhaustive rejection of degenerate plans; the specific idiom was Claude's discretion.
+   - Why this idiom: cleanest for TS-strict + the fase-5 tRPC boundary — a thrown `QuoteError` maps directly to a tRPC error (vs. a `Result` type that forces every caller to branch).
+
+2. **Q2 RESOLVED — `toWhatsAppText` / `toPdfModel` initial copy fidelity.**
+   - **Resolution:** ship reasonable draft copy now (es-AR voseo, borradores razonables) and do **not** bump `ENGINE_VERSION` when copy is later refined (D-12/D-13). Implemented in **plan 04-04**; the serializer contract (shape) is load-bearing, the copy is not.
+   - What we knew: D-12/CONTEXT mark the initial copy as "borradores razonables"; final copy is validated against surfaces in fases 6/7 without an `ENGINE_VERSION` bump (D-13).
+   - Why: the shape is the fixed contract downstream fases map into; exact wording and PDF field names are refined against real surfaces later.
 
 ## Environment Availability
 
