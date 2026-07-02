@@ -64,9 +64,20 @@ Full detail: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · Require
 **Plans**: 4 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 04-01-PLAN.md — Fundación: deps (decimal.js/fast-check) + gate de cobertura 100% package-scoped + primitivas money (redondeo half-up, regla de resto, ARS decimal) + `ENGINE_VERSION` (ENGINE-05, ENGINE-06)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 04-02-PLAN.md — Contrato: `QuoteInput`/`QuoteResult` (unión discriminada por modalidad) + `QuoteError` (rechazo tipado D-07) + formateador es-AR determinista (ENGINE-03)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 04-03-PLAN.md — Motor: `calcQuote` puro (contado + financiado CAC/refuerzos) + tabla unitaria + suite property-based fast-check (ENGINE-01, ENGINE-02, ENGINE-04)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 04-04-PLAN.md — Superficies + barrel + gate: `compareQuotes` + `toWhatsAppText`/`toPdfModel` + barrel público + cobertura 100% verde (ENGINE-03, ENGINE-04)
 
 ### Phase 5: Emisión y persistencia server-side (API + RLS + rate limit)
