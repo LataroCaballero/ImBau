@@ -2,9 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Cotizador
+current_phase: 4
+current_phase_name: Motor de cotización puro `packages/quoting`
 status: planning
-last_updated: "2026-07-01T23:20:00.000Z"
+stopped_at: Phase 4 context gathered
+last_updated: "2026-07-02T19:45:53.189Z"
 last_activity: 2026-07-01
+last_activity_desc: ROADMAP v1.2 creado (4 fases, 19/19 requirements mapeados)
 progress:
   total_phases: 4
   completed_phases: 0
@@ -68,6 +72,7 @@ None yet.
 ### Blockers/Concerns
 
 None — los blockers de v1.1 se resolvieron todos antes del cierre. Notas de fase para planning:
+
 - Phase 5: QUOTE-03 (nginx `limit_req`) toca infra de staging (nginx-host + certbot, no Traefik — D-01).
 - Phase 6: `apps/web` no tiene cliente tRPC hoy (panel sí) — scopearlo explícito en el plan.
 - Phase 7: react-pdf en Alpine requiere fuente embebida (acentos) + idempotencia por `quoteId` (retry BullMQ at-least-once).
@@ -84,9 +89,9 @@ Items acknowledged and deferred at the v1.0 milestone close on 2026-06-26 (overr
 
 ## Session Continuity
 
-Last session: 2026-07-01T23:20:00Z
-Stopped at: ROADMAP v1.2 creado (Phases 4-7, 19/19 requirements mapeados, 100% coverage) + STATE reposicionado a Phase 4
-Resume file: None
+Last session: 2026-07-02T19:45:53.180Z
+Stopped at: Phase 4 context gathered
+Resume file: .planning/phases/04-motor-de-cotizaci-n-puro-packages-quoting/04-CONTEXT.md
 
 ## Operator Next Steps
 
