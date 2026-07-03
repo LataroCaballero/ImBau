@@ -41,7 +41,7 @@ Full detail: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · Require
 
 **Milestone Goal:** El diferencial competitivo #1 funciona de punta a punta: un comprador cotiza una unidad (contado USD / anticipo + cuotas CAC / refuerzos), ve el resultado en pantalla, descarga el PDF y abre WhatsApp con la cotización precargada — sobre un motor de cálculo puro al 100% de cobertura donde un error de cálculo mata el producto. Numeración GSD continúa desde v1.1 (última fase 3); directorios `04-*`, `05-*`, `06-*`, `07-*`.
 
-- [ ] **Phase 4: Motor de cotización puro (`packages/quoting`)** - Motor puro, determinista y sin I/O que emite un `QuoteResult` tipado único (contado + financiado CAC), 100% cobertura + property-based tests — el contrato del que dependen todas las superficies
+- [x] **Phase 4: Motor de cotización puro (`packages/quoting`)** - Motor puro, determinista y sin I/O que emite un `QuoteResult` tipado único (contado + financiado CAC), 100% cobertura + property-based tests — el contrato del que dependen todas las superficies (completed 2026-07-03)
 - [ ] **Phase 5: Emisión y persistencia server-side (API + RLS + rate limit)** - `publicProcedure` tRPC auditado que resuelve la org del proyecto publicado, computa vía `withTenant` y persiste el snapshot completo, con rate limit nginx — sin exponer `quotes`/`cac_index` por RLS
 - [ ] **Phase 6: UI pública del cotizador + CTA WhatsApp** - Web mobile-first: deep-link + picker piso→unidad, resultado en pantalla (contado vs financiado, primera cuota ARS, refuerzos, totales, leyenda no vinculante) y CTA WhatsApp precargado
 - [ ] **Phase 7: PDF asíncrono en el worker** - PDF server-side generado en el worker (BullMQ) desde el snapshot, almacenado en R2, idempotente por `quoteId` y con acentos correctos — asíncrono, nunca bloquea el resultado en pantalla
@@ -61,7 +61,7 @@ Full detail: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · Require
   4. Todo el dinero fluye en enteros (USD) / decimal (ARS) con una regla de redondeo y asignación de resto documentada y testeada — los totales cierran al centavo, nunca un float. (ENGINE-05)
   5. El motor exporta `ENGINE_VERSION`, embebible en un snapshot y bumpeable ante cualquier cambio de fórmula. (ENGINE-06)
 
-**Plans**: 3/4 plans executed
+**Plans**: 4/4 plans complete
 
 Plans:
 **Wave 1**
@@ -78,7 +78,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 04-04-PLAN.md — Superficies + barrel + gate: `compareQuotes` + `toWhatsAppText`/`toPdfModel` + barrel público + cobertura 100% verde (ENGINE-03, ENGINE-04)
+- [x] 04-04-PLAN.md — Superficies + barrel + gate: `compareQuotes` + `toWhatsAppText`/`toPdfModel` + barrel público + cobertura 100% verde (ENGINE-03, ENGINE-04)
 
 ### Phase 5: Emisión y persistencia server-side (API + RLS + rate limit)
 
@@ -131,7 +131,7 @@ Phases execute in numeric order: 4 → 5 → 6 → 7
 | 1. Monorepo Foundation | v1.0 | 3/3 | Complete | 2026-06-13 |
 | 2. Data Layer + RLS | v1.0 | 3/3 | Complete | 2026-06-17 |
 | 3. Auth, API & App Surfaces | v1.0 | 5/5 | Complete | 2026-06-18 |
-| 4. Staging, Observability & CI/CD | v1.0 | 3/4 | In Progress|  |
+| 4. Staging, Observability & CI/CD | v1.0 | 4/4 | Complete   | 2026-07-03 |
 | 1. Schema completo + RLS | v1.1 | 6/6 | Complete | 2026-06-29 |
 | 2. Pipeline de media | v1.1 | 3/3 | Complete | 2026-06-30 |
 | 3. Seed del edificio ficticio | v1.1 | 3/3 | Complete | 2026-07-01 |
