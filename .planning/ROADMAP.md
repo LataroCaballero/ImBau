@@ -61,7 +61,7 @@ Full detail: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · Require
   4. Todo el dinero fluye en enteros (USD) / decimal (ARS) con una regla de redondeo y asignación de resto documentada y testeada — los totales cierran al centavo, nunca un float. (ENGINE-05)
   5. El motor exporta `ENGINE_VERSION`, embebible en un snapshot y bumpeable ante cualquier cambio de fórmula. (ENGINE-06)
 
-**Plans**: 1/4 plans executed
+**Plans**: 2/4 plans executed
 
 Plans:
 **Wave 1**
@@ -70,7 +70,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 04-02-PLAN.md — Contrato: `QuoteInput`/`QuoteResult` (unión discriminada por modalidad) + `QuoteError` (rechazo tipado D-07) + formateador es-AR determinista (ENGINE-03)
+- [x] 04-02-PLAN.md — Contrato: `QuoteInput`/`QuoteResult` (unión discriminada por modalidad) + `QuoteError` (rechazo tipado D-07) + formateador es-AR determinista (ENGINE-03)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -131,7 +131,7 @@ Phases execute in numeric order: 4 → 5 → 6 → 7
 | 1. Monorepo Foundation | v1.0 | 3/3 | Complete | 2026-06-13 |
 | 2. Data Layer + RLS | v1.0 | 3/3 | Complete | 2026-06-17 |
 | 3. Auth, API & App Surfaces | v1.0 | 5/5 | Complete | 2026-06-18 |
-| 4. Staging, Observability & CI/CD | v1.0 | 1/4 | In Progress|  |
+| 4. Staging, Observability & CI/CD | v1.0 | 2/4 | In Progress|  |
 | 1. Schema completo + RLS | v1.1 | 6/6 | Complete | 2026-06-29 |
 | 2. Pipeline de media | v1.1 | 3/3 | Complete | 2026-06-30 |
 | 3. Seed del edificio ficticio | v1.1 | 3/3 | Complete | 2026-07-01 |
