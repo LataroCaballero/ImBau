@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { allocateCuotas, decimal2, roundHalfUpUsd } from "./money";
 
-// Money assertions are EXACT — never `toBeCloseTo` (Pitfall 1). A cent that does not
-// reconcile is the class of bug this package exists to prevent.
+// Money assertions are EXACT (===/toBe/toEqual) — never approximate float matchers (Pitfall 1).
+// A cent that does not reconcile is the class of bug this package exists to prevent.
 
 describe("roundHalfUpUsd (D-03 — anticipo, half-up whole USD)", () => {
   it("computes precio × pct / 100 as a whole USD (100000 × 30% = 30000)", () => {
