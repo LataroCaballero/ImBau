@@ -131,7 +131,7 @@ Phases execute in numeric order: 4 → 5 → 6 → 7
 | 1. Monorepo Foundation | v1.0 | 3/3 | Complete | 2026-06-13 |
 | 2. Data Layer + RLS | v1.0 | 3/3 | Complete | 2026-06-17 |
 | 3. Auth, API & App Surfaces | v1.0 | 5/5 | Complete | 2026-06-18 |
-| 4. Staging, Observability & CI/CD | v1.0 | 4/4 | Complete   | 2026-07-03 |
+| 4. Staging, Observability & CI/CD | v1.0 | 4/4 | Complete    | 2026-07-03 |
 | 1. Schema completo + RLS | v1.1 | 6/6 | Complete | 2026-06-29 |
 | 2. Pipeline de media | v1.1 | 3/3 | Complete | 2026-06-30 |
 | 3. Seed del edificio ficticio | v1.1 | 3/3 | Complete | 2026-07-01 |

@@ -9,12 +9,12 @@ Requirements de este milestone. Cada uno mapea a una fase del roadmap.
 
 ### Motor de cotización (`packages/quoting`)
 
-- [ ] **ENGINE-01**: El motor calcula la cotización **contado** (precio USD de la lista contado con descuento) como función pura y determinista, sin I/O
-- [ ] **ENGINE-02**: El motor calcula la cotización **financiada**: anticipo USD + saldo en N cuotas ajustadas por CAC + refuerzos, con la primera cuota expresada en ARS "al valor del mes" usando **CAC como multiplicador** (el saldo se expresa en unidades CAC al boleto; nunca proyecta CAC futuro ni inventa FX)
-- [ ] **ENGINE-03**: El motor emite una estructura tipada única (`QuoteResult`) que alimenta UI, PDF y texto de WhatsApp — las tres superficies nunca difieren
-- [ ] **ENGINE-04**: `packages/quoting` tiene cobertura 100% exigida en CI + property-based tests con invariantes (anticipo + saldo + refuerzos reconcilian con el precio; suma de cuotas = saldo exacto; CAC monótono ⇒ cuota ARS monótona; determinismo)
-- [ ] **ENGINE-05**: Todo el dinero se maneja en enteros (USD) / decimal (ARS), nunca floats — con regla de redondeo explícita y asignación de resto documentada y testeada (los totales cierran al centavo)
-- [ ] **ENGINE-06**: El motor exporta una versión (`ENGINE_VERSION`) que se embebe en cada snapshot y se bumpea ante cualquier cambio de fórmula
+- [x] **ENGINE-01**: El motor calcula la cotización **contado** (precio USD de la lista contado con descuento) como función pura y determinista, sin I/O
+- [x] **ENGINE-02**: El motor calcula la cotización **financiada**: anticipo USD + saldo en N cuotas ajustadas por CAC + refuerzos, con la primera cuota expresada en ARS "al valor del mes" usando **CAC como multiplicador** (el saldo se expresa en unidades CAC al boleto; nunca proyecta CAC futuro ni inventa FX)
+- [x] **ENGINE-03**: El motor emite una estructura tipada única (`QuoteResult`) que alimenta UI, PDF y texto de WhatsApp — las tres superficies nunca difieren
+- [x] **ENGINE-04**: `packages/quoting` tiene cobertura 100% exigida en CI + property-based tests con invariantes (anticipo + saldo + refuerzos reconcilian con el precio; suma de cuotas = saldo exacto; CAC monótono ⇒ cuota ARS monótona; determinismo)
+- [x] **ENGINE-05**: Todo el dinero se maneja en enteros (USD) / decimal (ARS), nunca floats — con regla de redondeo explícita y asignación de resto documentada y testeada (los totales cierran al centavo)
+- [x] **ENGINE-06**: El motor exporta una versión (`ENGINE_VERSION`) que se embebe en cada snapshot y se bumpea ante cualquier cambio de fórmula
 
 ### Emisión y persistencia de cotizaciones
 
@@ -72,12 +72,12 @@ Qué fases cubren qué requirements.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ENGINE-01 | Phase 4 | Pending |
-| ENGINE-02 | Phase 4 | Pending |
-| ENGINE-03 | Phase 4 | Pending |
-| ENGINE-04 | Phase 4 | Pending |
-| ENGINE-05 | Phase 4 | Pending |
-| ENGINE-06 | Phase 4 | Pending |
+| ENGINE-01 | Phase 4 | Complete |
+| ENGINE-02 | Phase 4 | Complete |
+| ENGINE-03 | Phase 4 | Complete |
+| ENGINE-04 | Phase 4 | Complete |
+| ENGINE-05 | Phase 4 | Complete |
+| ENGINE-06 | Phase 4 | Complete |
 | QUOTE-01 | Phase 5 | Pending |
 | QUOTE-02 | Phase 5 | Pending |
 | QUOTE-03 | Phase 5 | Pending |
@@ -93,11 +93,13 @@ Qué fases cubren qué requirements.
 | WA-01 | Phase 6 | Pending |
 
 **Coverage:**
+
 - v1.2 requirements: 19 total
 - Mapped to phases: 19 (100%) ✓
 - Unmapped: 0
 
 **Por fase:**
+
 - Phase 4 — Motor de cotización puro: ENGINE-01..06 (6)
 - Phase 5 — Emisión y persistencia server-side: QUOTE-01, QUOTE-02, QUOTE-03 (3)
 - Phase 6 — UI pública del cotizador + WhatsApp: UI-01..06, WA-01 (7)
