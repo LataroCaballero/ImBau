@@ -159,6 +159,10 @@ None - no external service configuration required. Pure package, no I/O.
 - The 100% gate is armed now and enforced package-wide once the full surface lands (plan 04-04).
 - No blockers.
 
+## Self-Check: PASSED
+
+All created files exist on disk (vitest.config.ts, version.ts, version.test.ts, money.ts, money.test.ts, 04-01-SUMMARY.md); placeholder index.test.ts removed; all four commits present (a6d4792, 65b3f88, 11109e4, 4f15307).
+
 ---
 *Phase: 04-motor-de-cotizaci-n-puro-packages-quoting*
 *Completed: 2026-07-03*
