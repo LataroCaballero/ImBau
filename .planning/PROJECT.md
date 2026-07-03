@@ -95,6 +95,7 @@ Milestone **v1.2 Cotizador** — requirements en definición (ver `.planning/REQ
 | pino-loki transport en vez de Promtail (D-03/04) | Cero contenedor extra, fallback-simétrico vía swap de `LOKI_URL` | ✓ Good — logs del worker llegando a Loki en staging |
 | Media pipeline: R2 con `WHEN_REQUIRED` checksum opt-out + mock-S3 in-memory en CI, live-R2 como gate humano (Phase 2 / D6) | R2 rechaza los checksums por defecto del SDK S3; CI no toca infra real (sin secrets en repo), pero el round-trip live se verifica en UAT staging | ✓ Good — 68/68 tests verde con mock; UAT live-R2 + observabilidad de fallo confirmados 2026-06-30 |
 | Seed: idempotencia por `seedId(name)=uuidv5` + `onConflictDoNothing`, media por pipeline REAL R2+worker con mediaId determinista (Phase 3 / D-04) | Un solo mecanismo de idempotencia para todas las tablas; el seed re-compone los primitivos de @imbau/storage (sin importar @imbau/api — evita ciclo db↔api) y una re-corrida sobreescribe los mismos objetos R2 en lugar de duplicar | ✓ Good — gate run-twice de invariancia verde; UAT live-R2 2/2 (13/13 media resueltas, segunda corrida sin filas nuevas) |
+| A1 — apps/web hosts the app pool for the anonymous quote path (Phase 5 / D-06): DATABASE_APP_URL en el env de web + mount tRPC propio; web deja de ser anon-only SOLO vía withTenant dentro de quotesRouter | El pool app ya llegaba al contenedor web por env_file; A2 (emisión en panel/API dedicada) agregaba un hop cross-app sin ganancia de aislamiento real — el fence T-03-09 (solo withTenant/withAnon/schema desde @imbau/db, grep-verificable) mantiene la superficie de datos idéntica | — Pending (se valida con la UI de fase 6 en staging) |
 
 ## Evolution
 
@@ -114,4 +115,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-03 after completing Phase 4 (v1.2 Cotizador): motor de cotización puro `packages/quoting` verificado 5/5 — sigue Phase 5 (emisión y persistencia server-side).*
+*Last updated: 2026-07-03 during Phase 5 (v1.2 Cotizador, emisión y persistencia server-side): registrada la Key Decision A1 (D-06) — apps/web hostea el pool app para el path de cotización anónima vía mount tRPC propio + DATABASE_APP_URL, fenceada por T-03-09.*
