@@ -26,3 +26,16 @@ export function variantKey(
 ): string {
   return `variants/${mediaId}/${width}.${fmt}`;
 }
+
+// `quotes/{orgId}/{projectId}/{quoteId}.pdf` — the rendered quote PDF's key. Deterministic per
+// quoteId so a retried fase-7 job overwrites the SAME R2 object instead of duplicating (same
+// idempotent-on-retry rationale as variantKey, Pitfall 5). The org + project segments scope the
+// object to its tenant for human-readable bucket browsing; the authority stays with RLS + the
+// worker, not the key path.
+export function quotePdfKey(
+  orgId: string,
+  projectId: string,
+  quoteId: string,
+): string {
+  return `quotes/${orgId}/${projectId}/${quoteId}.pdf`;
+}
