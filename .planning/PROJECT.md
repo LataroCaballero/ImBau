@@ -40,12 +40,12 @@ La fundación técnica queda desplegada y operable desde el día uno: cada commi
 - ✓ Schema completo de modelo-mvp.md §3.3 (13 tablas nuevas) con RLS FORCE por tenant y migraciones Drizzle versionadas (0002_domain + 0003_rls_domain), events particionada, suite cross-tenant verde en CI — v1.1 Phase 1 (SCHEMA-01..08).
 - ✓ Pipeline de media: upload a R2 + worker sharp (variantes AVIF/WebP srcset + blurhash/dims) persistido en `media`, idempotente con reintentos y errores observables (Sentry + pino), resoluble por web/panel — v1.1 Phase 2 (MEDIA-01..05). 68/68 tests automatizados verde; round-trip live-R2 + observabilidad de fallo confirmados en UAT staging (2026-06-30).
 - ✓ Seed determinista e idempotente del edificio ficticio "Brigos Recoleta" (13 pisos, 38 unidades, 2 listas de precios USD, planes CAC con refuerzos, 3 brokers, 14 leads con timeline, galerías/obra, 18 events en ≥2 particiones mensuales) — v1.1 Phase 3 (SEED-01..04). Media por el pipeline real R2+worker con mediaId determinista; gate run-twice de invariancia de filas + RLS-correctness; UAT live-R2 2/2 verde (2026-07-01: 13/13 media con variants+blurhash+dims, segunda corrida sin filas nuevas).
+- ✓ Motor de cotización `packages/quoting` puro, determinista y sin I/O: `calcQuote` (contado + financiado CAC con anticipo half-up, última cuota absorbe resto, ARS "al valor del mes"), `QuoteResult` tipado único, `compareQuotes`, serializers `toWhatsAppText`/`toPdfModel`, `QuoteError` tipado (7 códigos) y `ENGINE_VERSION` alineado al snapshot — Validated in Phase 4 (v1.2, ENGINE-01..06). 62 tests (unit + fast-check properties), gate de cobertura 100% enforced (`vitest run --coverage`), verificación 5/5 must-haves (2026-07-03).
 
 ### Active
 
 Milestone **v1.2 Cotizador** — requirements en definición (ver `.planning/REQUIREMENTS.md` cuando exista):
 
-- [ ] Motor de cotización `packages/quoting` puro y determinista, cobertura 100% + property-based tests
 - [ ] UI del cotizador en la web pública (contado USD / anticipo + cuotas CAC / refuerzos)
 - [ ] PDF server-side de la cotización en el worker (leyenda "cotización no vinculante")
 - [ ] CTA WhatsApp con la cotización precargada
@@ -114,4 +114,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-01 after starting milestone v1.2 Cotizador (fase 3 del modelo maestro, orden ventana-Fable) — goals y target features definidos; requirements + roadmap en curso.*
+*Last updated: 2026-07-03 after completing Phase 4 (v1.2 Cotizador): motor de cotización puro `packages/quoting` verificado 5/5 — sigue Phase 5 (emisión y persistencia server-side).*
