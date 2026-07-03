@@ -91,13 +91,13 @@ Plans:
   2. Cada cotización emitida persiste su snapshot completo (inputs resueltos + outputs + versión del motor) en `quotes.snapshot`, capturando el estado punto-en-el-tiempo que nunca se recomputa en vivo. (QUOTE-02)
   3. El endpoint anónimo de cotización tiene rate limit en el edge vía nginx `limit_req` (no Traefik — D-01), rechazando ráfagas abusivas sin tocar la config de prod. (QUOTE-03)
 
-**Plans**: 5 plans
+**Plans**: 2/5 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 05-01-PLAN.md — quotesRouter (compute/create + resolveAndQuote) + errorFormatter + registro en appRouter (QUOTE-01, QUOTE-02)
-- [ ] 05-03-PLAN.md — Contrato de queue PDF en packages/storage: QUOTE_PDF_QUEUE + QuotePdfJobData + quotePdfKey, sin producer (D-13)
+- [x] 05-01-PLAN.md — quotesRouter (compute/create + resolveAndQuote) + errorFormatter + registro en appRouter (QUOTE-01, QUOTE-02)
+- [x] 05-03-PLAN.md — Contrato de queue PDF en packages/storage: QUOTE_PDF_QUEUE + QuotePdfJobData + quotePdfKey, sin producer (D-13)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -151,6 +151,6 @@ Phases execute in numeric order: 4 → 5 → 6 → 7
 | 2. Pipeline de media | v1.1 | 3/3 | Complete | 2026-06-30 |
 | 3. Seed del edificio ficticio | v1.1 | 3/3 | Complete | 2026-07-01 |
 | 4. Motor de cotización puro | v1.2 | 0/4 | Not started | - |
-| 5. Emisión y persistencia server-side | v1.2 | 0/TBD | Not started | - |
+| 5. Emisión y persistencia server-side | v1.2 | 2/5 | In Progress|  |
 | 6. UI pública del cotizador + WhatsApp | v1.2 | 0/TBD | Not started | - |
 | 7. PDF asíncrono en el worker | v1.2 | 0/TBD | Not started | - |
