@@ -224,6 +224,9 @@ importers:
       '@imbau/db':
         specifier: workspace:*
         version: link:../db
+      '@imbau/quoting':
+        specifier: workspace:*
+        version: link:../quoting
       '@imbau/storage':
         specifier: workspace:*
         version: link:../storage
