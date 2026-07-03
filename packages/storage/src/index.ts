@@ -3,6 +3,8 @@
 // raw .ts re-exports; `export type` for type-only surface (verbatimModuleSyntax).
 export { makeR2Client } from "./r2-client";
 export type { R2ClientEnv } from "./r2-client";
-export { originalKey, variantKey } from "./keys";
+export { originalKey, variantKey, quotePdfKey } from "./keys";
 export { MEDIA_QUEUE, mediaJobOptions } from "./queue";
 export type { MediaJobData } from "./queue";
+export { QUOTE_PDF_QUEUE, quotePdfJobOptions } from "./quote-pdf";
+export type { QuotePdfJobData } from "./quote-pdf";
