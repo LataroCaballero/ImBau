@@ -172,6 +172,12 @@ None — no new security surface. The engine is pure (no I/O, network, or trust 
 - `calcQuote` + `QuoteResult` are finalized and stable — plan 04-04 can build `compareQuotes`, `toWhatsAppText`/`toPdfModel` serializers, and the public barrel on top.
 - **Note for plan 04-01/04-04 owner:** the package `test` script is `vitest run` (no `--coverage`), so the `thresholds: { 100: true }` gate is only enforced when coverage is collected. Whoever owns the CI test-command wiring should ensure `@imbau/quoting` runs with `--coverage` so the 100% gate is enforced in CI (ENGINE-04). Coverage is currently 100% when run.
 
+## Self-Check: PASSED
+
+- All 3 created files exist on disk (engine.ts, engine.test.ts, engine.property.test.ts).
+- All 3 task commits present in git log (e4969e5, 9ffb0bc, 8238651).
+- Package suite: 52 tests pass; coverage 100% (54/54 stmts, 30/30 branches, 12/12 funcs, 44/44 lines); typecheck + lint green.
+
 ---
 *Phase: 04-motor-de-cotizaci-n-puro-packages-quoting*
 *Completed: 2026-07-03*
