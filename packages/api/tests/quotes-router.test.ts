@@ -15,8 +15,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
-import { withTenant, schema } from "@imbau/db";
-import { ENGINE_VERSION } from "@imbau/quoting";
+import { withTenant, withAnon, schema } from "@imbau/db";
+import { ENGINE_VERSION, QuoteError } from "@imbau/quoting";
 import { createCaller } from "../src";
 import { makeUserWithActiveOrg, type SessionFixture } from "./fixtures";
 import { ownerSql } from "./db";
@@ -133,10 +133,24 @@ async function countQuotes(orgId: string): Promise<number> {
 
 let orgA: SessionFixture;
 let fixtureA: QuoteFixture;
+// orgB has full fixtures but NO cac_index → proves the missing-CAC precondition path.
+let orgB: SessionFixture;
+let fixtureB: QuoteFixture;
+// An out-of-range payment plan on orgA's project → proves the engine's typed rejection surfaces.
+let degeneratePlanId: string;
+// A borrador (unpublished) project on orgA → proves anon resolution yields NOT_FOUND.
+let borradorProjectId: string;
 
 beforeAll(async () => {
   orgA = await makeUserWithActiveOrg();
   fixtureA = await seedQuoteFixtures(orgA.orgId, { withCac: true });
+
+  orgB = await makeUserWithActiveOrg();
+  fixtureB = await seedQuoteFixtures(orgB.orgId, { withCac: false });
+
+  // anticipoPct 150 is outside [0, 100] → calcQuote throws ANTICIPO_PCT_FUERA_DE_RANGO.
+  degeneratePlanId = await seedPaymentPlan(orgA.orgId, fixtureA.projectId, "150.00");
+  borradorProjectId = await seedProjectRow(orgA.orgId, "borrador");
 }, 60_000);
 
 afterAll(async () => {
@@ -233,5 +247,91 @@ describe("quotes.compute / quotes.create happy path (QUOTE-01 / QUOTE-02)", () =
     expect(result.modalidad).toBe("contado");
     if (result.modalidad !== "contado") throw new Error("expected contado arm");
     expect(result.precioUsd).toBe(PRECIO_CONTADO_USD);
+  });
+});
+
+// Capture a rejected promise's error for property inspection (typed codes / driver SQLSTATE).
+// We assert ONLY on typed/machine-readable fields — never on stack traces or internal messages.
+async function captureRejection(fn: () => Promise<unknown>): Promise<unknown> {
+  try {
+    await fn();
+  } catch (err) {
+    return err;
+  }
+  throw new Error("expected the call to reject, but it resolved");
+}
+
+// Extract the Postgres SQLSTATE from a rejection. Drizzle wraps the driver error in a
+// DrizzleQueryError whose `cause` is the postgres.js PostgresError carrying `.code` (the SQLSTATE,
+// e.g. "42501" permission denied). Read the code off the error or its cause, so the probe is
+// robust to Drizzle's wrapping.
+function postgresSqlState(err: unknown): string | undefined {
+  const top = err as { code?: string; cause?: { code?: string } } | null;
+  return top?.code ?? top?.cause?.code;
+}
+
+describe("quotes error surface + tenant privacy (QUOTE-01 negatives, D-08 / Pitfall 5)", () => {
+  it("borrador project → NOT_FOUND (anon cannot resolve an unpublished project)", async () => {
+    const caller = await createCaller({ headers: new Headers() });
+    await expect(
+      caller.quotes.compute({
+        projectId: borradorProjectId,
+        unitId: randomUUID(),
+        paymentPlanId: randomUUID(),
+        modalidad: "financiado",
+      }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("org without CAC → PRECONDITION_FAILED (never an unhandled 500)", async () => {
+    const caller = await createCaller({ headers: new Headers() });
+    await expect(
+      caller.quotes.compute({
+        projectId: fixtureB.projectId,
+        unitId: fixtureB.unitId,
+        paymentPlanId: fixtureB.paymentPlanId,
+        modalidad: "financiado",
+      }),
+    ).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
+  });
+
+  it("degenerate plan → BAD_REQUEST carrying the machine-readable engine code", async () => {
+    const caller = await createCaller({ headers: new Headers() });
+    const err = (await captureRejection(() =>
+      caller.quotes.compute({
+        projectId: fixtureA.projectId,
+        unitId: fixtureA.unitId,
+        paymentPlanId: degeneratePlanId,
+        modalidad: "financiado",
+      }),
+    )) as { code?: string; cause?: unknown };
+
+    expect(err.code).toBe("BAD_REQUEST");
+    // The errorFormatter surfaces this over the wire as data.quoteErrorCode; with createCaller the
+    // raw TRPCError is thrown, so its `cause` is the original typed QuoteError.
+    expect(err.cause).toBeInstanceOf(QuoteError);
+    expect((err.cause as QuoteError).code).toBe("ANTICIPO_PCT_FUERA_DE_RANGO");
+  });
+
+  it("cac_index stays anon-invisible: an anon SELECT raises Postgres 42501", async () => {
+    const err = await captureRejection(() =>
+      withAnon((tx) => tx.select().from(schema.cacIndex)),
+    );
+    expect(postgresSqlState(err)).toBe("42501");
+  });
+
+  it("quotes stays anon-unwritable: an anon INSERT raises Postgres 42501", async () => {
+    const err = await captureRejection(() =>
+      withAnon((tx) =>
+        tx.insert(schema.quotes).values({
+          organizationId: orgA.orgId,
+          projectId: fixtureA.projectId,
+          unitId: fixtureA.unitId,
+          paymentPlanId: fixtureA.paymentPlanId,
+          snapshot: { version: 1 as const },
+        }),
+      ),
+    );
+    expect(postgresSqlState(err)).toBe("42501");
   });
 });
