@@ -8,7 +8,14 @@ import prettier from "eslint-config-prettier";
 // last so it disables the stylistic rules Prettier owns.
 export const config = tseslint.config(
   {
-    ignores: ["**/dist/**", "**/.next/**", "**/.turbo/**", "**/node_modules/**"],
+    ignores: [
+      "**/dist/**",
+      "**/.next/**",
+      "**/.turbo/**",
+      "**/node_modules/**",
+      // Coverage reports are generated artifacts (gitignored); never lint them.
+      "**/coverage/**",
+    ],
   },
   ...tseslint.configs.recommendedTypeChecked,
   {
