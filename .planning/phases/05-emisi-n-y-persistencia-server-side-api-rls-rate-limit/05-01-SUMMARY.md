@@ -172,6 +172,10 @@ None - no external service configuration required.
 - `appRouter.quotes.compute` / `.create` are reachable through the tRPC caller and any mounted route handler — plan 05-02 (Wave 2) can now exercise them against real Postgres for the behavioral proof (anon compute/create, NOT_FOUND, PRECONDITION_FAILED, BAD_REQUEST + quoteErrorCode, snapshot persisted, tenant-private-still-private).
 - No blockers.
 
+## Self-Check: PASSED
+
+All created/modified files exist on disk and all task commits (`a27962a`, `a107563`, `2b868f3`) plus the SUMMARY commit (`dc6a8cf`) are present in git history. Working tree clean.
+
 ---
 *Phase: 05-emisi-n-y-persistencia-server-side-api-rls-rate-limit*
 *Completed: 2026-07-03*
