@@ -151,6 +151,6 @@ Phases execute in numeric order: 4 → 5 → 6 → 7
 | 2. Pipeline de media | v1.1 | 3/3 | Complete | 2026-06-30 |
 | 3. Seed del edificio ficticio | v1.1 | 3/3 | Complete | 2026-07-01 |
 | 4. Motor de cotización puro | v1.2 | 0/4 | Not started | - |
-| 5. Emisión y persistencia server-side | v1.2 | 5/5 | Complete   | 2026-07-04 |
+| 5. Emisión y persistencia server-side | v1.2 | 5/5 | Complete    | 2026-07-04 |
 | 6. UI pública del cotizador + WhatsApp | v1.2 | 0/TBD | Not started | - |
 | 7. PDF asíncrono en el worker | v1.2 | 0/TBD | Not started | - |

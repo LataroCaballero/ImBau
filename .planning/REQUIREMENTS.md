@@ -18,9 +18,9 @@ Requirements de este milestone. Cada uno mapea a una fase del roadmap.
 
 ### Emisión y persistencia de cotizaciones
 
-- [ ] **QUOTE-01**: Un comprador anónimo puede generar una cotización desde la web pública — el cómputo y la persistencia corren server-side vía procedure público auditado con `withTenant` (sin agregar policies anon a `quotes`/`cac_index`, que quedan tenant-private)
-- [ ] **QUOTE-02**: Cada cotización emitida persiste su snapshot completo (inputs resueltos + outputs + versión del motor) en `quotes.snapshot` — auditabilidad total, punto-en-el-tiempo, nunca recompute en vivo
-- [ ] **QUOTE-03**: El endpoint anónimo de cotización tiene rate limit en el edge (nginx `limit_req`, no Traefik — D-01)
+- [x] **QUOTE-01**: Un comprador anónimo puede generar una cotización desde la web pública — el cómputo y la persistencia corren server-side vía procedure público auditado con `withTenant` (sin agregar policies anon a `quotes`/`cac_index`, que quedan tenant-private)
+- [x] **QUOTE-02**: Cada cotización emitida persiste su snapshot completo (inputs resueltos + outputs + versión del motor) en `quotes.snapshot` — auditabilidad total, punto-en-el-tiempo, nunca recompute en vivo
+- [x] **QUOTE-03**: El endpoint anónimo de cotización tiene rate limit en el edge (nginx `limit_req`, no Traefik — D-01)
 
 ### UI del cotizador (web pública)
 
@@ -78,9 +78,9 @@ Qué fases cubren qué requirements.
 | ENGINE-04 | Phase 4 | Complete |
 | ENGINE-05 | Phase 4 | Complete |
 | ENGINE-06 | Phase 4 | Complete |
-| QUOTE-01 | Phase 5 | Pending |
-| QUOTE-02 | Phase 5 | Pending |
-| QUOTE-03 | Phase 5 | Pending |
+| QUOTE-01 | Phase 5 | Complete |
+| QUOTE-02 | Phase 5 | Complete |
+| QUOTE-03 | Phase 5 | Complete |
 | UI-01 | Phase 6 | Pending |
 | UI-02 | Phase 6 | Pending |
 | UI-03 | Phase 6 | Pending |

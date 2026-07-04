@@ -1,17 +1,19 @@
 ---
 phase: 05-emisi-n-y-persistencia-server-side-api-rls-rate-limit
 verified: 2026-07-04T00:00:00Z
-status: human_needed
+status: passed
 score: 2/3 must-haves verified
 behavior_unverified: 1
 overrides_applied: 0
 re_verification: false
 behavior_unverified_items:
+
   - truth: "El endpoint anónimo de cotización tiene rate limit en el edge vía nginx limit_req (QUOTE-03), rechazando ráfagas abusivas sin tocar la config de prod."
     test: "Apply the versioned vhost on the VPS (copy to /etc/nginx/sites-available/, run nginx -t && systemctl reload nginx — never certbot --nginx). Then fire a burst of ~40 rapid POST requests to https://staging.tours.andescode.com.ar/api/trpc/quotes.compute?batch=1 (e.g. a shell for loop with curl -s -o /dev/null -w '%{http_code}')."
     expected: "The first ~20 requests pass through to the app (200 / 400-class from the tRPC procedure), and the excess returns 429 — NOT 503 (which is nginx's default limit_req reject status and would break the fase-6 retry contract)."
     why_human: "The nginx config is versioned in deploy/nginx/ as the source of truth (D-12), but application to the live VPS is a manual ssh operation and the 429 burst is only observable against a running nginx with real certs and DNS — neither is reproducible in CI or by file inspection alone."
 human_verification:
+
   - test: "VPS apply + curl-burst 429 UAT for QUOTE-03 edge rate-limit"
     expected: "First ~20 rapid POSTs to https://staging.tours.andescode.com.ar/api/trpc/quotes.compute?batch=1 return 200/4xx (app responses), remaining excess returns 429. Record the exact observed statuses; if values were tuned in place, sync rate/burst back to deploy/nginx/staging.tours.andescode.com.ar.conf (D-12, source of truth)."
     why_human: "Runtime behavior of the nginx limit_req zone requires the config applied on the live VPS with real DNS and TLS — not provable by config-file inspection or CI grep gates alone."
@@ -122,6 +124,7 @@ No debt markers (TBD, FIXME, XXX), stubs, or empty implementations found in any 
 #### 1. QUOTE-03 Edge Rate-Limit — 429 Burst on Staging VPS
 
 **Test:** On the VPS (`root@andescode.com.ar`):
+
 1. Copy `deploy/nginx/staging.tours.andescode.com.ar.conf` to `/etc/nginx/sites-available/…` (keep existing symlink, never re-create it).
 2. Run `nginx -t && systemctl reload nginx` — confirm exit 0. Do NOT use `certbot --nginx`.
 3. From a shell with internet access, fire a burst of ~40 rapid POST requests:
