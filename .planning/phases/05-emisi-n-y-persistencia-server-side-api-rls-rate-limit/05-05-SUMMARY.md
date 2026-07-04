@@ -119,6 +119,13 @@ None automated here, but the QUOTE-03 edge limit requires a **manual VPS apply +
 - The QUOTE-03 edge throttle is versioned and apply-ready; the 429 burst is queued as the phase's end-of-phase human UAT (D-12).
 - **Fase-6 flag (RESEARCH Assumption A1):** the quotes client must post quotes-only batches (so the POST path stays under `/api/trpc/quotes`), or the `^~` prefix won't throttle co-batched calls — revisit at fase-6 client wiring, or widen the limit to `/api/trpc/` on the web vhost.
 
+## Self-Check: PASSED
+
+- `deploy/nginx/staging.tours.andescode.com.ar.conf` — FOUND
+- `05-05-SUMMARY.md` — FOUND
+- Commits `b5cf0df`, `8232002`, `58cffd9` — all FOUND
+- Working tree clean
+
 ---
 *Phase: 05-emisi-n-y-persistencia-server-side-api-rls-rate-limit*
 *Completed: 2026-07-04*
