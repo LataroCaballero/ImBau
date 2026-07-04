@@ -42,7 +42,7 @@ Full detail: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · Require
 **Milestone Goal:** El diferencial competitivo #1 funciona de punta a punta: un comprador cotiza una unidad (contado USD / anticipo + cuotas CAC / refuerzos), ve el resultado en pantalla, descarga el PDF y abre WhatsApp con la cotización precargada — sobre un motor de cálculo puro al 100% de cobertura donde un error de cálculo mata el producto. Numeración GSD continúa desde v1.1 (última fase 3); directorios `04-*`, `05-*`, `06-*`, `07-*`.
 
 - [x] **Phase 4: Motor de cotización puro (`packages/quoting`)** - Motor puro, determinista y sin I/O que emite un `QuoteResult` tipado único (contado + financiado CAC), 100% cobertura + property-based tests — el contrato del que dependen todas las superficies (completed 2026-07-03)
-- [ ] **Phase 5: Emisión y persistencia server-side (API + RLS + rate limit)** - `publicProcedure` tRPC auditado que resuelve la org del proyecto publicado, computa vía `withTenant` y persiste el snapshot completo, con rate limit nginx — sin exponer `quotes`/`cac_index` por RLS
+- [x] **Phase 5: Emisión y persistencia server-side (API + RLS + rate limit)** - `publicProcedure` tRPC auditado que resuelve la org del proyecto publicado, computa vía `withTenant` y persiste el snapshot completo, con rate limit nginx — sin exponer `quotes`/`cac_index` por RLS (completed 2026-07-04)
 - [ ] **Phase 6: UI pública del cotizador + CTA WhatsApp** - Web mobile-first: deep-link + picker piso→unidad, resultado en pantalla (contado vs financiado, primera cuota ARS, refuerzos, totales, leyenda no vinculante) y CTA WhatsApp precargado
 - [ ] **Phase 7: PDF asíncrono en el worker** - PDF server-side generado en el worker (BullMQ) desde el snapshot, almacenado en R2, idempotente por `quoteId` y con acentos correctos — asíncrono, nunca bloquea el resultado en pantalla
 
@@ -91,7 +91,7 @@ Plans:
   2. Cada cotización emitida persiste su snapshot completo (inputs resueltos + outputs + versión del motor) en `quotes.snapshot`, capturando el estado punto-en-el-tiempo que nunca se recomputa en vivo. (QUOTE-02)
   3. El endpoint anónimo de cotización tiene rate limit en el edge vía nginx `limit_req` (no Traefik — D-01), rechazando ráfagas abusivas sin tocar la config de prod. (QUOTE-03)
 
-**Plans**: 4/5 plans executed
+**Plans**: 5/5 plans complete
 
 Plans:
 **Wave 1**
@@ -106,7 +106,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 05-05-PLAN.md — Rate limit nginx limit_req (429) en el path de quotes del vhost web + procedimiento de apply/UAT manual (QUOTE-03)
+- [x] 05-05-PLAN.md — Rate limit nginx limit_req (429) en el path de quotes del vhost web + procedimiento de apply/UAT manual (QUOTE-03)
 
 ### Phase 6: UI pública del cotizador + CTA WhatsApp
 
@@ -151,6 +151,6 @@ Phases execute in numeric order: 4 → 5 → 6 → 7
 | 2. Pipeline de media | v1.1 | 3/3 | Complete | 2026-06-30 |
 | 3. Seed del edificio ficticio | v1.1 | 3/3 | Complete | 2026-07-01 |
 | 4. Motor de cotización puro | v1.2 | 0/4 | Not started | - |
-| 5. Emisión y persistencia server-side | v1.2 | 4/5 | In Progress|  |
+| 5. Emisión y persistencia server-side | v1.2 | 5/5 | Complete   | 2026-07-04 |
 | 6. UI pública del cotizador + WhatsApp | v1.2 | 0/TBD | Not started | - |
 | 7. PDF asíncrono en el worker | v1.2 | 0/TBD | Not started | - |
