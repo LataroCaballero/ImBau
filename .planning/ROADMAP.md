@@ -120,7 +120,7 @@ Plans:
   3. El comprador ajusta anticipo/plazo de forma interactiva solo dentro de los planes preset y bounds autorizados por el developer (nunca términos libres), con la leyenda de ajuste CAC + "cotización no vinculante" visible y todos los montos formateados es-AR consistentes entre server y cliente (`US$` vs `$`). (UI-04, UI-05, UI-06)
   4. Tocar "Consultar por WhatsApp" abre wa.me con un resumen corto URL-encoded (del mismo `QuoteResult`, no la tabla completa) al número del proyecto, con el slot de routing por broker listo para fase 5. (WA-01)
 
-**Plans**: 2/6 plans executed
+**Plans**: 4/6 plans executed
 
 Plans:
 **Wave 1**
@@ -130,8 +130,8 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 06-03-PLAN.md — API: anon `picker` router (project+whatsapp/floors/units/plans) mounted in AppRouter + integration test (UI-01, UI-05)
-- [ ] 06-04-PLAN.md — Presentational: wa.me URL builder + plan-snap map + quote-cards + snap slider, all from one QuoteResult (UI-02, UI-03, UI-04, UI-05, UI-06, WA-01)
+- [x] 06-03-PLAN.md — API: anon `picker` router (project+whatsapp/floors/units/plans) mounted in AppRouter + integration test (UI-01, UI-05)
+- [x] 06-04-PLAN.md — Presentational: wa.me URL builder + plan-snap map + quote-cards + snap slider, all from one QuoteResult (UI-02, UI-03, UI-04, UI-05, UI-06, WA-01)
 
 **Wave 3** *(blocked on Wave 2)*
 
@@ -172,5 +172,5 @@ Phases execute in numeric order: 4 → 5 → 6 → 7
 | 3. Seed del edificio ficticio | v1.1 | 3/3 | Complete | 2026-07-01 |
 | 4. Motor de cotización puro | v1.2 | 0/4 | Not started | - |
 | 5. Emisión y persistencia server-side | v1.2 | 5/5 | Complete    | 2026-07-04 |
-| 6. UI pública del cotizador + WhatsApp | v1.2 | 2/6 | In Progress|  |
+| 6. UI pública del cotizador + WhatsApp | v1.2 | 4/6 | In Progress|  |
 | 7. PDF asíncrono en el worker | v1.2 | 0/TBD | Not started | - |
