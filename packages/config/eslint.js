@@ -15,6 +15,11 @@ export const config = tseslint.config(
       "**/node_modules/**",
       // Coverage reports are generated artifacts (gitignored); never lint them.
       "**/coverage/**",
+      // PostCSS config (Tailwind v4 entry) is a plain config file outside any
+      // tsconfig project, so `projectService` type-aware linting cannot resolve
+      // it ("not found by the project service"). Config files carry no app logic
+      // to type-lint — exclude them like the other non-source artifacts above.
+      "**/postcss.config.mjs",
     ],
   },
   ...tseslint.configs.recommendedTypeChecked,

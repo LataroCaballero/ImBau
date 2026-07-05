@@ -1,0 +1,40 @@
+/* apps/web public-UI entry — Tailwind v4 CSS-first (D-10, RESEARCH Pattern 6).
+ *
+ * `@import "tailwindcss"` pulls in the v4 engine; the `@theme` block below maps
+ * the ImBau brand tokens (docs/marca — paleta grafito dark-first + cobre accent)
+ * onto Tailwind theme variables, so utilities like `bg-grafito`, `text-hormigon`
+ * and `font-mono` resolve to the brand palette. This is `@theme inline`-style and
+ * self-contained: all cotizador components live under apps/web, so Tailwind's
+ * content auto-detection covers them and no `@source` into packages/ui is needed
+ * (avoids the v4 purge pitfall — RESEARCH Pitfall 5).
+ *
+ * The three `--font-*` tokens forward to the next/font CSS variables that
+ * app/layout.tsx sets on <html> (--font-space-grotesk / --font-inter /
+ * --font-jetbrains). JetBrains Mono is the figures face (UI-06 — deterministic
+ * es-AR money formatting renders in tabular mono).
+ */
+@import "tailwindcss";
+
+@theme {
+  /* Superficies dark-first */
+  --color-grafito: #14181e;
+  --color-carbon: #1d232c;
+  --color-hormigon: #f2efe9;
+
+  /* Acento cobre (nunca como fondo — brand-book) */
+  --color-cobre: #d98a4f;
+  --color-cobre-profundo: #c0703a;
+
+  /* Datos / blueprint */
+  --color-blueprint: #4c7df0;
+
+  /* Estados de disponibilidad de unidades */
+  --color-disponible: #2fa26e;
+  --color-reservado: #e3a63c;
+  --color-vendido: #d65454;
+
+  /* Familias tipográficas (self-hosted vía next/font en layout.tsx) */
+  --font-display: var(--font-space-grotesk), system-ui, sans-serif;
+  --font-text: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+}
