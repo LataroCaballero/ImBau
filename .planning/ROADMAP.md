@@ -43,7 +43,7 @@ Full detail: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · Require
 
 - [x] **Phase 4: Motor de cotización puro (`packages/quoting`)** - Motor puro, determinista y sin I/O que emite un `QuoteResult` tipado único (contado + financiado CAC), 100% cobertura + property-based tests — el contrato del que dependen todas las superficies (completed 2026-07-03)
 - [x] **Phase 5: Emisión y persistencia server-side (API + RLS + rate limit)** - `publicProcedure` tRPC auditado que resuelve la org del proyecto publicado, computa vía `withTenant` y persiste el snapshot completo, con rate limit nginx — sin exponer `quotes`/`cac_index` por RLS (completed 2026-07-04)
-- [ ] **Phase 6: UI pública del cotizador + CTA WhatsApp** - Web mobile-first: deep-link + picker piso→unidad, resultado en pantalla (contado vs financiado, primera cuota ARS, refuerzos, totales, leyenda no vinculante) y CTA WhatsApp precargado
+- [x] **Phase 6: UI pública del cotizador + CTA WhatsApp** - Web mobile-first: deep-link + picker piso→unidad, resultado en pantalla (contado vs financiado, primera cuota ARS, refuerzos, totales, leyenda no vinculante) y CTA WhatsApp precargado (completed 2026-07-05)
 - [ ] **Phase 7: PDF asíncrono en el worker** - PDF server-side generado en el worker (BullMQ) desde el snapshot, almacenado en R2, idempotente por `quoteId` y con acentos correctos — asíncrono, nunca bloquea el resultado en pantalla
 
 ## Phase Details
@@ -120,7 +120,7 @@ Plans:
   3. El comprador ajusta anticipo/plazo de forma interactiva solo dentro de los planes preset y bounds autorizados por el developer (nunca términos libres), con la leyenda de ajuste CAC + "cotización no vinculante" visible y todos los montos formateados es-AR consistentes entre server y cliente (`US$` vs `$`). (UI-04, UI-05, UI-06)
   4. Tocar "Consultar por WhatsApp" abre wa.me con un resumen corto URL-encoded (del mismo `QuoteResult`, no la tabla completa) al número del proyecto, con el slot de routing por broker listo para fase 5. (WA-01)
 
-**Plans**: 5/6 plans executed
+**Plans**: 6/6 plans complete
 
 Plans:
 **Wave 1**
@@ -139,7 +139,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3)*
 
-- [ ] 06-06-PLAN.md — e2e: Playwright picker/deep-link/result/comparison/slider/leyenda/es-AR/WhatsApp CTA + phase gate (UI-01..06, WA-01)
+- [x] 06-06-PLAN.md — e2e: Playwright picker/deep-link/result/comparison/slider/leyenda/es-AR/WhatsApp CTA + phase gate (UI-01..06, WA-01)
 
 **UI hint**: yes
 
@@ -172,5 +172,5 @@ Phases execute in numeric order: 4 → 5 → 6 → 7
 | 3. Seed del edificio ficticio | v1.1 | 3/3 | Complete | 2026-07-01 |
 | 4. Motor de cotización puro | v1.2 | 0/4 | Not started | - |
 | 5. Emisión y persistencia server-side | v1.2 | 5/5 | Complete    | 2026-07-04 |
-| 6. UI pública del cotizador + WhatsApp | v1.2 | 5/6 | In Progress|  |
+| 6. UI pública del cotizador + WhatsApp | v1.2 | 6/6 | Complete   | 2026-07-05 |
 | 7. PDF asíncrono en el worker | v1.2 | 0/TBD | Not started | - |
