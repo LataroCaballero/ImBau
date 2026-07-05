@@ -24,12 +24,12 @@ Requirements de este milestone. Cada uno mapea a una fase del roadmap.
 
 ### UI del cotizador (web pública)
 
-- [ ] **UI-01**: El comprador llega a cotizar una unidad sin el explorador: deep-link compartible por URL param + picker mínimo piso→unidad sobre unidades publicadas (rol anon)
-- [ ] **UI-02**: El comprador ve el resultado en pantalla mobile-first: precio USD, anticipo (USD + %), cuotas, primera cuota ARS "al valor del mes", refuerzos y totales
-- [ ] **UI-03**: El comprador ve la comparación **contado vs financiado** lado a lado (dos corridas del mismo motor)
-- [ ] **UI-04**: El comprador ajusta anticipo/plazo de forma interactiva solo dentro de los planes preset y bounds autorizados por el developer (nunca términos libres)
-- [ ] **UI-05**: La leyenda de ajuste CAC + "cotización no vinculante" (`payment_plans.notasLegales`) es visible en pantalla
-- [ ] **UI-06**: Todos los montos se formatean es-AR (miles con punto, decimales con coma; US$ vs $) consistente entre server y cliente
+- [x] **UI-01**: El comprador llega a cotizar una unidad sin el explorador: deep-link compartible por URL param + picker mínimo piso→unidad sobre unidades publicadas (rol anon)
+- [x] **UI-02**: El comprador ve el resultado en pantalla mobile-first: precio USD, anticipo (USD + %), cuotas, primera cuota ARS "al valor del mes", refuerzos y totales
+- [x] **UI-03**: El comprador ve la comparación **contado vs financiado** lado a lado (dos corridas del mismo motor)
+- [x] **UI-04**: El comprador ajusta anticipo/plazo de forma interactiva solo dentro de los planes preset y bounds autorizados por el developer (nunca términos libres)
+- [x] **UI-05**: La leyenda de ajuste CAC + "cotización no vinculante" (`payment_plans.notasLegales`) es visible en pantalla
+- [x] **UI-06**: Todos los montos se formatean es-AR (miles con punto, decimales con coma; US$ vs $) consistente entre server y cliente
 
 ### PDF de la cotización
 
@@ -39,7 +39,7 @@ Requirements de este milestone. Cada uno mapea a una fase del roadmap.
 
 ### Handoff a WhatsApp
 
-- [ ] **WA-01**: El CTA "Consultar por WhatsApp" abre wa.me con el resumen de la cotización precargado (generado del mismo `QuoteResult`), URL-encoded, corto (resumen + link, no la tabla completa), con número del proyecto y slot listo para routing por broker (fase 5)
+- [x] **WA-01**: El CTA "Consultar por WhatsApp" abre wa.me con el resumen de la cotización precargado (generado del mismo `QuoteResult`), URL-encoded, corto (resumen + link, no la tabla completa), con número del proyecto y slot listo para routing por broker (fase 5)
 
 ## Future Requirements (v1.x+)
 
@@ -81,16 +81,16 @@ Qué fases cubren qué requirements.
 | QUOTE-01 | Phase 5 | Complete |
 | QUOTE-02 | Phase 5 | Complete |
 | QUOTE-03 | Phase 5 | Complete |
-| UI-01 | Phase 6 | Pending |
-| UI-02 | Phase 6 | Pending |
-| UI-03 | Phase 6 | Pending |
-| UI-04 | Phase 6 | Pending |
-| UI-05 | Phase 6 | Pending |
-| UI-06 | Phase 6 | Pending |
+| UI-01 | Phase 6 | Complete |
+| UI-02 | Phase 6 | Complete |
+| UI-03 | Phase 6 | Complete |
+| UI-04 | Phase 6 | Complete |
+| UI-05 | Phase 6 | Complete |
+| UI-06 | Phase 6 | Complete |
 | PDF-01 | Phase 7 | Pending |
 | PDF-02 | Phase 7 | Pending |
 | PDF-03 | Phase 7 | Pending |
-| WA-01 | Phase 6 | Pending |
+| WA-01 | Phase 6 | Complete |
 
 **Coverage:**
 
