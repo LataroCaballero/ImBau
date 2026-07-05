@@ -1,0 +1,35 @@
+/* @imbau/ui — ImBau design tokens (D-10).
+ *
+ * Canonical brand custom properties as raw CSS variables under `:root`, so any
+ * consumer (apps/web, apps/panel) can import `@imbau/ui/tokens.css` for the
+ * palette + type stacks without depending on Tailwind. apps/web additionally
+ * mirrors these into its Tailwind `@theme` block (app/globals.css) so utility
+ * classes resolve them.
+ *
+ * Values are the ImBau brand palette (grafito dark-first, cobre accent used only
+ * for emphasis — never as a page background — per the brand book). This file
+ * replaces the placeholder state of packages/ui.
+ */
+:root {
+  /* Superficies dark-first */
+  --grafito: #14181e;
+  --carbon: #1d232c;
+  --hormigon: #f2efe9;
+
+  /* Acento cobre (nunca como fondo) */
+  --cobre: #d98a4f;
+  --cobre-profundo: #c0703a;
+
+  /* Datos / blueprint */
+  --blueprint: #4c7df0;
+
+  /* Estados de disponibilidad de unidades */
+  --disponible: #2fa26e;
+  --reservado: #e3a63c;
+  --vendido: #d65454;
+
+  /* Familias tipográficas (self-hosted vía next/font en el consumidor) */
+  --font-display: var(--font-space-grotesk), system-ui, sans-serif;
+  --font-text: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+}
