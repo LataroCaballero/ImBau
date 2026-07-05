@@ -166,3 +166,7 @@ None. All components are wired to the real `@imbau/quoting` contract and consume
 ---
 *Phase: 06-ui-p-blica-del-cotizador-cta-whatsapp*
 *Completed: 2026-07-05*
+
+## Self-Check: PASSED
+
+All 7 created files + SUMMARY verified present on disk; all 6 commits (ccdc250, 9089cb3, c9372ed, 11a8676, 85531db, 28fdea7) verified in git history. typecheck + lint exit 0; 26/26 tests pass for @imbau/web.
