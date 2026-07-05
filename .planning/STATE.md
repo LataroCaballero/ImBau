@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Cotizador
-current_phase: 6
-current_phase_name: UI pública del cotizador + CTA WhatsApp
+current_phase: 06
+current_phase_name: ui-p-blica-del-cotizador-cta-whatsapp
 status: executing
 stopped_at: Phase 6 context gathered
-last_updated: "2026-07-05T02:12:45.284Z"
-last_activity: 2026-07-04
-last_activity_desc: "Phase 05 complete (UAT QUOTE-03: 429 probado en staging VPS), transitioned to Phase 6"
+last_updated: "2026-07-05T02:28:44.167Z"
+last_activity: 2026-07-05
+last_activity_desc: Phase 06 execution started
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 9
+  total_plans: 15
   completed_plans: 9
   percent: 50
 ---
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-04)
 
 **Core value:** El diferencial competitivo #1 (cotizador financiero argentino) funciona de punta a punta con un motor de cálculo provablemente correcto — un error de cálculo mata el producto.
-**Current focus:** Phase 6 — UI pública del cotizador + CTA WhatsApp
+**Current focus:** Phase 06 — ui-p-blica-del-cotizador-cta-whatsapp
 
 ## Current Position
 
-Phase: 6 — UI pública del cotizador + CTA WhatsApp
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-07-04 — Phase 05 complete (UAT QUOTE-03: 429 probado en staging VPS), transitioned to Phase 6
+Phase: 06 (ui-p-blica-del-cotizador-cta-whatsapp) — EXECUTING
+Plan: 1 of 6
+Status: Executing Phase 06
+Last activity: 2026-07-05 — Phase 06 execution started
 
 Progress: [████████████████████] 9/9 plans (100%)
 
