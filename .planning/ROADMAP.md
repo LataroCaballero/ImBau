@@ -120,7 +120,27 @@ Plans:
   3. El comprador ajusta anticipo/plazo de forma interactiva solo dentro de los planes preset y bounds autorizados por el developer (nunca términos libres), con la leyenda de ajuste CAC + "cotización no vinculante" visible y todos los montos formateados es-AR consistentes entre server y cliente (`US$` vs `$`). (UI-04, UI-05, UI-06)
   4. Tocar "Consultar por WhatsApp" abre wa.me con un resumen corto URL-encoded (del mismo `QuoteResult`, no la tabla completa) al número del proyecto, con el slot de routing por broker listo para fase 5. (WA-01)
 
-**Plans**: TBD
+**Plans**: 6 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 06-01-PLAN.md — DB: `projects.whatsapp` nullable column + versioned migration [BLOCKING] + seed number (WA-01)
+- [ ] 06-02-PLAN.md — Web foundation: deps + Tailwind v4 CSS-first + brand tokens/fonts + dual-splitLink tRPC client + vitest/Playwright infra (UI-06)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 06-03-PLAN.md — API: anon `picker` router (project+whatsapp/floors/units/plans) mounted in AppRouter + integration test (UI-01, UI-05)
+- [ ] 06-04-PLAN.md — Presentational: wa.me URL builder + plan-snap map + quote-cards + snap slider, all from one QuoteResult (UI-02, UI-03, UI-04, UI-05, UI-06, WA-01)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 06-05-PLAN.md — Interactive: RSC page `/p/[slug]/cotizador` + piso→unidad picker + simulator island (live compute, 429-tolerant, WhatsApp CTA) (UI-01, UI-02, UI-03, UI-04, UI-05, WA-01)
+
+**Wave 4** *(blocked on Wave 3)*
+
+- [ ] 06-06-PLAN.md — e2e: Playwright picker/deep-link/result/comparison/slider/leyenda/es-AR/WhatsApp CTA + phase gate (UI-01..06, WA-01)
+
 **UI hint**: yes
 
 ### Phase 7: PDF asíncrono en el worker
@@ -152,5 +172,5 @@ Phases execute in numeric order: 4 → 5 → 6 → 7
 | 3. Seed del edificio ficticio | v1.1 | 3/3 | Complete | 2026-07-01 |
 | 4. Motor de cotización puro | v1.2 | 0/4 | Not started | - |
 | 5. Emisión y persistencia server-side | v1.2 | 5/5 | Complete    | 2026-07-04 |
-| 6. UI pública del cotizador + WhatsApp | v1.2 | 0/TBD | Not started | - |
+| 6. UI pública del cotizador + WhatsApp | v1.2 | 0/6 | Not started | - |
 | 7. PDF asíncrono en el worker | v1.2 | 0/TBD | Not started | - |
