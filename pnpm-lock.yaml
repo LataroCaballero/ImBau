@@ -108,6 +108,9 @@ importers:
       '@imbau/observability':
         specifier: workspace:*
         version: link:../../packages/observability
+      '@imbau/quoting':
+        specifier: workspace:*
+        version: link:../../packages/quoting
       '@imbau/ui':
         specifier: workspace:*
         version: link:../../packages/ui

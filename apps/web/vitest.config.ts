@@ -1,4 +1,25 @@
+import { createRequire } from "node:module";
 import { defineConfig, configDefaults } from "vitest/config";
+
+// JSX/TSX transform bridge. apps/web's tsconfig sets `jsx: "preserve"` (required by Next), which
+// makes Vite's built-in esbuild pass leave JSX untransformed → `vite:import-analysis` then fails on
+// component render tests with "content contains invalid JS syntax". We transpile JSX ourselves with
+// esbuild (via Vite's `transformWithEsbuild`) in a `pre` plugin so the app tsconfig stays
+// Next-correct while `.tsx` render tests still run. `vite` is resolved through vitest's own
+// dependency tree because pnpm does not hoist it to apps/web.
+// Minimal local typing for the one Vite helper we borrow — apps/web cannot resolve `vite`'s own
+// type declarations (it is only a transitive dep), so we describe just the signature we call.
+type TransformWithEsbuild = (
+  code: string,
+  filename: string,
+  options?: { loader?: string; jsx?: string; jsxImportSource?: string },
+) => Promise<{ code: string; map: string }>;
+
+const req = createRequire(import.meta.url);
+const viteReq = createRequire(req.resolve("vitest/config"));
+const { transformWithEsbuild } = viteReq("vite") as {
+  transformWithEsbuild: TransformWithEsbuild;
+};
 
 // Per-package Vitest config for @imbau/web.
 //
@@ -14,6 +35,21 @@ import { defineConfig, configDefaults } from "vitest/config";
 // widens the exclude list to drop e2e specs and sets the jsdom environment so
 // component/render assertions (and DOM-touching client modules) work.
 export default defineConfig({
+  plugins: [
+    {
+      name: "imbau-tsx-jsx",
+      enforce: "pre",
+      transform(code: string, id: string) {
+        const file = id.split("?")[0] ?? "";
+        if (id.includes("/node_modules/") || !/\.[jt]sx$/.test(file)) return null;
+        return transformWithEsbuild(code, file, {
+          loader: "tsx",
+          jsx: "automatic",
+          jsxImportSource: "react",
+        });
+      },
+    },
+  ],
   test: {
     environment: "jsdom",
     exclude: [...configDefaults.exclude, "e2e/**"],
