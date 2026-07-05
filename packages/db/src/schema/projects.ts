@@ -26,6 +26,12 @@ export const projects = pgTable(
     nombre: text("nombre").notNull(),
     slug: text("slug").notNull(),
     estado: estadoEnum("estado").notNull().default("borrador"),
+    // whatsapp — per-project default number for the public WhatsApp CTA (WA-01, D-01).
+    // Nullable slot: the broker routing of the maestro phase 5 overrides it later; this is
+    // the "slot listo para routing" of WA-01. Exposed to anon via the existing table-level
+    // projects_anon_published SELECT policy — NO new pgPolicy needed (only publicado projects
+    // reach anon, and the number is intended to be public — it is the CTA target).
+    whatsapp: text("whatsapp"),
   },
   (t) => [
     // Parent UNIQUE for composite FKs (D-02 / Pitfall 7): every child table org-pins its
