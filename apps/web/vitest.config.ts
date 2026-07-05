@@ -7,9 +7,19 @@ import { defineConfig, configDefaults } from "vitest/config";
 // esbuild (via Vite's `transformWithEsbuild`) in a `pre` plugin so the app tsconfig stays
 // Next-correct while `.tsx` render tests still run. `vite` is resolved through vitest's own
 // dependency tree because pnpm does not hoist it to apps/web.
+// Minimal local typing for the one Vite helper we borrow — apps/web cannot resolve `vite`'s own
+// type declarations (it is only a transitive dep), so we describe just the signature we call.
+type TransformWithEsbuild = (
+  code: string,
+  filename: string,
+  options?: { loader?: string; jsx?: string; jsxImportSource?: string },
+) => Promise<{ code: string; map: string }>;
+
 const req = createRequire(import.meta.url);
 const viteReq = createRequire(req.resolve("vitest/config"));
-const { transformWithEsbuild } = viteReq("vite") as typeof import("vite");
+const { transformWithEsbuild } = viteReq("vite") as {
+  transformWithEsbuild: TransformWithEsbuild;
+};
 
 // Per-package Vitest config for @imbau/web.
 //
@@ -29,7 +39,7 @@ export default defineConfig({
     {
       name: "imbau-tsx-jsx",
       enforce: "pre",
-      async transform(code: string, id: string) {
+      transform(code: string, id: string) {
         const file = id.split("?")[0] ?? "";
         if (id.includes("/node_modules/") || !/\.[jt]sx$/.test(file)) return null;
         return transformWithEsbuild(code, file, {
