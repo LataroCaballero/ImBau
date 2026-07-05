@@ -42,14 +42,15 @@ La fundación técnica queda desplegada y operable desde el día uno: cada commi
 - ✓ Seed determinista e idempotente del edificio ficticio "Brigos Recoleta" (13 pisos, 38 unidades, 2 listas de precios USD, planes CAC con refuerzos, 3 brokers, 14 leads con timeline, galerías/obra, 18 events en ≥2 particiones mensuales) — v1.1 Phase 3 (SEED-01..04). Media por el pipeline real R2+worker con mediaId determinista; gate run-twice de invariancia de filas + RLS-correctness; UAT live-R2 2/2 verde (2026-07-01: 13/13 media con variants+blurhash+dims, segunda corrida sin filas nuevas).
 - ✓ Motor de cotización `packages/quoting` puro, determinista y sin I/O: `calcQuote` (contado + financiado CAC con anticipo half-up, última cuota absorbe resto, ARS "al valor del mes"), `QuoteResult` tipado único, `compareQuotes`, serializers `toWhatsAppText`/`toPdfModel`, `QuoteError` tipado (7 códigos) y `ENGINE_VERSION` alineado al snapshot — Validated in Phase 4 (v1.2, ENGINE-01..06). 62 tests (unit + fast-check properties), gate de cobertura 100% enforced (`vitest run --coverage`), verificación 5/5 must-haves (2026-07-03).
 - ✓ Emisión y persistencia server-side del cotizador: `quotes.compute` / `quotes.create` como publicProcedures anónimos (resolución de org vía `withAnon` desde el proyecto publicado — el cliente nunca manda orgId), snapshot versionado `{version: ENGINE_VERSION, inputs, result, cacPeriodo}` persistido bajo `withTenant`, errorFormatter que solo expone `quoteErrorCode` (D-08), mount tRPC en `apps/web` con fence T-03-09 intacto (A1/D-06), y rate-limit de borde nginx `rate=10r/s + burst=20 nodelay + 429` en staging — Validated in Phase 5 (v1.2, QUOTE-01..03). 9 tests de router contra Postgres real (happy paths + negativos + pruebas RLS 42501); UAT QUOTE-03 en staging VPS: ráfaga de 40 POSTs → 29 pasan / 11× 429, cero 503 (2026-07-04).
+- ✓ UI pública del cotizador + CTA WhatsApp: `/p/[slug]/cotizador` mobile-first (RSC + isla cliente) con deep-link `?u=&plan=` y picker piso→unidad sobre unidades publicadas (router `picker` anon RLS-safe incl. `projects.whatsapp` nueva columna, migración 0004), resultado completo contado vs financiado (dos corridas del motor, primera cuota ARS, refuerzos, totales), slider snap-to-preset (nunca términos libres), leyenda CAC + "no vinculante", formato es-AR vía `formatUsd`/`formatArs` compartidos (cero `toLocaleString` en UI), dual `splitLink` que mantiene `quotes.*` bajo el path nginx-throttleado, y CTA wa.me precargado desde `toWhatsAppText` con guard sin-número — Validated in Phase 6 (v1.2, UI-01..06, WA-01). 26 unit/render + 5 integration + e2e Playwright 4/4 en corrida independiente post-merge contra seed Brigos Recoleta (2026-07-05). Pendiente no bloqueante: pasada visual de marca en viewport real (06-UAT.md).
 
 ### Active
 
 Milestone **v1.2 Cotizador** — requirements en definición (ver `.planning/REQUIREMENTS.md` cuando exista):
 
-- [ ] UI del cotizador en la web pública (contado USD / anticipo + cuotas CAC / refuerzos)
+- [x] UI del cotizador en la web pública (contado USD / anticipo + cuotas CAC / refuerzos) — Validated in Phase 6
 - [ ] PDF server-side de la cotización en el worker (leyenda "cotización no vinculante")
-- [ ] CTA WhatsApp con la cotización precargada
+- [x] CTA WhatsApp con la cotización precargada — Validated in Phase 6
 
 ### Out of Scope
 
@@ -115,4 +116,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-04 after Phase 5 (v1.2 Cotizador, emisión y persistencia server-side): QUOTE-01..03 validados — API anónima de cotización + snapshot persistido + rate-limit 429 probado en staging VPS (UAT ejecutado vía SSH). Nota: la ruta tRPC de quotes llega a staging al mergear PR #1 (staging corre imagen pre-fase-5).*
+*Last updated: 2026-07-05 after Phase 6 (v1.2 Cotizador, UI pública + CTA WhatsApp): UI-01..06 + WA-01 validados — cotizador mobile-first en /p/[slug]/cotizador con picker/deep-link, comparación contado vs financiado, slider preset-only, leyendas y wa.me precargado; e2e 4/4 contra seed Brigos Recoleta. Pendientes: pasada visual (06-UAT.md) y re-check 429 en staging al mergear PR #1 (staging corre imagen pre-fase-5). Próxima fase: 7 (PDF asíncrono en worker).*
