@@ -172,6 +172,9 @@ importers:
       jsdom:
         specifier: 26.1.0
         version: 26.1.0
+      postgres:
+        specifier: 3.4.9
+        version: 3.4.9
       tailwindcss:
         specifier: 4.3.2
         version: 4.3.2

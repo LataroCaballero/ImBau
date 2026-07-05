@@ -20,6 +20,18 @@ const DATABASE_APP_URL =
 const DATABASE_ANON_URL =
   process.env.DATABASE_ANON_URL ?? "postgres://anon:dev@localhost:5432/imbau";
 
+// apps/web mounts the FULL appRouter at /api/trpc (D-06-A1, plan 05-05) for the anonymous quote
+// path, so booting @imbau/api eagerly validates the Better Auth env (auth/env.ts) at `next build`
+// page-data collection AND at `next start`. The context note is explicit: when the app server is
+// run directly (this webServer), the FULL env must live in that process. These two vars were
+// missing, so a fresh `pnpm --filter @imbau/web test:e2e` failed to build. Dev defaults here (no
+// real secret material) keep the local suite runnable; CI/staging override via process.env. The
+// owner-pool DATABASE_URL the auth env also needs is already provided above.
+const BETTER_AUTH_SECRET =
+  process.env.BETTER_AUTH_SECRET ?? "test-better-auth-secret-0123456789-abcdef";
+const BETTER_AUTH_URL =
+  process.env.BETTER_AUTH_URL ?? "http://localhost:3001";
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
@@ -41,6 +53,8 @@ export default defineConfig({
       DATABASE_URL,
       DATABASE_APP_URL,
       DATABASE_ANON_URL,
+      BETTER_AUTH_SECRET,
+      BETTER_AUTH_URL,
       NEXT_PUBLIC_APP_ENV: "development",
       NODE_ENV: "production",
     },
