@@ -191,3 +191,7 @@ None - no external service configuration required. (Live 429 rate-limit re-verif
 ---
 *Phase: 06-ui-p-blica-del-cotizador-cta-whatsapp*
 *Completed: 2026-07-05*
+
+## Self-Check: PASSED
+
+All 8 created files verified present on disk; all 5 commits (be45d84, e53c5c0, 7cd23ae, 5cd5699, 761b21e) verified in git history. typecheck + test (4 pass) + lint all green for @imbau/web; @imbau/ui typecheck + lint green.
