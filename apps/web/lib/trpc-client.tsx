@@ -21,6 +21,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createTRPCClient, httpBatchLink, splitLink } from "@trpc/client";
 import { createTRPCContext } from "@trpc/tanstack-react-query";
 import type { AppRouter } from "@imbau/api";
+import { isQuotesOp } from "./trpc-split";
+
+// Re-exported so the split predicate is reachable from the client module and
+// unit-testable in isolation (see lib/trpc-split.ts).
+export { isQuotesOp } from "./trpc-split";
 
 export const { TRPCProvider, useTRPC } = createTRPCContext<AppRouter>();
 
@@ -44,7 +49,7 @@ export function TRPCReactProvider({
         splitLink({
           // Keep quotes on their own batch so the request path stays
           // /api/trpc/quotes.* and nginx limit_req (QUOTE-03) throttles it.
-          condition: (op) => op.path.startsWith("quotes."),
+          condition: (op) => isQuotesOp(op.path),
           true: httpBatchLink({ url }),
           false: httpBatchLink({ url }),
         }),
