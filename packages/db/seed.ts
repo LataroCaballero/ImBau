@@ -108,6 +108,9 @@ export async function runSeed(opts?: RunSeedOptions): Promise<void> {
           nombre: BUILDING.project.nombre,
           slug: BUILDING.project.slug,
           estado: "publicado",
+          // Default WhatsApp CTA number (D-01/D-02): demo/staging always render the CTA,
+          // never a dead button. Broker routing (maestro phase 5) overrides this per-lead later.
+          whatsapp: "+5491155551234",
         })
         .onConflictDoNothing(),
     );
