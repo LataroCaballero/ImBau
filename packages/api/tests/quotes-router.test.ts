@@ -12,14 +12,26 @@
 //
 // Money is checked with EXACT integer/string equality — never an approximate matcher (a cent
 // that does not reconcile is a bug, CLAUDE.md).
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { withTenant, withAnon, schema } from "@imbau/db";
 import { ENGINE_VERSION, QuoteError } from "@imbau/quoting";
+import { quotePdfKey } from "@imbau/storage";
 import { createCaller } from "../src";
 import { makeUserWithActiveOrg, type SessionFixture } from "./fixtures";
 import { ownerSql } from "./db";
+
+// Mock the quotes RUNTIME so the router's producer + presign seams never touch live Redis/R2
+// under test (Pitfall 3). enqueuePdf records its call for the create-side-effect assertion;
+// presignPdfGet returns a fixed URL so pdfStatus's ready:true arm is deterministic.
+const SIGNED_URL = "https://r2.example.test/signed";
+vi.mock("../src/quotes/runtime", () => ({
+  enqueuePdf: vi.fn(() => Promise.resolve()),
+  presignPdfGet: vi.fn(() => Promise.resolve(SIGNED_URL)),
+}));
+// Imported AFTER the mock declaration; these are the vi.fn() stubs above (hoisted vi.mock).
+import { enqueuePdf, presignPdfGet } from "../src/quotes/runtime";
 
 const owner = ownerSql();
 
@@ -333,5 +345,104 @@ describe("quotes error surface + tenant privacy (QUOTE-01 negatives, D-08 / Pitf
       ),
     );
     expect(postgresSqlState(err)).toBe("42501");
+  });
+});
+
+describe("quotes.create PDF enqueue + quotes.pdfStatus (PDF-01, D-02/D-03/D-04)", () => {
+  beforeEach(() => {
+    vi.mocked(enqueuePdf).mockClear();
+    vi.mocked(presignPdfGet).mockClear();
+  });
+
+  it("create enqueues the PDF job exactly once with {quoteId, organizationId, projectId} (D-02)", async () => {
+    const caller = await createCaller({ headers: new Headers() });
+    const res = await caller.quotes.create({
+      projectId: fixtureA.projectId,
+      unitId: fixtureA.unitId,
+      paymentPlanId: fixtureA.paymentPlanId,
+      modalidad: "financiado",
+    });
+
+    expect(enqueuePdf).toHaveBeenCalledTimes(1);
+    // EXACT payload equality: the quoteId is the inserted row's id, the org is the SERVER-resolved
+    // org of the publicado project (never client-supplied), the projectId echoes the input.
+    expect(enqueuePdf).toHaveBeenCalledWith({
+      quoteId: res.quoteId,
+      organizationId: orgA.orgId,
+      projectId: fixtureA.projectId,
+    });
+  });
+
+  it("pdfStatus returns {ready:false} while the quote has no pdfKey", async () => {
+    const caller = await createCaller({ headers: new Headers() });
+    const res = await caller.quotes.create({
+      projectId: fixtureA.projectId,
+      unitId: fixtureA.unitId,
+      paymentPlanId: fixtureA.paymentPlanId,
+      modalidad: "financiado",
+    });
+
+    const status = await caller.quotes.pdfStatus({
+      projectId: fixtureA.projectId,
+      quoteId: res.quoteId,
+    });
+    expect(status).toEqual({ ready: false });
+    expect(presignPdfGet).not.toHaveBeenCalled();
+  });
+
+  it("pdfStatus returns {ready:true, url} once pdfKey is set (D-04)", async () => {
+    const caller = await createCaller({ headers: new Headers() });
+    const res = await caller.quotes.create({
+      projectId: fixtureA.projectId,
+      unitId: fixtureA.unitId,
+      paymentPlanId: fixtureA.paymentPlanId,
+      modalidad: "financiado",
+    });
+
+    // Simulate the worker having rendered the PDF: set pdf_key through the OWNER pool using the
+    // real server-derived key shape (quotePdfKey — the worker's exact derivation).
+    const pdfKey = quotePdfKey(orgA.orgId, fixtureA.projectId, res.quoteId);
+    await owner`update quotes set pdf_key = ${pdfKey} where id = ${res.quoteId}`;
+
+    const status = await caller.quotes.pdfStatus({
+      projectId: fixtureA.projectId,
+      quoteId: res.quoteId,
+    });
+    expect(status).toEqual({ ready: true, url: SIGNED_URL });
+    // The presign was asked for EXACTLY the row's stored key — never a client-supplied one (T-07-03).
+    expect(presignPdfGet).toHaveBeenCalledTimes(1);
+    expect(presignPdfGet).toHaveBeenCalledWith(pdfKey);
+  });
+
+  it("pdfStatus is tenant-safe: org A's projectId + org B's quoteId → {ready:false} (T-07-01)", async () => {
+    const caller = await createCaller({ headers: new Headers() });
+    // Mint a quote under org B and give it a pdfKey (the secret that must NOT leak).
+    const resB = await caller.quotes.create({
+      projectId: fixtureB.projectId,
+      unitId: fixtureB.unitId,
+      paymentPlanId: fixtureB.paymentPlanId,
+      modalidad: "contado",
+    });
+    const pdfKeyB = quotePdfKey(orgB.orgId, fixtureB.projectId, resB.quoteId);
+    await owner`update quotes set pdf_key = ${pdfKeyB} where id = ${resB.quoteId}`;
+
+    // Poll with org A's PUBLICADO project + org B's quoteId: withTenant(orgA) yields zero RLS
+    // rows for the foreign quote → {ready:false}; org B's key is never presigned.
+    const status = await caller.quotes.pdfStatus({
+      projectId: fixtureA.projectId,
+      quoteId: resB.quoteId,
+    });
+    expect(status).toEqual({ ready: false });
+    expect(presignPdfGet).not.toHaveBeenCalled();
+  });
+
+  it("pdfStatus with an unpublished project → NOT_FOUND (anon org resolve yields no row)", async () => {
+    const caller = await createCaller({ headers: new Headers() });
+    await expect(
+      caller.quotes.pdfStatus({
+        projectId: borradorProjectId,
+        quoteId: randomUUID(),
+      }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 });
