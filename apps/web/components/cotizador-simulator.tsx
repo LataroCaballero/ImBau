@@ -24,7 +24,7 @@ import {
   useState,
 } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { TRPCClientError } from "@trpc/client";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@imbau/api";
@@ -55,9 +55,34 @@ export type CotizadorSimulatorProps = {
 const DEBOUNCE_MS = 200;
 // Backoff before auto-retrying after a soft 429 from the edge rate limiter.
 const RETRY_MS = 1500;
+// PDF polling cadence (D-03): ~2s per poll keeps the buyer inside the nginx zone=quotes
+// throttle (10r/s burst 20) with room to spare, since pdfStatus rides the dedicated
+// quotes.* link (isQuotesOp) → path /api/trpc/quotes.pdfStatus.
+const PDF_POLL_MS = 2000;
+// Soft-fail deadline (D-10): stop polling after ~40s (inside the 30-45s band) and show the
+// es-AR retry message. The PDF is NEVER the critical path — WhatsApp stays live throughout.
+const PDF_TIMEOUT_MS = 40000;
 
 type Modalidad = "contado" | "financiado";
 type ComputePair = { contado: ContadoResult; financiado: FinanciadoResult };
+// The emitted-quote envelope shared (D-01) by the WhatsApp CTA and the PDF button: one
+// `quotes.create` emission is retained and reused by whichever trigger fires second.
+type CreatedQuote = RouterOutputs["quotes"]["create"];
+
+// Force a browser download of the presigned R2 URL (D-03). The presigned GET already carries
+// `Content-Disposition: attachment` (07-03), so the file downloads even when a cross-origin
+// `download` attribute is ignored; the visible fallback link covers mobile that blocks the
+// programmatic click entirely.
+function triggerDownload(url: string): void {
+  if (typeof document === "undefined") return;
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "cotizacion.pdf";
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
 
 /** Extract the tRPC error envelope fields we branch on (httpStatus for the 429 soft-path). */
 function readTrpcError(err: unknown): {
@@ -98,6 +123,21 @@ export function CotizadorSimulator({
   const [isComputing, setIsComputing] = useState(false);
   const [softError, setSoftError] = useState<string | null>(null);
   const [retryTick, setRetryTick] = useState(0);
+
+  // PDF flow state (D-03/D-10). `pdfQuoteId` enables the pdfStatus poll; `pdfGenerating`
+  // drives the "Generando PDF…" button + soft-fail deadline; `pdfUrl` is the ready presigned
+  // GET, kept for the visible fallback download link (mobile that blocks the auto-click).
+  const [pdfQuoteId, setPdfQuoteId] = useState<string | null>(null);
+  const [pdfGenerating, setPdfGenerating] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+
+  // The single emitted quote retained across the WhatsApp + PDF triggers (D-01). Held in a ref
+  // (not state) so both async handlers read the freshest value with no stale-closure race; the
+  // selection-change effect clears it so the next trigger emits a fresh quote (its own PDF).
+  const retainedQuoteRef = useRef<CreatedQuote | null>(null);
+  // Soft-fail timer + a one-shot download guard so a ready poll downloads exactly once.
+  const pdfTimeoutRef = useRef<number | null>(null);
+  const didDownloadRef = useRef(false);
 
   const compute = useMutation(trpc.quotes.compute.mutationOptions());
   const create = useMutation(trpc.quotes.create.mutationOptions());
@@ -184,16 +224,122 @@ export function CotizadorSimulator({
     [defaultPlanId],
   );
 
-  // The ONLY place `quotes.create` is ever called (D-06). Persists once, then opens wa.me.
+  // Clear the pending soft-fail deadline (on ready, on a new trigger, on selection change, unmount).
+  const clearPdfTimeout = useCallback(() => {
+    if (pdfTimeoutRef.current !== null) {
+      window.clearTimeout(pdfTimeoutRef.current);
+      pdfTimeoutRef.current = null;
+    }
+  }, []);
+
+  // Emit-or-reuse the shared quote (D-01). Returns the retained emission if one exists for the
+  // current selection, otherwise calls `quotes.create` ONCE and retains it. Both the WhatsApp CTA
+  // and the PDF button funnel through here so they never double-emit. Returns null on a missing
+  // selection (the callers already guard, this keeps types honest).
+  const ensureQuote = useCallback(async (): Promise<CreatedQuote | null> => {
+    if (!unitId || !planId) return null;
+    const retained = retainedQuoteRef.current;
+    if (retained) return retained;
+    const created = await create.mutateAsync({
+      projectId: project.id,
+      unitId,
+      paymentPlanId: planId,
+      modalidad,
+    });
+    retainedQuoteRef.current = created;
+    return created;
+  }, [unitId, planId, modalidad, project.id, create]);
+
+  // Poll pdfStatus (D-03) while generating. Rides the dedicated quotes.* link (isQuotesOp) → path
+  // /api/trpc/quotes.pdfStatus, so it stays inside the nginx zone=quotes throttle (T-07-04). We stop
+  // polling on {ready:true} (refetchInterval → false) or when the deadline effect flips pdfGenerating
+  // off. `retry:false` means a transient error (e.g. a 429) just waits for the next interval tick —
+  // never a raw error to the buyer; the deadline is the only failure surface (D-10).
+  const pdfStatusQuery = useQuery(
+    trpc.quotes.pdfStatus.queryOptions(
+      { projectId: project.id, quoteId: pdfQuoteId ?? "" },
+      {
+        enabled: pdfGenerating && pdfQuoteId !== null,
+        refetchInterval: (query) =>
+          query.state.data?.ready ? false : PDF_POLL_MS,
+        retry: false,
+        gcTime: 0,
+      },
+    ),
+  );
+
+  // When the poll reports ready, auto-download once and reveal the fallback link (D-03).
+  useEffect(() => {
+    if (!pdfGenerating) return;
+    const data = pdfStatusQuery.data;
+    if (!data || !data.ready) return;
+    clearPdfTimeout();
+    setPdfUrl(data.url);
+    setPdfGenerating(false);
+    if (!didDownloadRef.current) {
+      didDownloadRef.current = true;
+      triggerDownload(data.url);
+    }
+  }, [pdfStatusQuery.data, pdfGenerating, clearPdfTimeout]);
+
+  // Drop the soft-fail timer if the island unmounts mid-generation.
+  useEffect(() => clearPdfTimeout, [clearPdfTimeout]);
+
+  // A selection change ({unitId, planId, modalidad}) invalidates the retained quote (D-01) and
+  // cancels any in-flight PDF generation so the next trigger emits a fresh quote with its own PDF.
+  useEffect(() => {
+    retainedQuoteRef.current = null;
+    didDownloadRef.current = false;
+    clearPdfTimeout();
+    setPdfGenerating(false);
+    setPdfQuoteId(null);
+    setPdfUrl(null);
+  }, [unitId, planId, modalidad, clearPdfTimeout]);
+
+  // Begin polling for a freshly-ensured quoteId and arm the soft-fail deadline (D-10).
+  const startPolling = useCallback(
+    (quoteId: string) => {
+      didDownloadRef.current = false;
+      setSoftError(null);
+      setPdfUrl(null);
+      setPdfQuoteId(quoteId);
+      setPdfGenerating(true);
+      clearPdfTimeout();
+      pdfTimeoutRef.current = window.setTimeout(() => {
+        pdfTimeoutRef.current = null;
+        setPdfGenerating(false);
+        setSoftError("No pudimos generar el PDF, probá de nuevo en un rato.");
+      }, PDF_TIMEOUT_MS);
+    },
+    [clearPdfTimeout],
+  );
+
+  // PDF button (D-03): ensure the shared quote, then poll → auto-download. Degrades softly (D-10);
+  // the WhatsApp CTA stays live no matter what happens here — the PDF is never the critical path.
+  const onDownloadPdf = useCallback(async () => {
+    if (!unitId || !planId) return;
+    setSoftError(null);
+    try {
+      const created = await ensureQuote();
+      if (!created) return;
+      startPolling(created.quoteId);
+    } catch (err: unknown) {
+      const { httpStatus } = readTrpcError(err);
+      setSoftError(
+        httpStatus === 429
+          ? "Estamos procesando muchas consultas. Probá de nuevo en unos segundos."
+          : "No pudimos generar el PDF, probá de nuevo en un rato.",
+      );
+    }
+  }, [unitId, planId, ensureQuote, startPolling]);
+
+  // The WhatsApp CTA reuses the shared emission (D-01/D-06): ensureQuote persists at most once, then
+  // opens wa.me with the same quote the PDF button would download.
   const onWhatsapp = useCallback(async () => {
     if (!unitId || !planId) return;
     try {
-      const created = await create.mutateAsync({
-        projectId: project.id,
-        unitId,
-        paymentPlanId: planId,
-        modalidad,
-      });
+      const created = await ensureQuote();
+      if (!created) return;
       const deepLinkUrl =
         typeof window !== "undefined"
           ? `${window.location.origin}${pathname}?u=${unitId}&plan=${planId}`
@@ -216,7 +362,7 @@ export function CotizadorSimulator({
           : "No pudimos abrir WhatsApp. Reintentá en unos segundos.",
       );
     }
-  }, [unitId, planId, modalidad, project, unitIdentificador, pathname, create]);
+  }, [unitId, planId, ensureQuote, project, unitIdentificador, pathname]);
 
   // No unit yet → show the piso→unidad picker (D-08).
   if (!unitId) {
@@ -301,14 +447,27 @@ export function CotizadorSimulator({
             {create.isPending ? "Abriendo WhatsApp…" : "Consultar por WhatsApp"}
           </button>
         ) : null}
-        {/* PDF wiring is fase 7 (D-12): render the placeholder, disabled, no handler. */}
-        <button
-          type="button"
-          disabled
-          className="rounded-lg border border-hormigon/20 px-5 py-3 font-medium text-hormigon/50"
-        >
-          Descargar PDF · Próximamente
-        </button>
+        {/* PDF flow (fase 7, PDF-01): emit/reuse the quote → poll pdfStatus → auto-download (D-03).
+            Degrades softly (D-10); the fallback link appears once the presigned URL is ready. */}
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => void onDownloadPdf()}
+            disabled={!result || pdfGenerating || create.isPending}
+            className="rounded-lg border border-hormigon/20 px-5 py-3 font-medium text-hormigon disabled:opacity-50"
+          >
+            {pdfGenerating ? "Generando PDF…" : "Descargar PDF"}
+          </button>
+          {pdfUrl ? (
+            <a
+              href={pdfUrl}
+              download="cotizacion.pdf"
+              className="text-sm text-cobre hover:underline"
+            >
+              ¿No se descargó? Tocá acá
+            </a>
+          ) : null}
+        </div>
       </div>
     </div>
   );
