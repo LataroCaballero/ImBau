@@ -44,7 +44,7 @@ Full detail: [milestones/v1.1-ROADMAP.md](milestones/v1.1-ROADMAP.md) · Require
 - [x] **Phase 4: Motor de cotización puro (`packages/quoting`)** - Motor puro, determinista y sin I/O que emite un `QuoteResult` tipado único (contado + financiado CAC), 100% cobertura + property-based tests — el contrato del que dependen todas las superficies (completed 2026-07-03)
 - [x] **Phase 5: Emisión y persistencia server-side (API + RLS + rate limit)** - `publicProcedure` tRPC auditado que resuelve la org del proyecto publicado, computa vía `withTenant` y persiste el snapshot completo, con rate limit nginx — sin exponer `quotes`/`cac_index` por RLS (completed 2026-07-04)
 - [x] **Phase 6: UI pública del cotizador + CTA WhatsApp** - Web mobile-first: deep-link + picker piso→unidad, resultado en pantalla (contado vs financiado, primera cuota ARS, refuerzos, totales, leyenda no vinculante) y CTA WhatsApp precargado (completed 2026-07-05)
-- [ ] **Phase 7: PDF asíncrono en el worker** - PDF server-side generado en el worker (BullMQ) desde el snapshot, almacenado en R2, idempotente por `quoteId` y con acentos correctos — asíncrono, nunca bloquea el resultado en pantalla
+- [x] **Phase 7: PDF asíncrono en el worker** - PDF server-side generado en el worker (BullMQ) desde el snapshot, almacenado en R2, idempotente por `quoteId` y con acentos correctos — asíncrono, nunca bloquea el resultado en pantalla (completed 2026-07-06)
 
 ## Phase Details
 
@@ -154,7 +154,7 @@ Plans:
   2. La generación de PDF es idempotente por `quoteId` (un retry de BullMQ nunca duplica objetos) y renderiza correctamente los acentos españoles en el worker Alpine (fuente embebida, sin Chromium). (PDF-02)
   3. El PDF lleva la leyenda legal "cotización no vinculante" + la leyenda de ajuste CAC. (PDF-03)
 
-**Plans**: 2/4 plans executed
+**Plans**: 4/4 plans complete
 
 Plans:
 **Wave 1**
@@ -164,8 +164,8 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 07-02-PLAN.md — Worker consumer: seams withTenant/R2 + `processQuotePdf` (short-circuit idempotente + QR deep-link + render + put + write-back) + boot `createQuotePdfWorker` + test (PDF-01, PDF-02)
-- [ ] 07-04-PLAN.md — Web: env server (REDIS_URL/R2_*) + compose staging (web depends_on redis, worker WEB_PUBLIC_BASE_URL) + wiring del botón en `cotizador-simulator` (reuso quoteId, polling, auto-descarga, fallo suave) (PDF-01)
+- [x] 07-02-PLAN.md — Worker consumer: seams withTenant/R2 + `processQuotePdf` (short-circuit idempotente + QR deep-link + render + put + write-back) + boot `createQuotePdfWorker` + test (PDF-01, PDF-02)
+- [x] 07-04-PLAN.md — Web: env server (REDIS_URL/R2_*) + compose staging (web depends_on redis, worker WEB_PUBLIC_BASE_URL) + wiring del botón en `cotizador-simulator` (reuso quoteId, polling, auto-descarga, fallo suave) (PDF-01)
 
 ## Progress
 
@@ -184,4 +184,4 @@ Phases execute in numeric order: 4 → 5 → 6 → 7
 | 4. Motor de cotización puro | v1.2 | 0/4 | Not started | - |
 | 5. Emisión y persistencia server-side | v1.2 | 5/5 | Complete    | 2026-07-04 |
 | 6. UI pública del cotizador + WhatsApp | v1.2 | 6/6 | Complete    | 2026-07-05 |
-| 7. PDF asíncrono en el worker | v1.2 | 2/4 | In Progress|  |
+| 7. PDF asíncrono en el worker | v1.2 | 4/4 | Complete   | 2026-07-06 |
