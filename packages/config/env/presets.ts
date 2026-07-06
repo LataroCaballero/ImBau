@@ -28,6 +28,17 @@ export const redisEnv = {
   server: { REDIS_URL: z.string().url() },
 } as const;
 
+// Public origin of apps/web (e.g. https://staging.tours.andescode.com.ar). NAME + Zod only —
+// never a value (T-02-02). Consumed by the fase-7 worker to build the cotizador deep-link + QR
+// (D-08): the worker composes `...webEnv.server` into its env.ts and renders the URL into the PDF
+// footer. Not a secret, but declared here so the worker boot fails loudly (with the missing
+// variable NAME) if it is absent, rather than emitting a PDF with a broken link.
+export const webEnv = {
+  server: {
+    WEB_PUBLIC_BASE_URL: z.string().url(), // public origin of apps/web (deep-link + QR, D-08)
+  },
+} as const;
+
 // Cloudflare R2 (S3-compatible) credentials + bucket + public serving base URL for the
 // media pipeline (MEDIA-01/MEDIA-05, phase 2). NAMES + Zod schemas only — never values
 // (T-4-LOGLEAK): these are secrets read from SOPS/CI env, never logged or hardcoded.

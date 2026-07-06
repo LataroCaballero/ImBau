@@ -6,6 +6,7 @@ import {
   dbEnv,
   sentryEnv,
   lokiEnv,
+  webEnv,
 } from "@imbau/config/env/presets";
 
 // Worker env validation (D-01, D-02), EXTENDED for the media pipeline (A8). The worker is no
@@ -48,6 +49,10 @@ export const env = createEnv({
     // with zero external observability deps in dev.
     ...sentryEnv.server,
     ...lokiEnv.server,
+    // fase 7 (PDF): WEB_PUBLIC_BASE_URL — the public origin of apps/web the worker prepends to
+    // build the cotizador deep-link + QR embedded in the generated PDF footer (D-08). Required at
+    // boot so a misconfigured worker fails loudly (with the NAME) instead of shipping a broken link.
+    ...webEnv.server,
   },
   runtimeEnv: process.env,
   skipValidation: process.env.SKIP_ENV_VALIDATION === "1",

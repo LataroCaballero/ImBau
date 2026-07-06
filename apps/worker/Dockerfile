@@ -43,5 +43,10 @@ ENV NODE_ENV=production
 COPY --from=builder --chown=node:node /app/apps/worker/dist ./apps/worker/dist
 COPY --from=builder --chown=node:node /app/apps/worker/node_modules ./apps/worker/node_modules
 COPY --from=builder --chown=node:node /app/node_modules ./node_modules
+# fase 7 (PDF-02): tsup bundles only JS, so the embedded TTF is NOT emitted into dist. Copy the
+# font assets explicitly so they resolve at /app/apps/worker/assets in the container — which is
+# exactly `../assets` from dist/index.js, matching quote-pdf-doc.ts's Font.register absolute path.
+# Without this, react-pdf silently falls back to a glyph-less font and es-AR accents break.
+COPY --from=builder --chown=node:node /app/apps/worker/assets ./apps/worker/assets
 USER node
 CMD ["node", "apps/worker/dist/index.js"]
