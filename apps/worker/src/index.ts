@@ -7,9 +7,15 @@ import { env } from "./env";
 import IORedis from "ioredis";
 import { Queue, Worker } from "bullmq";
 import { logger } from "@imbau/observability";
-import { MEDIA_QUEUE, type MediaJobData } from "@imbau/storage";
+import {
+  MEDIA_QUEUE,
+  type MediaJobData,
+  QUOTE_PDF_QUEUE,
+  type QuotePdfJobData,
+} from "@imbau/storage";
 import { PARTITIONS_QUEUE, runPartitionMaintenance } from "./partitions";
 import { processMedia, reportMediaFailure } from "./media";
+import { processQuotePdf, reportQuotePdfFailure } from "./quote-pdf";
 
 // Deployable BullMQ shell (APP-03 / D-16, RESEARCH Pattern 6). This phase the
 // worker only proves it can reach Redis and stand up a Worker — there is NO real
@@ -74,6 +80,23 @@ export function createMediaWorker(connection: IORedis): Worker<MediaJobData> {
   });
 }
 
+// Build the BullMQ Worker that runs the quote-PDF pipeline (PDF-01/PDF-02). The processor delegates
+// to processQuotePdf (quote-pdf.ts), which reads the frozen snapshot under withTenant, short-circuits
+// if the PDF already exists (D-11), renders QuoteDoc to a Buffer, uploads it to the deterministic R2
+// key, and writes pdfKey back in one withTenant UPDATE. concurrency 2 matches the media worker
+// (a couple of jobs in flight without unbounded memory). The `failed` handler (Sentry + pino, via
+// reportQuotePdfFailure) is wired in boot(). Retries come from the producer (quotePdfJobOptions:
+// jobId=quoteId dedup + attempts 5 / exponential backoff, 07-03) — the worker never reconfigures them.
+export function createQuotePdfWorker(
+  connection: IORedis,
+): Worker<QuotePdfJobData> {
+  return new Worker<QuotePdfJobData>(
+    QUOTE_PDF_QUEUE,
+    (job) => processQuotePdf(job),
+    { connection, concurrency: 2 },
+  );
+}
+
 // Boot the shell: open the connection, register the (idle) health queue + the
 // repeatable events-partition maintenance schedule (D-06), stand up both workers, and
 // log a structured JSON line once Redis is reached. Returns the handles so a caller
@@ -87,6 +110,8 @@ export async function boot(): Promise<{
   partitionWorker: Worker;
   mediaQueue: Queue;
   mediaWorker: Worker<MediaJobData>;
+  quotePdfQueue: Queue;
+  quotePdfWorker: Worker<QuotePdfJobData>;
 }> {
   const connection = createConnection();
   const queue = new Queue(HEALTH_QUEUE, { connection });
@@ -132,6 +157,25 @@ export async function boot(): Promise<{
     });
   });
 
+  // Quote-PDF pipeline (PDF-01/PDF-02): the worker is the CONSUMER of QUOTE_PDF_QUEUE. Declare the
+  // Queue here on the shared connection (the producer is @imbau/api's quotes.create, which enqueues
+  // with jobId/attempts/backoff of quotePdfJobOptions — 07-03) and stand up the quote-PDF Worker
+  // that runs processQuotePdf. Like the media queue there is NO upsertJobScheduler — PDF jobs are
+  // event-driven (one per quote emission), not repeatable.
+  const quotePdfQueue = new Queue(QUOTE_PDF_QUEUE, { connection });
+  const quotePdfWorker = createQuotePdfWorker(connection);
+
+  // Observable failure handling (D-10 / T-07-10): route an exhausted/failed quote-PDF job to
+  // reportQuotePdfFailure → Sentry + structured pino, carrying the quoteId (from the typed payload)
+  // and attemptsMade. The error is NEVER swallowed (CLAUDE.md). `job` can be undefined if BullMQ
+  // could not load it, so access is optional-chained.
+  quotePdfWorker.on("failed", (job, err) => {
+    reportQuotePdfFailure(err, {
+      quoteId: job?.data.quoteId,
+      attempts: job?.attemptsMade,
+    });
+  });
+
   // Preserve the env-first boot log so deploy smoke checks still see it.
   logger.info({ node_env: env.NODE_ENV }, "worker boot ok");
 
@@ -143,6 +187,8 @@ export async function boot(): Promise<{
     partitionWorker,
     mediaQueue,
     mediaWorker,
+    quotePdfQueue,
+    quotePdfWorker,
   };
 }
 
