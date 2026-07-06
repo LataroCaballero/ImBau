@@ -167,6 +167,10 @@ None - no external service configuration required. (`WEB_PUBLIC_BASE_URL` must b
 - `QuoteDoc` + `QuoteDocProps`/`QuoteHeader` + `PdfModel` are ready for the wave-2 processor to call `renderToBuffer(QuoteDoc(...))`, generate the QR from `WEB_PUBLIC_BASE_URL` + deep-link, and persist/upload the PDF.
 - **Deferred to CI/staging (D4):** container-runtime font resolution is only confirmable against a built worker image (no local Docker daemon) — the Dockerfile COPY is in place; verify in the Phase-4 image build / staging.
 
+## Self-Check: PASSED
+
+All created files verified on disk (quote-pdf-doc.ts + test, 3 font assets, SUMMARY.md) and all commits present in git (9911d6e, 77a10cf, c8f66f6, c6e59ca). Worker suite 29/29 green, typecheck + lint pass.
+
 ---
 *Phase: 07-pdf-as-ncrono-en-el-worker*
 *Completed: 2026-07-06*
