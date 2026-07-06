@@ -1,6 +1,13 @@
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
-import { baseEnv, dbEnv, sentryEnv, lokiEnv } from "@imbau/config/env/presets";
+import {
+  baseEnv,
+  dbEnv,
+  redisEnv,
+  r2Env,
+  sentryEnv,
+  lokiEnv,
+} from "@imbau/config/env/presets";
 
 // web env validation (D-01, D-02): declares ONLY what it uses. NODE_ENV (server)
 // comes from the shared baseEnv preset; NEXT_PUBLIC_APP_ENV is the single client
@@ -35,6 +42,15 @@ export const env = createEnv({
     // withTenant(orgId) server-side for the anonymous quote path (QUOTE-01). Server-only
     // — never NEXT_PUBLIC_. Reached ONLY via withTenant inside packages/api (T-03-09).
     DATABASE_APP_URL: dbEnv.server.DATABASE_APP_URL,
+    // fase-7 PDF producer + presign (D-02, PDF-01): the quotesRouter now runs the
+    // BullMQ enqueue (quotes.create) AND the presigned R2 GET (quotes.pdfStatus)
+    // INSIDE the web process — so web must validate the Redis connection + the R2
+    // credentials at boot. These are SERVER-ONLY secrets (T-07-05 / T-03-01): they
+    // live in the `server:` block, never `client:`, never NEXT_PUBLIC_, and never
+    // reach the browser bundle. Reached only through packages/api's quotes runtime
+    // (lazy-memoized), so importing the router opens no infra (Pitfall 3).
+    REDIS_URL: redisEnv.server.REDIS_URL,
+    ...r2Env.server,
     // Observability (OBS-01/OBS-02): server Sentry DSN + Loki shipping target.
     // All optional — with no DSN/LOKI_URL the SDK + logger are local no-ops, so
     // dev still boots with zero external deps.
