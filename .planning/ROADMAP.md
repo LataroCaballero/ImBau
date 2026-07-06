@@ -154,7 +154,18 @@ Plans:
   2. La generación de PDF es idempotente por `quoteId` (un retry de BullMQ nunca duplica objetos) y renderiza correctamente los acentos españoles en el worker Alpine (fuente embebida, sin Chromium). (PDF-02)
   3. El PDF lleva la leyenda legal "cotización no vinculante" + la leyenda de ajuste CAC. (PDF-03)
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 07-01-PLAN.md — Worker foundation: PDF/QR/React deps + fuente embebida (acentos es-AR) + Dockerfile COPY + WEB_PUBLIC_BASE_URL env + documento react-pdf `QuoteDoc` (neutro minimalista, leyendas) (PDF-02, PDF-03)
+- [ ] 07-03-PLAN.md — API: producer lazy `enqueuePdf` + `presignPdfGet` en packages/api + enqueue en `quotes.create` + `quotes.pdfStatus` tenant-safe + test (PDF-01)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 07-02-PLAN.md — Worker consumer: seams withTenant/R2 + `processQuotePdf` (short-circuit idempotente + QR deep-link + render + put + write-back) + boot `createQuotePdfWorker` + test (PDF-01, PDF-02)
+- [ ] 07-04-PLAN.md — Web: env server (REDIS_URL/R2_*) + compose staging (web depends_on redis, worker WEB_PUBLIC_BASE_URL) + wiring del botón en `cotizador-simulator` (reuso quoteId, polling, auto-descarga, fallo suave) (PDF-01)
 
 ## Progress
 
@@ -173,4 +184,4 @@ Phases execute in numeric order: 4 → 5 → 6 → 7
 | 4. Motor de cotización puro | v1.2 | 0/4 | Not started | - |
 | 5. Emisión y persistencia server-side | v1.2 | 5/5 | Complete    | 2026-07-04 |
 | 6. UI pública del cotizador + WhatsApp | v1.2 | 6/6 | Complete    | 2026-07-05 |
-| 7. PDF asíncrono en el worker | v1.2 | 0/TBD | Not started | - |
+| 7. PDF asíncrono en el worker | v1.2 | 0/4 | Not started | - |
