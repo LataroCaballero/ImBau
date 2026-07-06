@@ -1,16 +1,19 @@
-// quotes router (QUOTE-01/QUOTE-02) — the server-side emission core (RESEARCH Pattern 5).
+// quotes router (QUOTE-01/QUOTE-02/PDF-01) — the server-side emission core (RESEARCH Pattern 5).
 //
-// Two ANONYMOUS publicProcedures: `compute` (resolve + calc, NO DB write) and `create`
-// (resolve + calc + persist the versioned snapshot). Both derive the tenant SERVER-SIDE from
-// the publicado project via withAnon — a client-supplied orgId, price, or CAC value is NEVER
-// read (T-05-01/T-05-03/D-03). CAC + prices + the snapshot insert flow only through
-// withTenant(orgId) on the app pool; quotes/cac_index stay tenant-private (no anon policy is
-// ever touched — Pitfall 5 / T-05-02). Numeric columns (anticipoPct, cac.valor) pass STRAIGHT
-// through as strings — never parseFloat/Number'd (Pitfall 3 / D-14).
+// Three ANONYMOUS publicProcedures: `compute` (resolve + calc, NO DB write), `create`
+// (resolve + calc + persist the versioned snapshot + enqueue the PDF render job, D-02), and
+// `pdfStatus` (poll the PDF render; returns a short-lived presigned R2 GET once pdfKey exists,
+// D-03/D-04). All derive the tenant SERVER-SIDE from the publicado project via withAnon — a
+// client-supplied orgId, price, CAC value, or pdfKey is NEVER read
+// (T-05-01/T-05-03/D-03/T-07-03). CAC + prices + the snapshot insert + the pdfKey read flow
+// only through withTenant(orgId) on the app pool; quotes/cac_index stay tenant-private (no anon
+// policy is ever touched — Pitfall 5 / T-05-02 / T-07-01). Numeric columns (anticipoPct,
+// cac.valor) pass STRAIGHT through as strings — never parseFloat/Number'd (Pitfall 3 / D-14).
 //
 // This router imports ONLY the sanctioned data-access surface of @imbau/db (withTenant,
 // withAnon, schema) — never the elevated/owner-pool clients (T-05-07 grep-fence, mirrors
-// projects.ts / media.ts).
+// projects.ts / media.ts). The Redis/R2 side effects live behind ../../quotes/runtime, whose
+// clients are lazy-memoized so importing this router opens NO infra (Pitfall 3).
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, and, desc } from "drizzle-orm";
@@ -22,6 +25,7 @@ import {
   type QuoteInput,
 } from "@imbau/quoting";
 import { router, publicProcedure } from "../init";
+import { enqueuePdf, presignPdfGet } from "../../quotes/runtime";
 
 // The single input surface shared by both procedures. Only IDs + modalidad cross the boundary —
 // never an orgId, price, or CAC value (the server re-derives all of those, T-05-03).
@@ -207,6 +211,56 @@ export const quotesRouter = router({
           message: "No se pudo persistir la cotización.",
         });
       }
+      // Enqueue the PDF render job as the side-effect of a successful persist (D-02 — the
+      // cabling D-13 of fase 5 deferred). jobId=quoteId in quotePdfJobOptions dedups
+      // re-enqueues (PDF-02). A Redis failure surfaces as the create error — observable,
+      // never silenced (CLAUDE.md).
+      await enqueuePdf({
+        quoteId: row.id,
+        organizationId: orgId,
+        projectId: input.projectId,
+      });
       return { quoteId: row.id, result };
+    }),
+
+  // PDF render status the buyer polls (PDF-01, D-03). A `.query` (NOT a mutation) so the
+  // fase-6 client can poll it with TanStack Query refetchInterval; its HTTP path
+  // /api/trpc/quotes.pdfStatus inherits the nginx `location ^~ /api/trpc/quotes` throttle
+  // (QUOTE-03) and the isQuotesOp dedicated link.
+  pdfStatus: publicProcedure
+    .input(z.object({ projectId: z.uuid(), quoteId: z.uuid() }))
+    .query(async ({ input }) => {
+      // 1. Org resolve (D-03, clone of resolveAndQuote step 1): the anon policy filters
+      // projects to estado='publicado', so a borrador/archivado/unknown project id yields no
+      // row → NOT_FOUND. The orgId is read from the resolved row, NEVER from the request body.
+      const projectRows = await withAnon((tx) =>
+        tx
+          .select({ organizationId: schema.projects.organizationId })
+          .from(schema.projects)
+          .where(eq(schema.projects.id, input.projectId)),
+      );
+      const project = projectRows[0];
+      if (!project) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Proyecto no publicado.",
+        });
+      }
+
+      // 2. Tenant-scoped pdfKey read (T-07-01): RLS scopes the SELECT to the resolved org, so
+      // a quoteId belonging to another org yields ZERO rows → {ready:false}, never a foreign
+      // tenant's key. The key comes from the ROW, never from client input (T-07-03).
+      const quoteRows = await withTenant(project.organizationId, (tx) =>
+        tx
+          .select({ pdfKey: schema.quotes.pdfKey })
+          .from(schema.quotes)
+          .where(eq(schema.quotes.id, input.quoteId)),
+      );
+      const pdfKey = quoteRows[0]?.pdfKey;
+      if (!pdfKey) {
+        return { ready: false as const };
+      }
+      // Short-lived presigned GET (300s, re-requestable — D-04); Next never proxies PDF bytes.
+      return { ready: true as const, url: await presignPdfGet(pdfKey) };
     }),
 });
