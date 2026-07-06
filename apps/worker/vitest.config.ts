@@ -46,6 +46,10 @@ export default mergeConfig(
         DATABASE_ANON_URL: process.env.DATABASE_ANON_URL ?? dummyDbUrl("anon"),
         // Redis: prefer the real value (index.test.ts needs a live connection); local default.
         REDIS_URL: process.env.REDIS_URL ?? "redis://localhost:6380",
+        // Web origin (fase 7): index.test.ts imports ./env at module load, whose schema now
+        // validates WEB_PUBLIC_BASE_URL. A dummy URL satisfies the import-time Zod check — the
+        // pure QuoteDoc render never contacts it.
+        WEB_PUBLIC_BASE_URL: process.env.WEB_PUBLIC_BASE_URL ?? "https://web.test",
       },
     },
   }),

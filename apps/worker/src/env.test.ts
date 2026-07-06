@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { createEnv } from "@t3-oss/env-core";
-import { baseEnv, redisEnv, r2Env, dbEnv } from "@imbau/config/env/presets";
+import {
+  baseEnv,
+  redisEnv,
+  r2Env,
+  dbEnv,
+  webEnv,
+} from "@imbau/config/env/presets";
 
 describe("worker env validation", () => {
   it("reports every missing/invalid var at once (aggregated error)", () => {
@@ -20,8 +26,10 @@ describe("worker env validation", () => {
           ...redisEnv.server,
           ...r2Env.server,
           ...dbEnv.server,
+          ...webEnv.server,
         },
-        // NODE_ENV invalid AND REDIS_URL + every R2_*/DATABASE_* missing — all must aggregate.
+        // NODE_ENV invalid AND REDIS_URL + every R2_*/DATABASE_*/WEB_PUBLIC_BASE_URL missing — all
+        // must aggregate.
         runtimeEnv: { NODE_ENV: "not-an-env" },
         onValidationError: (issues) => {
           for (const issue of issues) {
@@ -53,10 +61,13 @@ describe("worker env validation", () => {
         ...redisEnv.server,
         ...r2Env.server,
         ...dbEnv.server,
+        ...webEnv.server,
       },
       runtimeEnv: {
         NODE_ENV: "test",
         REDIS_URL: "redis://localhost:6379",
+        // webEnv: public origin of apps/web (fase 7 deep-link + QR, D-08).
+        WEB_PUBLIC_BASE_URL: "https://web.test",
         // r2Env: credentials + bucket + public base URL (dummy values; no R2 contacted here).
         R2_ACCOUNT_ID: "acct",
         R2_ACCESS_KEY_ID: "ak",
