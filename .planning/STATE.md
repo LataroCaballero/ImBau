@@ -3,37 +3,37 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Cotizador
 current_phase: 07
-current_phase_name: PDF asíncrono en el worker
-status: executing
-stopped_at: Phase 7 context gathered
-last_updated: "2026-07-06T02:11:37.879Z"
-last_activity: 2026-07-06
-last_activity_desc: Phase 07 execution started
+status: milestone complete
+stopped_at: Phase 7 complete — milestone v1.2 100%
+last_updated: "2026-07-08T23:43:31.771Z"
+last_activity: 2026-07-08
+last_activity_desc: Phase 07 complete
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 19
-  completed_plans: 15
-  percent: 75
+  completed_plans: 19
+  percent: 100
+current_phase_name: PDF asíncrono en el worker
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-07-04)
+See: .planning/PROJECT.md (updated 2026-07-08)
 
 **Core value:** El diferencial competitivo #1 (cotizador financiero argentino) funciona de punta a punta con un motor de cálculo provablemente correcto — un error de cálculo mata el producto.
-**Current focus:** Phase 07 — PDF asíncrono en el worker
+**Current focus:** Milestone v1.2 completo (4/4 fases) — cierre de milestone + merge a main/staging
 
 ## Current Position
 
-Phase: 07 (PDF asíncrono en el worker) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 07
-Last activity: 2026-07-06 — Phase 07 execution started
+Phase: 07 (última del milestone) — Complete
+Plan: 19/19
+Status: Milestone v1.2 complete — ready to archive
+Last activity: 2026-07-08 — Phase 07 complete
 
-Progress: [████████████████████] 9/9 plans (100%)
+Progress: [████████████████████] 19/19 plans (100%)
 
 ## Performance Metrics
 
@@ -48,8 +48,8 @@ Progress: [████████████████████] 9/9 pla
 |-------|-------|--------|
 | 4. Motor de cotización puro | 4/4 | Complete (2026-07-03) |
 | 5. Emisión y persistencia server-side | 5/5 | Complete (2026-07-04) |
-| 6. UI pública del cotizador + WhatsApp | 0/TBD | Not started |
-| 7. PDF asíncrono en el worker | 0/TBD | Not started |
+| 6. UI pública del cotizador + WhatsApp | 6/6 | Complete (2026-07-05) |
+| 7. PDF asíncrono en el worker | 4/4 | Complete (2026-07-08) |
 
 *Updated after each plan completion*
 
@@ -72,11 +72,11 @@ None yet.
 
 ### Blockers/Concerns
 
-None — los blockers de v1.1 se resolvieron todos antes del cierre. Notas de fase para planning:
+Notas vigentes para el cierre de milestone:
 
-- Phase 6: `apps/web` no tiene cliente tRPC hoy (panel sí) — scopearlo explícito en el plan. Además: quotes deben ir en un link httpBatchLink DEDICADO (si se co-batchean con otros procedures bajo otro prefijo, el `location ^~ /api/trpc/quotes` de nginx no los throttlea — Assumption A1 de RESEARCH fase 5).
-- Phase 6: staging corre imagen web pre-fase-5 (`a599bb7`) — la ruta tRPC de quotes llega a staging recién al mergear PR #1 a main.
-- Phase 7: react-pdf en Alpine requiere fuente embebida (acentos) + idempotencia por `quoteId` (retry BullMQ at-least-once).
+- ⚠️ [Milestone close] Staging corre imagen pre-fase-5 (`a599bb7`) — TODO v1.2 (fases 5-7: rutas quotes, UI cotizador, PDF) llega a staging recién al mergear la rama a main. Re-verificar en staging post-merge: rate-limit 429, flujo PDF completo, QR con URL de staging.
+- ⚠️ [Phase 6, no bloqueante] Pasada visual de marca en viewport real pendiente (06-UAT.md).
+- Resueltos en Phase 7: react-pdf en Alpine con Roboto embebida (COPY explícito de assets, UAT 3/3) e idempotencia por `quoteId` (jobId dedup + attempts 5) — verificados.
 
 ## Deferred Items
 
@@ -90,10 +90,10 @@ Items acknowledged and deferred at the v1.0 milestone close on 2026-06-26 (overr
 
 ## Session Continuity
 
-Last session: 2026-07-06T00:29:12.743Z
-Stopped at: Phase 7 context gathered
-Resume file: .planning/phases/07-pdf-as-ncrono-en-el-worker/07-CONTEXT.md
+Last session: 2026-07-08
+Stopped at: Phase 7 complete (UAT 3/3) — milestone v1.2 100% (4/4 fases)
+Resume file: None
 
 ## Operator Next Steps
 
-- `/gsd-plan-phase 6` — planificar la fase 6 (UI pública del cotizador + CTA WhatsApp)
+- `/gsd-complete-milestone v1.2` — archivar el milestone y preparar el siguiente

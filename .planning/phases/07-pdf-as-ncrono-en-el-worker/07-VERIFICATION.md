@@ -1,30 +1,36 @@
 ---
 phase: 07-pdf-as-ncrono-en-el-worker
 verified: 2026-07-06T16:00:00Z
-status: human_needed
+status: passed
 score: 3/3 must-haves verified
 behavior_unverified: 3
 overrides_applied: 0
 behavior_unverified_items:
+
   - truth: "El comprador puede descargar el PDF vía poll automático y auto-download en el browser (D-03)"
     test: "En staging post-merge: abrir el cotizador para una unidad publicada, tocar 'Descargar PDF', confirmar que muestra 'Generando PDF…', luego auto-descarga el PDF. Confirmar que el WhatsApp CTA sigue disponible durante todo el proceso."
     expected: "El PDF se descarga automáticamente con el nombre cotizacion.pdf; el botón 'Consultar por WhatsApp' permanece activo en todo momento"
     why_human: "El auto-download via anchor programático + el comportamiento del temporizador de 40s son comportamientos de runtime del browser que no son ejercidos por ningún test. La wiring del código es correcta (useQuery + triggerDownload + setTimeout) pero la secuencia completa sólo puede observarse en un browser real contra staging."
+
   - truth: "Failure/timeout path muestra mensaje es-AR voseo y resetea el botón sin bloquear WhatsApp (D-10)"
     test: "En staging: con el worker detenido (o simulando timeout), tocar 'Descargar PDF', esperar ~40s, confirmar que aparece el mensaje de error en es-AR voseo ('No pudimos generar el PDF, probá de nuevo en un rato') y que el botón vuelve a su estado inicial"
     expected: "Mensaje suave en es-AR, botón reseteado, WhatsApp CTA visible y operable"
     why_human: "El temporizador de 40s y el setSoftError son comportamientos de estado en runtime del browser. Presencia + wiring están correctos (window.setTimeout + setSoftError), pero la invariante completa del timeout sólo se puede observar con tiempos reales."
+
   - truth: "La fuente embebida Roboto resuelve correctamente en el contenedor Alpine — los acentos españoles no hacen fallback (PDF-02)"
     test: "Construir y correr el worker image (docker build apps/worker) y generar un PDF de una cotización de prueba desde dentro del contenedor; verificar que el PDF contiene glifos correctos para áéíóúñ¿¡"
     expected: "El PDF generado en el contenedor Alpine tiene acentos legibles (no squares/tofu); la fuente Roboto se resuelve desde /app/apps/worker/assets"
     why_human: "El test local renderToBuffer pasa porque vitest lee el TTF desde el árbol src (apps/worker/src/../assets). La resolución de la ruta en el contenedor Alpine (dist/../assets) sólo se confirma con un image build real. El Dockerfile COPY está en su lugar pero el runtime del contenedor no puede verificarse sin Docker."
 human_verification:
+
   - test: "End-to-end PDF download en staging"
     expected: "Tap 'Descargar PDF' → muestra 'Generando PDF…' → auto-descarga cotizacion.pdf con accents correctos (áéíóúñ), las dos leyendas legales, el header completo (proyecto/unidad/piso/tipología/m²/fecha/CAC/ref) y el footer con deep-link + QR escaneable. WhatsApp CTA usable durante todo el proceso."
     why_human: "Requiere la imagen Docker del worker desplegada en staging con R2 + Redis reales. Imposible de reproducir en el harness de test local sin Docker daemon."
+
   - test: "Soft-fail path en staging"
     expected: "Cuando el worker no puede completar el PDF en ~40s, aparece el mensaje 'No pudimos generar el PDF, probá de nuevo en un rato' y el botón se resetea. El CTA de WhatsApp permanece funcional."
     why_human: "Comportamiento de timeout de runtime del browser. Se requiere simular un worker lento/detenido en staging."
+
   - test: "Resolución de fuente en Alpine (contenedor worker)"
     expected: "El worker image arranca y genera un PDF con acentos correctos (Roboto TTF desde /app/apps/worker/assets en Alpine)"
     why_human: "El Dockerfile COPY está en su lugar (línea 50 del Dockerfile). La verificación requiere un build del image y ejecución en el contenedor — no hay Docker daemon en local."
@@ -157,6 +163,7 @@ Ninguno. Scan de TBD/FIXME/XXX en todos los archivos modificados: limpio. Scan d
 No hay gaps bloqueantes. La implementación es code-complete: todos los tests pasan (worker 32/32, API 31/31, web 26/26), todos los typechecks y el build pasan. Los 3 success criteria de ROADMAP están implementados con lógica sustantiva y probada.
 
 Los 3 items de `human_needed` son verificaciones de runtime que por diseño requieren el deploy en staging:
+
 - El flujo end-to-end (PDF bytes reales desde el worker Alpine hacia el browser del comprador)
 - El soft-fail UX con tiempos reales
 - La resolución del font Roboto en el contenedor Alpine

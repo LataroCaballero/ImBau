@@ -33,9 +33,9 @@ Requirements de este milestone. Cada uno mapea a una fase del roadmap.
 
 ### PDF de la cotización
 
-- [ ] **PDF-01**: El comprador puede descargar el PDF de su cotización, generado server-side en el worker (BullMQ) desde el snapshot, almacenado en R2 con key en `quotes.pdfKey` — asíncrono, nunca bloquea el resultado en pantalla
-- [ ] **PDF-02**: La generación de PDF es idempotente por `quoteId` (retry de BullMQ no duplica objetos) y renderiza correctamente acentos españoles en el worker Alpine (fuente embebida, sin Chromium)
-- [ ] **PDF-03**: El PDF lleva la leyenda legal "cotización no vinculante" + leyenda de ajuste CAC
+- [x] **PDF-01**: El comprador puede descargar el PDF de su cotización, generado server-side en el worker (BullMQ) desde el snapshot, almacenado en R2 con key en `quotes.pdfKey` — asíncrono, nunca bloquea el resultado en pantalla
+- [x] **PDF-02**: La generación de PDF es idempotente por `quoteId` (retry de BullMQ no duplica objetos) y renderiza correctamente acentos españoles en el worker Alpine (fuente embebida, sin Chromium)
+- [x] **PDF-03**: El PDF lleva la leyenda legal "cotización no vinculante" + leyenda de ajuste CAC
 
 ### Handoff a WhatsApp
 
@@ -87,9 +87,9 @@ Qué fases cubren qué requirements.
 | UI-04 | Phase 6 | Complete |
 | UI-05 | Phase 6 | Complete |
 | UI-06 | Phase 6 | Complete |
-| PDF-01 | Phase 7 | Pending |
-| PDF-02 | Phase 7 | Pending |
-| PDF-03 | Phase 7 | Pending |
+| PDF-01 | Phase 7 | Complete |
+| PDF-02 | Phase 7 | Complete |
+| PDF-03 | Phase 7 | Complete |
 | WA-01 | Phase 6 | Complete |
 
 **Coverage:**
