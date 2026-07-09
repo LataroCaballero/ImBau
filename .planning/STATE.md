@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Cotizador
-current_phase: 07
-status: milestone complete
-stopped_at: Phase 7 complete — milestone v1.2 100%
-last_updated: "2026-07-08T23:43:31.771Z"
-last_activity: 2026-07-08
-last_activity_desc: Phase 07 complete
+current_phase: 2
+status: Awaiting next milestone
+stopped_at: Phase 7 complete (UAT 3/3) — milestone v1.2 100% (4/4 fases)
+last_updated: "2026-07-09T00:10:24.489Z"
+last_activity: 2026-07-09
+last_activity_desc: Milestone v1.2 completed and archived
 progress:
   total_phases: 4
   completed_phases: 4
@@ -23,17 +23,15 @@ current_phase_name: PDF asíncrono en el worker
 
 See: .planning/PROJECT.md (updated 2026-07-08)
 
-**Core value:** El diferencial competitivo #1 (cotizador financiero argentino) funciona de punta a punta con un motor de cálculo provablemente correcto — un error de cálculo mata el producto.
-**Current focus:** Milestone v1.2 completo (4/4 fases) — cierre de milestone + merge a main/staging
+**Core value:** La fundación técnica desplegada y operable: cada commit a main termina corriendo en staging con aislamiento multi-tenant verificable por RLS.
+**Current focus:** v1.2 archivado — pendiente merge a main + re-verificación staging; luego `/gsd-new-milestone` (v1.3 Panel de autogestión)
 
 ## Current Position
 
-Phase: 07 (última del milestone) — Complete
-Plan: 19/19
-Status: Milestone v1.2 complete — ready to archive
-Last activity: 2026-07-08 — Phase 07 complete
-
-Progress: [████████████████████] 19/19 plans (100%)
+Phase: Milestone v1.2 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-07-09 — Milestone v1.2 completed and archived
 
 ## Performance Metrics
 
@@ -72,21 +70,21 @@ None yet.
 
 ### Blockers/Concerns
 
-Notas vigentes para el cierre de milestone:
+Abiertos post-cierre de v1.2:
 
-- ⚠️ [Milestone close] Staging corre imagen pre-fase-5 (`a599bb7`) — TODO v1.2 (fases 5-7: rutas quotes, UI cotizador, PDF) llega a staging recién al mergear la rama a main. Re-verificar en staging post-merge: rate-limit 429, flujo PDF completo, QR con URL de staging.
-- ⚠️ [Phase 6, no bloqueante] Pasada visual de marca en viewport real pendiente (06-UAT.md).
-- Resueltos en Phase 7: react-pdf en Alpine con Roboto embebida (COPY explícito de assets, UAT 3/3) e idempotencia por `quoteId` (jobId dedup + attempts 5) — verificados.
+- ⚠️ Staging corre imagen pre-fase-5 (`a599bb7`) — TODO v1.2 (fases 5-7: rutas quotes, UI cotizador, PDF) llega a staging recién al mergear la rama a main. Re-verificar en staging post-merge: rate-limit 429, flujo PDF completo, QR con URL de staging.
+- Pasada visual de fase 6 → trackeada en Deferred Items (abajo).
 
 ## Deferred Items
 
-Items acknowledged and deferred at the v1.0 milestone close on 2026-06-26 (override_closeout):
+Items acknowledged and deferred at milestone closes (v1.0 2026-06-26, v1.2 2026-07-09 — ambos override_closeout):
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
 | verification | phase-03 (v1.0) live re-runs: Playwright auth e2e (login persistence, invite→accept) + worker Redis smoke | human_needed (4/4 must-haves verified by code) | 2026-06-26 |
+| uat_gap | phase-06 (v1.2) 06-UAT.md — pasada visual humana del layout mobile-first + tema de marca en viewport real | testing (1 pending scenario; criterios de fase verificados por código + e2e 4/4) | 2026-07-08 |
 
-**Detail:** Re-run `pnpm --filter @imbau/panel test:e2e` and `pnpm --filter @imbau/worker test -t "worker connects"` with the Compose stack up to clear.
+**Detail:** Re-run `pnpm --filter @imbau/panel test:e2e` and `pnpm --filter @imbau/worker test -t "worker connects"` with the Compose stack up to clear. Para el item de v1.2: `/gsd-verify-work 6` con `pnpm dev` y abrir `/p/brigos-recoleta/cotizador` en viewport móvil.
 
 ## Session Continuity
 
@@ -96,4 +94,4 @@ Resume file: None
 
 ## Operator Next Steps
 
-- `/gsd-complete-milestone v1.2` — archivar el milestone y preparar el siguiente
+- Start the next milestone with /gsd-new-milestone

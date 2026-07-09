@@ -1,5 +1,32 @@
 # Milestones
 
+## v1.2 Cotizador (Shipped: 2026-07-09)
+
+**Phases completed:** 4 phases, 19 plans, 43 tasks
+**Git range:** `e1a1034` → `d87d0d6` · 156 commits, 164 files, +21.7k LOC (código sin `.planning`: 86 files, +9.4k) · 8 días (2026-07-01 → 2026-07-08)
+**Closeout:** override_closeout — 19/19 requirements Complete, 4/4 fases verificadas; known verification overrides: 1 (ver STATE.md → Deferred Items)
+
+**Delivered:** El diferencial competitivo #1 funciona de punta a punta: un comprador anónimo cotiza una unidad publicada en el celular (contado USD vs financiado con anticipo + cuotas CAC + refuerzos), ve el resultado completo en pantalla con leyendas legales, descarga el PDF generado asíncronamente en el worker y abre WhatsApp con la cotización precargada — todo derivado de un único `QuoteResult` emitido por un motor puro al 100% de cobertura con property-based tests.
+
+**Key accomplishments:**
+
+- **Motor de cotización puro (Fase 4)** — `packages/quoting`: `calcQuote` contado/financiado con CAC-como-multiplicador (nunca proyecta CAC ni inventa FX), dinero en decimal.js sobre un clon ROUND_HALF_UP único (anticipo half-up, última cuota absorbe resto, ARS a 2 decimales exactos), contrato único `QuoteResult` (unión discriminada) + `QuoteError` tipado + `ENGINE_VERSION` alineado al snapshot, `compareQuotes` y serializers `toWhatsAppText`/`toPdfModel` — 62 tests (tabla unitaria + invariantes fast-check) bajo gate de cobertura 100% package-scoped realmente enforced (ENGINE-01..06).
+- **Emisión anónima server-side (Fase 5)** — `quotes.compute`/`quotes.create` como publicProcedures tRPC que resuelven la org del proyecto `publicado` vía `withAnon` y computan/persisten el snapshot versionado `{version, inputs, result, cacPeriodo}` vía `withTenant` — cero policies anon sobre `quotes`/`cac_index` (invariante 42501 probado contra Postgres real), errorFormatter que solo expone `quoteErrorCode`, y `apps/web` sirviendo appRouter con el fence T-03-09 intacto (A1/D-06) (QUOTE-01/02).
+- **Rate limit de borde (Fase 5)** — nginx `limit_req` per-IP (10r/s + burst 20 nodelay, 429) sobre `location ^~ /api/trpc/quotes` del vhost web de staging, versionado en el repo como fuente de verdad y probado en el VPS (ráfaga 40 POSTs → 29 pasan / 11× 429, cero 503) (QUOTE-03).
+- **UI pública mobile-first del cotizador (Fase 6)** — `/p/[slug]/cotizador`: RSC + isla cliente con deep-link `?u=&plan=` y picker piso→unidad (router `picker` anon RLS-safe, migración 0004 `projects.whatsapp`), comparación contado vs financiado en vivo (compute debounced race-safe, 429-tolerante), slider snap-to-preset (nunca términos libres), leyendas CAC + no vinculante, formato es-AR compartido server/cliente, y CTA wa.me precargado desde `toWhatsAppText` — 26 unit/render + 5 integration + e2e Playwright 4/4 del flujo demo-crítico completo (UI-01..06, WA-01).
+- **PDF asíncrono en el worker (Fase 7)** — `quotes.create` encola `quote-pdf` en BullMQ (jobId=quoteId → idempotente en retries, attempts 5), el consumer re-renderiza desde el snapshot congelado bajo `withTenant` (nunca recompute), react-pdf con Roboto TTF embebida (acentos correctos en Alpine, sin Chromium), QR deep-link, upload a R2 + write-back de `pdf_key`; `quotes.pdfStatus` devuelve presigned GET y la UI pollea cada 2s con auto-descarga y soft-fail ~40s que jamás bloquea WhatsApp — UAT 3/3 con R2 real (PDF-01..03).
+- **Fundación de marca web (Fase 6)** — Tailwind v4 CSS-first con tokens ImBau (grafito/cobre, Space Grotesk/Inter/JetBrains Mono self-hosted) + dual `splitLink` tRPC que mantiene `quotes.*` bajo el path nginx-throttleado.
+
+### Known Verification Overrides
+
+Cerrado como `override_closeout` con 1 item diferido aceptado por el operador (ver STATE.md → Deferred Items):
+
+- **06-UAT.md (1 pending):** pasada visual humana del layout mobile-first + tema de marca en viewport real. Los 4 criterios de éxito de la fase quedaron verificados por código + e2e 4/4 post-merge; se cierra vía `/gsd-verify-work 6`.
+
+**Pendiente post-cierre (no gate del milestone):** merge de `fase-0/foundation` a `main` + re-verificación en staging (rate-limit 429, flujo PDF completo, QR con URL de staging) — staging corre imagen pre-fase-5.
+
+---
+
 ## v1.1 Schema + Media + Seed (Shipped: 2026-07-01)
 
 **Phases completed:** 3 phases, 12 plans, 30 tasks

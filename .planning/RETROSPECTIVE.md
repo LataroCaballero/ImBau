@@ -84,6 +84,47 @@
 
 ---
 
+## Milestone: v1.2 — Cotizador (Fase 3 del plan maestro)
+
+**Shipped:** 2026-07-09
+**Phases:** 4 | **Plans:** 19 | **Tasks:** 43
+
+### What Was Built
+- `packages/quoting`: motor de cotización puro y determinista (contado + financiado CAC-como-multiplicador, dinero en decimal.js, redondeo half-up + última cuota absorbe resto) con contrato único `QuoteResult`, `QuoteError` tipado, `ENGINE_VERSION` y serializers `toWhatsAppText`/`toPdfModel` — 62 tests bajo gate de cobertura 100% package-scoped enforced.
+- Emisión anónima server-side: `quotes.compute`/`quotes.create` (withAnon → withTenant, snapshot versionado, errorFormatter que solo expone `quoteErrorCode`), mount tRPC en `apps/web` con fence T-03-09, y rate-limit nginx 429 en el edge probado en el VPS.
+- UI pública mobile-first `/p/[slug]/cotizador`: picker piso→unidad + deep-link, contado vs financiado en vivo, slider snap-to-preset, leyendas legales, es-AR compartido server/cliente, CTA wa.me — e2e Playwright del flujo demo-crítico completo.
+- PDF asíncrono en el worker: consumer BullMQ idempotente por `quoteId` que re-renderiza del snapshot congelado (react-pdf + Roboto embebida en Alpine), R2 + presigned GET, poll + auto-descarga con soft-fail que nunca bloquea WhatsApp.
+
+### What Worked
+- **Contract-first en serie, superficies en paralelo.** Congelar la forma de salida primero (`QuoteResult` en fase 4; contrato de queue PDF en 05-03 *antes* de que existiera el worker, D-13) permitió que UI, PDF y WhatsApp se construyeran contra el mismo contrato sin recompute por superficie — cero divergencias entre pantalla, PDF y texto WA.
+- **Clonar moléculas verificadas.** El pipeline quote-pdf se clonó del pipeline de media de v1.1 (queue contract + consumer con withTenant + idempotencia + observabilidad); el patrón "clon del template verificado" de v1.1 (tablas RLS) volvió a amortizar en un dominio distinto.
+- **Gate de cobertura 100% package-scoped realmente enforced.** Poner el threshold en `vitest.config.ts` del package (no aspiracional en CI global) + property-based tests dio la garantía "un error de cálculo mata el producto" de forma binaria.
+- **Verificación en capas consistente:** unit/property (motor) → integration contra Postgres real con invariante 42501 (API) → e2e Playwright contra el seed (UI) → UAT live con R2 real y ráfaga real contra nginx (infra). Cada capa atrapó lo que la anterior no podía.
+
+### What Was Inefficient
+- **Drift de staging durante todo el milestone.** Staging quedó corriendo la imagen pre-fase-5 las 4 fases (la rama nunca mergeó a main); la re-verificación en vivo (429, PDF, QR) quedó como deuda post-cierre. Milestones largos sobre una sola rama divorcian "shipped" de "corriendo en staging" — el core value del proyecto.
+- **Deviation bloqueante por fuente ausente (06-02):** los archivos fuente de brand tokens no existían y hubo que reconstruirlos desde RESEARCH — gap de handoff entre el UI-SPEC y el plan.
+- **Recurrente (v1.1 → v1.2): extract automático de accomplishments ruidoso.** El one-liner de 06-02 arrastró texto de deviation al archivado de MILESTONES.md; se curó a mano otra vez.
+
+### Patterns Established
+- **Contract-freeze antes de consumers:** la forma de salida (tipo o contrato de queue) se congela en un plan propio antes de que exista cualquier consumidor — habilita waves paralelas sin re-trabajo.
+- **Idempotencia por clave natural:** `jobId = quoteId` en BullMQ (dedup at-least-once) + short-circuit si el output ya existe + write-back único — mismo trío que el pipeline de media.
+- **Assets no-bundleables como COPY explícito:** tsup no emite TTFs; toda fuente/asset binario va como COPY declarado en el Dockerfile (si no, tofu silencioso en Alpine).
+- **Formatters puros compartidos:** cero `toLocaleString` en UI — todo formato de dinero sale de funciones puras del motor, idéntico en RSC, isla cliente, WhatsApp y PDF.
+- **Fence grep-verificable (T-03-09):** los límites arquitecturales se expresan como invariantes greppeables (cero `@imbau/db` bajo `apps/web/`), no como convención de review.
+
+### Key Lessons
+1. **La fase más riesgosa primero y pura.** Aislar el motor como package sin I/O con 100% de cobertura hizo que las 3 fases de superficie fueran cableado sin incertidumbre de cálculo.
+2. **Mergear a main por fase, no por milestone.** El drift de staging (4 fases sin deploy) contradice el core value "cada commit a main termina corriendo en staging"; para v1.3, cadencia de merge por fase o feature-flags.
+3. **Confirmada (v1.1 → v1.2): los templates/moléculas verificados amortizan** — media pipeline → quote-pdf pipeline costó una fase, no un milestone.
+4. **Los specs de UI deben referenciar archivos fuente existentes** o declararlos como entregables del plan — no asumir que el research los materializó.
+
+### Cost Observations
+- Model mix: predominantemente Fable/Opus (perfil GSD "quality"), desarrollo AI-first.
+- Notable: milestone de código puro sobre infra ya operativa — 8 días para 4 fases / 19 plans; la fricción residual fue curaduría de artefactos y el handoff visual humano, no generación de código.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -92,6 +133,7 @@
 |-----------|--------|-------|------------|
 | v1.0 Fundación | 4 | 18 | Baseline — GSD horizontal por capas en orden de dependencias; CI gate + RLS-in-CI establecidos |
 | v1.1 Schema + Media + Seed | 3 | 12 | Template-driven scaling (clon RLS por tabla) + exit gates binarios (suite cross-tenant, run-twice) + UAT live como gate humano trackeado |
+| v1.2 Cotizador | 4 | 19 | Contract-first (freeze de `QuoteResult`/queue antes de consumers) + clon de moléculas verificadas (media → quote-pdf) + verificación en capas (property → integration → e2e → UAT live) |
 
 ### Cumulative Quality
 
@@ -99,9 +141,11 @@
 |-----------|------------------|-----------|-------------------------|
 | v1.0 | cross-tenant absence suite verde | sí (postgres:16 service) | D-01 (nginx vs Traefik), D-03/04 (pino-loki) |
 | v1.1 | suite extendida a 13 tablas nuevas + partition routing (14 tests) | sí (postgres:16 + redis services, migrate step) | D6 (mock-S3 en CI, live-R2 en UAT), D-04 (seed cycle-safe sin @imbau/api) |
+| v1.2 | invariante 42501 (cero policies anon en quotes/cac_index) + fence T-03-09 grep-verificable | sí (integration de routers contra Postgres real) | D-06/A1 (pool app en web), D-13 (queue contract sin producer), 06-02 (brand tokens reconstruidos) |
 
 ### Top Lessons (Verified Across Milestones)
 
-1. **Verificada (v1.0, v1.1)** — La infra real domina el costo: 14 días la fase de infra vs 5 días tres fases de código puro. Presupuestar por mix código/ops.
-2. **Verificada (v1.0, v1.1)** — RLS-first + verificación contra DB real previene retrofits: el template de v1.0 escaló a 13 tablas nuevas sin fricción.
+1. **Verificada (v1.0, v1.1, v1.2)** — La infra real domina el costo: 14 días la fase de infra vs 5-8 días los milestones de código puro. Presupuestar por mix código/ops.
+2. **Verificada (v1.0, v1.1, v1.2)** — Los templates/moléculas verificados amortizan: template RLS → 13 tablas (v1.1); pipeline de media → pipeline quote-pdf (v1.2). Invertir en el primer ejemplar verificado, clonar el resto.
 3. **Verificada (v1.0, v1.1)** — CI destapa gaps que el dev local esconde; ambos milestones pagaron fixes de CI post-merge. Pendiente: mover el smoke de CI al primer plan de cada milestone.
+4. **Nueva (v1.2)** — Milestones largos sobre una sola rama divorcian "shipped" de "corriendo en staging": mergear a main por fase (o feature-flags) para sostener el core value de deploy continuo.

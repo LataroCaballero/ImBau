@@ -4,24 +4,23 @@
 
 SaaS multi-tenant para que desarrolladores inmobiliarios argentinos vendan unidades en pozo: un showroom web mobile-first (explorador del edificio por pisos con hotspots SVG sobre renders estáticos, ficha de unidad, cotizador con financiación argentina USD + cuotas CAC, avance de obra, leads por WhatsApp) más un panel de autogestión (precios, disponibilidad, leads, métricas, brokers). Lo construye Lautaro (Andescode) con desarrollo AI-first; el documento maestro de producto es `docs/modelo-mvp.md`.
 
-**Estado actual:** **v1.0 Fundación (Fase 0)** SHIPPED 2026-06-26 y **v1.1 Schema + Media + Seed (Fase 1)** SHIPPED 2026-07-01 — sobre la fundación (staging vivo, CI/CD, auth, RLS) ahora existe el modelo de datos completo de modelo-mvp §3.3 con RLS por tenant, el pipeline de media R2 + sharp + blurhash, y el seed determinista de "Brigos Recoleta" poblando todo. Cada fase del modelo-mvp.md es su propio milestone GSD, en el orden ventana-Fable: 0 → 1 → 3 → 4 → 2 → 5 → 6. **En curso:** v1.2 Cotizador (Fase 3 del plan maestro).
+**Estado actual:** **v1.0 Fundación (Fase 0)** SHIPPED 2026-06-26, **v1.1 Schema + Media + Seed (Fase 1)** SHIPPED 2026-07-01 y **v1.2 Cotizador (Fase 3 del plan maestro)** SHIPPED 2026-07-09 — sobre la fundación (staging vivo, CI/CD, auth, RLS), el modelo de datos completo y el seed "Brigos Recoleta", ahora el diferencial competitivo #1 funciona de punta a punta: motor de cotización puro al 100% de cobertura, emisión anónima server-side con snapshot auditable, UI pública mobile-first, PDF asíncrono en el worker y handoff a WhatsApp. Cada fase del modelo-mvp.md es su propio milestone GSD, en el orden ventana-Fable: 0 → 1 → 3 → 4 → 2 → 5 → 6.
 
 ## Core Value
 
 La fundación técnica queda desplegada y operable desde el día uno: cada commit a main termina en software corriendo en staging (`staging.tours.andescode.com.ar`) con aislamiento multi-tenant verificable por RLS — no "funciona en mi máquina".
 
-## Current Milestone: v1.2 Cotizador (Fase 3 del plan maestro)
+## Current State
 
-**Goal:** El diferencial competitivo #1 funciona de punta a punta: un comprador cotiza una unidad (contado USD / anticipo + cuotas CAC / refuerzos), ve el resultado en pantalla, descarga el PDF y abre WhatsApp con la cotización precargada — con un motor de cálculo puro al 100% de cobertura donde un error de cálculo mata el producto.
+**v1.2 Cotizador shipped 2026-07-09** (4 fases, 19 plans, 43 tasks, 8 días). El flujo comprador demo-crítico existe completo: deep-link/picker → cotización contado vs financiado en vivo → CTA WhatsApp precargado → PDF descargable. Todo deriva de un único `QuoteResult` (`packages/quoting`, 100% cobertura + fast-check), el path anónimo es server-side auditado (cero policies anon sobre `quotes`/`cac_index`) y el PDF es asíncrono e idempotente (BullMQ + R2).
 
-**Target features (P4 de modelo-mvp.md, todo rama A):**
-- `packages/quoting` — motor puro y determinista (sin I/O), tipado exhaustivo, property-based tests + unitarios, cobertura 100% exigida en CI. Entrada: unidad + lista de precios + plan de pago + índice CAC vigente. Salida: estructura tipada que alimenta UI, PDF y texto WhatsApp.
-- UI del cotizador en la web pública (mobile-first): contado USD / anticipo + cuotas ajustadas por CAC / refuerzos, resultado en pantalla.
-- PDF server-side generado en el worker (con leyenda legal "cotización no vinculante").
-- CTA WhatsApp (wa.me) con la cotización precargada.
-- Persistencia del snapshot completo de cada cotización emitida (inputs + outputs + versión del motor) — auditabilidad total.
+**Pendientes inmediatos post-cierre:**
+- Merge de `fase-0/foundation` a `main` → deploy a staging (staging corre imagen pre-fase-5) + re-verificación en vivo: rate-limit 429, flujo PDF completo, QR con URL de staging.
+- Pasada visual humana del cotizador en viewport real (06-UAT.md, diferido — `/gsd-verify-work 6`).
 
-**Por qué ahora:** orden ventana-Fable (0 → 1 → **3** → 4 → 2 → 5 → 6) — el cotizador es la fase más densa en lógica pura, ideal para front-loadear mientras dura el acceso al modelo. Es además el diferencial competitivo #1 (nadie resuelve bien la financiación argentina). Consume el schema de quotes/payment_plans/cac_index y el seed "Brigos Recoleta" de v1.1 sin cambios de schema previstos.
+## Next Milestone Goals
+
+**v1.3 Panel de autogestión (Fase 4 del plan maestro)** — siguiente en el orden ventana-Fable (0 → 1 → 3 → **4** → 2 → 5 → 6): el developer administra su proyecto sin tocar código — precios/listas, disponibilidad de unidades, bandeja de leads, brokers y métricas básicas sobre el panel existente. Definir requirements y roadmap con `/gsd-new-milestone`.
 
 ## Requirements
 
@@ -47,11 +46,7 @@ La fundación técnica queda desplegada y operable desde el día uno: cada commi
 
 ### Active
 
-Milestone **v1.2 Cotizador** — requirements en definición (ver `.planning/REQUIREMENTS.md` cuando exista):
-
-- [x] UI del cotizador en la web pública (contado USD / anticipo + cuotas CAC / refuerzos) — Validated in Phase 6
-- [x] PDF server-side de la cotización en el worker (leyenda "cotización no vinculante") — Validated in Phase 7
-- [x] CTA WhatsApp con la cotización precargada — Validated in Phase 6
+Milestone **v1.3 Panel de autogestión** — requirements a definir con `/gsd-new-milestone` (candidatos del plan maestro, fase 4): gestión de precios/listas, disponibilidad de unidades, bandeja de leads, brokers, métricas básicas.
 
 ### Out of Scope
 
@@ -63,7 +58,7 @@ Milestone **v1.2 Cotizador** — requirements en definición (ver `.planning/REQ
 
 ## Context
 
-- **Estado del código (post v1.1):** monorepo con 3 apps + 6 packages (se sumó `@imbau/storage`) compilando estricto; v1.1 agregó +17.8k LOC en 204 archivos (94 commits, 5 días). Schema §3.3 completo (13 tablas nuevas, events particionada), pipeline de media R2+sharp operativo, seed "Brigos Recoleta" idempotente. Staging vivo en `staging.tours.andescode.com.ar` (web) y `panel.staging.tours.andescode.com.ar` (panel) detrás de nginx-host + certbot. Fase 0 entregada en 14 días calendario (vs. estimación 3-4 días con Fable; el grueso fue infra de staging real sobre un VPS compartido con prod); Fase 1 (v1.1) entregada en 5 días.
+- **Estado del código (post v1.2):** monorepo con 3 apps + 6 packages compilando estricto; v1.2 agregó +9.4k LOC de código en 86 archivos (156 commits, 8 días). Sobre el schema/media/seed de v1.1 ahora corren: `packages/quoting` (motor puro, 100% cobertura), rutas `quotes.*`/`picker.*` en `packages/api`, el cotizador público en `apps/web` (`/p/[slug]/cotizador`, Tailwind v4 + tokens de marca) y el pipeline quote-pdf en `apps/worker`. Staging vivo en `staging.tours.andescode.com.ar` (web) y `panel.staging.tours.andescode.com.ar` (panel) detrás de nginx-host + certbot — **corre imagen pre-fase-5**: todo v1.2 llega a staging al mergear a `main`. Timeline por milestone: fase 0 en 14 días (infra real domina), v1.1 en 5 días, v1.2 en 8 días (código puro + superficies).
 - **Reverse proxy en staging — nginx, no Traefik (D-01):** el VPS de staging comparte caja con `andescode.com.ar` (prod), cuyo nginx-host ya posee :80/:443. Meter Traefik habría requerido reconfigurar el proxy de prod (riesgo real). Se entregó con nginx-vhost + certbot webroot; el patrón Traefik del CLAUDE.md queda diferido a un box dedicado. Actualizar CLAUDE.md/modelo-mvp.md si esta topología persiste en prod.
 - **Documento maestro:** `docs/modelo-mvp.md` (junio 2026). Ante conflicto con él, manda `CLAUDE.md`.
 - **Estrategia de dos ramas:** Rama A (núcleo agnóstico, arranca ya, table stakes + cotizador) / Rama B (material real de Pablo, post-reunión). La reunión con Pablo conviene tenerla al final de la fase 2-3 (~3-4 semanas) con la demo wow lista.
@@ -97,7 +92,8 @@ Milestone **v1.2 Cotizador** — requirements en definición (ver `.planning/REQ
 | pino-loki transport en vez de Promtail (D-03/04) | Cero contenedor extra, fallback-simétrico vía swap de `LOKI_URL` | ✓ Good — logs del worker llegando a Loki en staging |
 | Media pipeline: R2 con `WHEN_REQUIRED` checksum opt-out + mock-S3 in-memory en CI, live-R2 como gate humano (Phase 2 / D6) | R2 rechaza los checksums por defecto del SDK S3; CI no toca infra real (sin secrets en repo), pero el round-trip live se verifica en UAT staging | ✓ Good — 68/68 tests verde con mock; UAT live-R2 + observabilidad de fallo confirmados 2026-06-30 |
 | Seed: idempotencia por `seedId(name)=uuidv5` + `onConflictDoNothing`, media por pipeline REAL R2+worker con mediaId determinista (Phase 3 / D-04) | Un solo mecanismo de idempotencia para todas las tablas; el seed re-compone los primitivos de @imbau/storage (sin importar @imbau/api — evita ciclo db↔api) y una re-corrida sobreescribe los mismos objetos R2 en lugar de duplicar | ✓ Good — gate run-twice de invariancia verde; UAT live-R2 2/2 (13/13 media resueltas, segunda corrida sin filas nuevas) |
-| A1 — apps/web hosts the app pool for the anonymous quote path (Phase 5 / D-06): DATABASE_APP_URL en el env de web + mount tRPC propio; web deja de ser anon-only SOLO vía withTenant dentro de quotesRouter | El pool app ya llegaba al contenedor web por env_file; A2 (emisión en panel/API dedicada) agregaba un hop cross-app sin ganancia de aislamiento real — el fence T-03-09 (solo withTenant/withAnon/schema desde @imbau/db, grep-verificable) mantiene la superficie de datos idéntica | — Pending (se valida con la UI de fase 6 en staging) |
+| A1 — apps/web hosts the app pool for the anonymous quote path (Phase 5 / D-06): DATABASE_APP_URL en el env de web + mount tRPC propio; web deja de ser anon-only SOLO vía withTenant dentro de quotesRouter | El pool app ya llegaba al contenedor web por env_file; A2 (emisión en panel/API dedicada) agregaba un hop cross-app sin ganancia de aislamiento real — el fence T-03-09 (solo withTenant/withAnon/schema desde @imbau/db, grep-verificable) mantiene la superficie de datos idéntica | ✓ Good — validado e2e con la UI de fase 6 (Playwright 4/4 contra seed real); re-verificación en staging post-merge pendiente |
+| Dual `splitLink` en el cliente tRPC de web (Phase 6): `quotes.*` va a `/api/trpc/quotes.*` (path nginx-throttleado), el resto al endpoint general; formatters es-AR compartidos del motor (cero `toLocaleString` en UI) | El rate-limit de borde solo protege si el cliente enruta las quotes por el path limitado; el formato server/cliente no puede divergir si ambos usan las mismas funciones puras | ✓ Good — split probado por test de predicado + e2e; es-AR idéntico en RSC, isla cliente, WhatsApp y PDF |
 | PDF asíncrono (Phase 7): producer BullMQ dentro del proceso web (quotes.create encola; D-02) + poll `quotes.pdfStatus` con presigned R2 GET + soft-fail ~40s en UI (D-10); Roboto TTF como asset copiado explícito en la imagen Alpine (tsup no emite TTFs) | El PDF nunca es critical path — WhatsApp sigue vivo pase lo que pase; jobId=quoteId da idempotencia at-least-once en retries; sin el COPY de assets react-pdf cae a una fuente sin glifos es-AR (tofu silencioso) | ✓ Good — UAT 3/3 (2026-07-08): e2e local R2 real, soft-fail 40.1s, PDF del contenedor Alpine con acentos perfectos; staging pendiente post-merge |
 
 ## Evolution
@@ -118,4 +114,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-08 after Phase 7 (v1.2 Cotizador, PDF asíncrono en el worker): PDF-01..03 validados — quotes.create encola BullMQ, worker renderiza react-pdf (Roboto embebida, Alpine-safe), R2 + presigned download, UI poll + soft-fail 40s sin bloquear WhatsApp. UAT 3/3 (e2e local R2 real + contenedor Alpine verificado). **Milestone v1.2 100% — 4/4 fases.** Pendientes al cierre: merge a main + re-verificación en staging (rate-limit 429, flujo PDF), pasada visual de marca (06-UAT.md).*
+*Last updated: 2026-07-09 after v1.2 milestone (Cotizador shipped: 19/19 requirements, override_closeout con 1 UAT visual diferido). Próximo: merge a main + re-verificación staging, luego `/gsd-new-milestone` para v1.3 Panel de autogestión.*
