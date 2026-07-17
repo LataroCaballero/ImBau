@@ -5,8 +5,8 @@ milestone_name: Panel de autogestión
 current_phase: 8
 current_phase_name: Deuda v1.2 — merge a main + re-verificación en staging
 status: executing
-stopped_at: Completed 08-02-PLAN.md (DEBT-02 live-verified on staging)
-last_updated: "2026-07-17T21:43:45.732Z"
+stopped_at: "Phase 8 executed; verification human_needed (1 item: forced-migration-failure drill)"
+last_updated: "2026-07-17T22:01:22.018Z"
 last_activity: 2026-07-17
 last_activity_desc: "08-01 complete: PR #5 merged (22d1e96), deploy green, staging seeded publicado"
 progress:
@@ -119,9 +119,9 @@ Items acknowledged and deferred at milestone closes (v1.0 2026-06-26, v1.2 2026-
 
 ## Session Continuity
 
-Last session: 2026-07-17T21:43:36.712Z
-Stopped at: Completed 08-02-PLAN.md (DEBT-02 live-verified on staging)
-Resume file: None
+Last session: 2026-07-17T22:01:22.013Z
+Stopped at: Phase 8 executed; verification human_needed (1 item: forced-migration-failure drill)
+Resume file: .planning/phases/08-deuda-v1-2-merge-a-main-re-verificaci-n-en-staging/08-UAT.md
 
 ## Operator Next Steps
 
