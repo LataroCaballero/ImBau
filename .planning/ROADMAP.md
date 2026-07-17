@@ -58,7 +58,7 @@ Directorios archivados en `milestones/v1.2-phases/`. Full detail: [milestones/v1
 
 Deuda v1.2 primero (merge + re-verificación en staging) → shell del panel scoped al proyecto con role gate → D1 grilla de unidades editable + Excel → D2 bandeja de leads + email → editor de hotspots. Las tres superficies de escritura (D1/D2/hotspots) cuelgan del shell (Phase 9); D1 se hace antes de D2/hotspots porque fuerza la decisión de unicidad de `unit_prices` que protege el motor de cotización de v1.2 y establece el patrón `withTenant` + `requireRole` que D2 y hotspots clonan.
 
-- [ ] **Phase 8: Deuda v1.2 — merge a main + re-verificación en staging** (0/TBD plans) — not started
+- [ ] **Phase 8: Deuda v1.2 — merge a main + re-verificación en staging** (0/2 plans) — not started
 - [ ] **Phase 9: Shell del panel scoped al proyecto + role gate** (0/TBD plans) — not started
 - [ ] **Phase 10: D1 — Grilla de unidades editable + import/export Excel** (0/TBD plans) — not started
 - [ ] **Phase 11: D2 — Bandeja de leads + notificación por email** (0/TBD plans) — not started
@@ -75,7 +75,9 @@ Deuda v1.2 primero (merge + re-verificación en staging) → shell del panel sco
   2. En staging, una ráfaga de POSTs a `/api/trpc/quotes.*` dispara `429` (rate-limit de borde nginx), sin `503` — verificado en vivo contra el VPS.
   3. En staging, el flujo PDF completo funciona de punta a punta: cotización → PDF asíncrono descargable con acentos es-AR correctos.
   4. El QR y el deep-link del PDF apuntan a la URL de staging (no localhost ni imagen pre-fase-5).
-**Plans**: TBD
+**Plans**: 2 plans
+- [ ] 08-01-PLAN.md — Merge PR #5 a `main` (merge commit) + deploy a staging + verificar migrate-before-swap y seed (DEBT-01, Wave 1)
+- [ ] 08-02-PLAN.md — Re-verificación en vivo: burst 429 sin 503, PDF e2e con acentos es-AR, QR/deep-link a staging, smoke + `08-UAT.md` (DEBT-02, Wave 2)
 **Note**: Mecánico — re-corre la UAT existente de v1.2 contra staging; sin research nuevo. La re-verificación en vivo depende de infra del operador (merge + deploy a VPS).
 
 ### Phase 9: Shell del panel scoped al proyecto + role gate
@@ -147,7 +149,7 @@ Phases execute in numeric order: 8 → 9 → 10 → 11 → 12 (v1.3). D2 (11) y 
 | 5. Emisión y persistencia server-side | v1.2 | 5/5 | Complete | 2026-07-04 |
 | 6. UI pública del cotizador + WhatsApp | v1.2 | 6/6 | Complete | 2026-07-05 |
 | 7. PDF asíncrono en el worker | v1.2 | 4/4 | Complete | 2026-07-08 |
-| 8. Deuda v1.2 — merge + re-verificación staging | v1.3 | 0/TBD | Not started | - |
+| 8. Deuda v1.2 — merge + re-verificación staging | v1.3 | 0/2 | Not started | - |
 | 9. Shell del panel scoped al proyecto + role gate | v1.3 | 0/TBD | Not started | - |
 | 10. D1 — Grilla de unidades + Excel | v1.3 | 0/TBD | Not started | - |
 | 11. D2 — Bandeja de leads + email | v1.3 | 0/TBD | Not started | - |
