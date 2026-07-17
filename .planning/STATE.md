@@ -5,16 +5,16 @@ milestone_name: Panel de autogestión
 current_phase: 8
 current_phase_name: Deuda v1.2 — merge a main + re-verificación en staging
 status: executing
-stopped_at: "Completed 08-01-PLAN.md (DEBT-01: v1.2 merged to main + deployed+seeded on staging)"
-last_updated: "2026-07-17T21:31:09.731Z"
+stopped_at: Completed 08-02-PLAN.md (DEBT-02 live-verified on staging)
+last_updated: "2026-07-17T21:43:45.732Z"
 last_activity: 2026-07-17
-last_activity_desc: "Completed 08-01 — DEBT-01 (v1.2 merged to main, deployed + seeded on staging)"
+last_activity_desc: "08-01 complete: PR #5 merged (22d1e96), deploy green, staging seeded publicado"
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
-  percent: 50
+  completed_plans: 2
+  percent: 20
 ---
 
 # Project State
@@ -77,6 +77,7 @@ Numeración GSD continúa desde v1.2 (última fase = 7).
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 8 P01 | 27min | 3 tasks | 3 files |
+| Phase 08 P02 | 8min | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -92,6 +93,7 @@ Decisions are logged in PROJECT.md Key Decisions table (full log). Decisiones vi
 - [Research / v1.3, a decidir en planning]: email de lead **queued** (BullMQ, clona el contrato quote-pdf) vs inline Resend (patrón invitación) — decidir en Phase 11; emisión de `events` por transición lead/precio (cheap, forward-compatible) vs diferir — decidir en Phase 10/11.
 - [Phase ?]: Phase 8-01: merged PR #5 to main via merge commit (22d1e96, not squash) preserving 397-commit history + v1.2 tag; kept fase-0/foundation (D-01/D-03)
 - [Phase ?]: Phase 8-01: fixed two shared-_test-DB Vitest flakes (db fileParallelism:false for concurrent partition-DDL race; worker testTimeout 30s for real sharp/PG suites) to green the required quality gate
+- [Phase ?]: Phase 8-02: DEBT-02 live-verified on staging — quotes burst 77x429/0x503 (fase-5 live, not 404), nginx box==repo vhost (D-12, no sync-back), PDF e2e (quoteId 5d67277a) Roboto+es-AR accents with staging deep-link, worker+Loki+Sentry green
 
 ### Pending Todos
 
@@ -117,8 +119,8 @@ Items acknowledged and deferred at milestone closes (v1.0 2026-06-26, v1.2 2026-
 
 ## Session Continuity
 
-Last session: 2026-07-17T21:31:09.726Z
-Stopped at: Completed 08-01-PLAN.md (DEBT-01: v1.2 merged to main + deployed+seeded on staging)
+Last session: 2026-07-17T21:43:36.712Z
+Stopped at: Completed 08-02-PLAN.md (DEBT-02 live-verified on staging)
 Resume file: None
 
 ## Operator Next Steps
