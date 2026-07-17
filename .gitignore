@@ -6,6 +6,9 @@ node_modules/
 dist/
 .turbo/
 
+# Coverage reports (regenerated on every `vitest run --coverage` — never commit)
+coverage/
+
 # Playwright e2e artifacts (regenerated on every run — never commit)
 test-results/
 playwright-report/
@@ -38,3 +41,6 @@ secrets/*.tmp
 
 # Transient GSD agent worktrees
 .claude/worktrees/
+
+# GSD updater backup of user-owned files (transient, machine-local)
+.claude/gsd-user-files-backup/

@@ -1,146 +1,116 @@
-# Requirements: ImBau — Milestone v1 (Fase 0: Fundación)
+# Requirements: ImBau — Milestone v1.3 Panel de autogestión
 
-**Defined:** 2026-06-12
-**Core Value:** La fundación técnica queda desplegada y operable desde el día uno: cada commit a main termina en software corriendo en staging con aislamiento multi-tenant verificable por RLS.
+**Defined:** 2026-07-17
+**Core Value:** La fundación técnica desplegada y operable: cada commit a main termina corriendo en staging con aislamiento multi-tenant verificable por RLS.
 
-**Regla de alcance:** estrictamente lo que define `docs/modelo-mvp.md` para la fase 0 — nada más (regla de control: <1 semana o se recalibra).
+## v1.3 Requirements
 
-## v1 Requirements
+Requirements de este milestone (fase 4 del plan maestro). Cada uno mapea a una fase del roadmap.
 
-Requirements para el milestone v1 (fase 0). Cada uno mapea a fases del roadmap.
+### Deuda v1.2
 
-### Proceso
+- [ ] **DEBT-01**: `fase-0/foundation` mergeada a `main` con todo v1.2 desplegado en staging
+- [ ] **DEBT-02**: Re-verificación en vivo en staging: rate-limit 429 en `quotes.*`, flujo PDF completo, QR con URL de staging
 
-- [x] **PROC-01**: Antes de comenzar el desarrollo, se commitea el estado actual del repo y se crea la rama `fase-0/foundation` para el milestone v1
+### Shell del panel
 
-### Monorepo & Tooling
+- [ ] **PANEL-01**: Developer navega a `proyectos/[id]` y ve un layout con tabs (unidades, leads, hotspots) scoped al proyecto de su org
+- [ ] **PANEL-02**: Toda mutación del panel exige rol owner/developer (viewer solo lectura) — verificado por matriz de tests cross-rol, no solo UI
 
-- [x] **MONO-01**: El monorepo pnpm + Turborepo compila con apps (`web`, `panel`, `worker`) y packages (`db`, `api`, `quoting`, `ui`, `config`) esqueleto, con dependencias estrictamente descendentes (apps → api → db/ui → config)
-- [x] **MONO-02**: TypeScript 5.9 estricto (sin `any` injustificado) y ESLint 9 flat config corren desde `packages/config` compartido en todo el workspace
-- [x] **MONO-03**: Las variables de entorno se validan con schema Zod tipado al boot; una env faltante o inválida falla rápido con mensaje claro
+### D1 — Grilla de unidades
 
-### Data Layer
+- [ ] **GRID-01**: Developer edita el precio de una unidad inline, por lista de pagos (matriz unidad × price_list), persistido con vigencia
+- [ ] **GRID-02**: Developer cambia el estado de una unidad (disponible/reservado/vendido) desde la grilla
+- [ ] **GRID-03**: Developer exporta la grilla a Excel con template canónico (sanitizado contra formula injection)
+- [ ] **GRID-04**: Developer importa Excel con validación completa y preview dry-run con diff campo por campo antes de aplicar
+- [ ] **GRID-05**: El import se aplica transaccional e idempotente (all-or-nothing, upsert por clave natural; migración `UNIQUE(unit_id, price_list_id)`)
+- [ ] **GRID-06**: Developer aplica bulk edit de precios (% o monto fijo) sobre una selección de unidades
+- [ ] **GRID-07**: Cambios de precio/estado se reflejan en la web pública al instante (revalidación ISR on-demand del picker/cotizador)
 
-- [x] **DATA-01**: `docker compose up -d` levanta Postgres 16 y Redis locales con un comando
-- [x] **DATA-02**: El schema base (organizations → projects + tablas de Better Auth) vive en `packages/db` con migraciones Drizzle versionadas (`generate` + `migrate`, nunca `push` ni cambios manuales)
-- [x] **DATA-03**: Toda tabla con tenant tiene RLS con `FORCE ROW LEVEL SECURITY`, roles de DB dedicados (app sin ownership ni BYPASSRLS, `anon` limitado a proyectos `publicado`) y el contexto de tenant fluye por transacción vía helper `withTenant()` con `SET LOCAL`
-- [x] **DATA-04**: Tests de aislamiento cross-tenant (de ausencia, no solo de presencia) corren contra Postgres real como rol de app: la org A no puede leer datos de la org B — puerta de salida del milestone
+### D2 — Bandeja de leads
 
-### Auth
+- [ ] **LEADS-01**: Developer ve la bandeja de leads con origen (broker / unidad / cotización)
+- [ ] **LEADS-02**: Developer mueve un lead por el pipeline fijo nuevo → contactado → negociación → cerrado
+- [ ] **LEADS-03**: Developer agrega notas al timeline del lead
+- [ ] **LEADS-04**: Developer recibe aviso por email ante lead nuevo (queued e idempotente — nunca bloquea la mutación)
 
-- [x] **AUTH-01**: Un usuario puede registrarse y loguearse con email/contraseña vía Better Auth, y su sesión persiste entre refrescos
-- [x] **AUTH-02**: Un usuario pertenece a organizaciones con roles owner/developer/viewer (organization plugin), y la organización activa de su sesión determina su contexto de tenant
-- [x] **AUTH-03**: Un owner puede invitar miembros a su organización por email (Resend + React Email) y el invitado puede aceptar y entrar con el rol asignado
+### Editor de hotspots
 
-### App Surfaces
+- [ ] **HSPOT-01**: Developer dibuja polígonos de pisos sobre el render exterior del edificio y los vincula a un piso
+- [ ] **HSPOT-02**: Developer dibuja polígonos de unidades sobre la planta del piso y los vincula a una unidad
+- [ ] **HSPOT-03**: Developer edita y borra polígonos existentes
+- [ ] **HSPOT-04**: Polígonos guardados en coordenadas viewBox intrínsecas y validados (no degenerados), consumibles tal cual por el explorador de fase 2 vía las policies anon existentes
 
-- [x] **APP-01**: `apps/panel` tiene login funcionando y una página que lee datos protegidos por RLS de la organización activa
-- [x] **APP-02**: `apps/web` tiene una página que lee vía rol `anon` y solo ve proyectos en estado `publicado`
-- [x] **APP-03**: `apps/worker` existe como shell deployable (BullMQ conectado a Redis, sin lógica de jobs)
-- [x] **APP-04**: Cada app tiene Dockerfile multi-stage con `turbo prune` + Next.js standalone que produce imágenes deployables
+## Future Requirements
 
-### Infra & Deploy
+Diferidos — trackeados pero fuera del roadmap actual.
 
-- [x] **INFRA-01**: Docker Compose completo corre en el VPS de staging detrás de Traefik con TLS: web, panel, worker, Postgres, Redis, Loki/Grafana, Uptime Kuma en `staging.tours.andescode.com.ar`
-- [x] **INFRA-02**: Cada merge a main deploya automáticamente a staging (build → registry → VPS), con migraciones corridas antes del swap de contenedores
-- [x] **INFRA-03**: Los secrets viven cifrados en el repo (SOPS/age) con separación por entorno; nada sensible en texto plano
+### Editor de hotspots
 
-### CI
+- **HSPOT-05**: Snapping + hover-preview en el editor (se itera mirando, cuando el explorador exista)
 
-- [x] **CI-01**: Cada PR corre lint + type-check + tests en GitHub Actions; CI roja = no se mergea
-- [x] **CI-02**: Los tests de aislamiento RLS corren en CI contra un Postgres service real
-- [x] **CI-03**: CI buildea las imágenes Docker de las tres apps con cache de Turborepo y las pushea al registry
+### Realtime
 
-### Observabilidad
+- **RT-01**: SSE vía Postgres LISTEN/NOTIFY para precios/estados en vivo en la web pública (fase 2 — el consumidor es el explorador; los writes ya quedan canalizados por un único path)
 
-- [x] **OBS-01**: Los errores de web, panel y worker llegan a Sentry con contexto (incl. `onRequestError` para errores de RSC)
-- [x] **OBS-02**: Las tres apps loguean estructurado con pino y los logs llegan a Grafana/Loki en staging
-- [x] **OBS-03**: Uptime Kuma monitorea la disponibilidad de los servicios de staging
+### Panel (fase 6 del plan maestro)
 
-## v2 Requirements
-
-Diferido a milestones futuros (fases 1-6 de modelo-mvp.md, en orden ventana-Fable). Trackeado pero fuera del roadmap actual.
-
-### Fase 1 — Schema + Media + Seed
-
-- **SCHEMA-01**: Schema completo de modelo-mvp.md §3.3 (floors, units, price_lists, payment_plans, quotes, brokers, leads, etc.)
-- **MEDIA-01**: Pipeline de media (R2 + sharp + blurhash, variantes AVIF/WebP)
-- **SEED-01**: Seed del edificio ficticio ~13 pisos estilo "Brigos Recoleta"
-
-### Fase 3 — Cotizador
-
-- **QUOT-01**: `packages/quoting` puro con cobertura 100% + property-based tests, UI del cotizador, PDF server-side, CTA WhatsApp
-
-### Fase 4 — Panel
-
-- **PANEL-01**: Grilla de unidades + import/export Excel, bandeja de leads, editor de hotspots
-
-### Fase 2 — Explorador
-
-- **EXPL-01**: Explorador del edificio + ficha de unidad con realtime (SSE)
-
-### Fases 5-6 — Portada/Obra/Brokers y Métricas/QA
-
-- **PORT-01**: Portada, avance de obra, galería, links de broker
-- **METR-01**: Métricas, alertas de interés, branding, e2e completos, performance budget
-
-### Fundación diferida (pre-primer cliente pago)
-
-- **FOUND-01**: Backups Postgres (pgBackRest/wal-g a B2/R2) con restore ensayado
-- **FOUND-02**: Dashboards OTel completos, PgBouncer si la concurrencia lo pide, TLS on-demand para dominios custom
+- **D4**: Métricas (unidades más vistas, sesiones, cotizaciones, conversión, ranking brokers)
+- **D5**: Configuración (logo, colores, textos, formas de pago, brokers)
+- **D6**: Alertas de interés repetido
+- **HIST-01**: UI de historial de precios (los datos se capturan vía vigencia; la UI se difiere)
 
 ## Out of Scope
 
-Excluido explícitamente. Documentado para prevenir scope creep.
+Exclusiones explícitas. Documentadas para prevenir scope creep.
 
 | Feature | Reason |
 |---------|--------|
-| Todo lo marcado `[B]` en modelo-mvp.md | Específico del design partner Pablo; no se construye hasta su feedback (regla A/B) |
-| Lógica de jobs en BullMQ | Fase 0 solo necesita el worker como shell deployable; los jobs reales llegan con media/PDFs |
-| Motor 3D tipo game engine | Decisión de producto: renders estáticos + hotspots SVG (90% de percepción, 10% de costo) |
-| Terminaciones, día/noche, reserva online, API/SDK, CRM completo, apps nativas/VR | Fuera del MVP explícitamente (modelo-mvp.md §2.2) |
-| PocketBase u otros atajos de prototipo | Estándar SaaS profesional desde día uno; el código es la carta de presentación |
-| TypeScript 6.x / ESLint 10 | Matriz de herramientas sin soporte confirmado; pinear TS 5.9 + ESLint 9 y revisitar post-fase-0 |
+| CRM completo (pipelines configurables, scoring, follow-up automático, routing, asignación multi-vendedor) | modelo-mvp.md §2.2: "solo el liviano de D2"; anti-feature confirmada por research |
+| Column-mapping wizard para Excel arbitrario | El template canónico round-trip (export define el formato) cubre el caso real; el wizard es complejidad especulativa |
+| Parsing de fórmulas / multi-sheet en import | Superficie de ataque y complejidad sin caso de uso; solo valores planos del template |
+| Hotspots bezier/freeform/AI-assisted | Polígonos simples cubren el producto; decisión renders estáticos + SVG |
+| SheetJS (`xlsx` de npm) | CVE-2023-30533 sin patch en npm (prototype pollution en el path de import); se usa `exceljs` |
+| Todo lo marcado `[B]` en modelo-mvp.md | Regla de corte A/B — espera feedback de Pablo |
 
 ## Traceability
 
-Qué fases cubren qué requirements. Se actualiza durante la creación del roadmap.
+Qué fases cubren qué requirements. Se actualiza al crear el roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PROC-01 | Phase 1 | Complete |
-| MONO-01 | Phase 1 | Complete |
-| MONO-02 | Phase 1 | Complete |
-| MONO-03 | Phase 1 | Complete |
-| DATA-01 | Phase 2 | Complete |
-| DATA-02 | Phase 2 | Complete |
-| DATA-03 | Phase 2 | Complete |
-| DATA-04 | Phase 2 | Complete |
-| AUTH-01 | Phase 3 | Complete |
-| AUTH-02 | Phase 3 | Complete |
-| AUTH-03 | Phase 3 | Complete |
-| APP-01 | Phase 3 | Complete |
-| APP-02 | Phase 3 | Complete |
-| APP-03 | Phase 3 | Complete |
-| APP-04 | Phase 3 | Complete |
-| INFRA-01 | Phase 4 | Complete |
-| INFRA-02 | Phase 4 | Complete |
-| INFRA-03 | Phase 4 | Complete |
-| CI-01 | Phase 4 | Complete |
-| CI-02 | Phase 4 | Complete |
-| CI-03 | Phase 4 | Complete |
-| OBS-01 | Phase 4 | Complete |
-| OBS-02 | Phase 4 | Complete |
-| OBS-03 | Phase 4 | Complete |
+| DEBT-01 | Phase 8 | Pending |
+| DEBT-02 | Phase 8 | Pending |
+| PANEL-01 | Phase 9 | Pending |
+| PANEL-02 | Phase 9 | Pending |
+| GRID-01 | Phase 10 | Pending |
+| GRID-02 | Phase 10 | Pending |
+| GRID-03 | Phase 10 | Pending |
+| GRID-04 | Phase 10 | Pending |
+| GRID-05 | Phase 10 | Pending |
+| GRID-06 | Phase 10 | Pending |
+| GRID-07 | Phase 10 | Pending |
+| LEADS-01 | Phase 11 | Pending |
+| LEADS-02 | Phase 11 | Pending |
+| LEADS-03 | Phase 11 | Pending |
+| LEADS-04 | Phase 11 | Pending |
+| HSPOT-01 | Phase 12 | Pending |
+| HSPOT-02 | Phase 12 | Pending |
+| HSPOT-03 | Phase 12 | Pending |
+| HSPOT-04 | Phase 12 | Pending |
 
 **Coverage:**
+- v1.3 requirements: 19 total
+- Mapped to phases: 19 ✓
+- Unmapped: 0
 
-- v1 requirements: 24 total (PROC×1, MONO×3, DATA×4, AUTH×3, APP×4, INFRA×3, CI×3, OBS×3)
-- Mapped to phases: 24 ✓
-- Unmapped: 0 ✓
-
-> Nota: la versión inicial registraba "21 total" en el conteo de cobertura, pero los IDs enumerados arriba suman 24. Se corrige el conteo a 24 (la lista de IDs es la fuente de verdad).
+**Phase distribution:**
+- Phase 8 (Deuda v1.2 — merge + re-verificación staging): DEBT-01, DEBT-02
+- Phase 9 (Shell del panel scoped al proyecto + role gate): PANEL-01, PANEL-02
+- Phase 10 (D1 — Grilla de unidades + Excel): GRID-01..07
+- Phase 11 (D2 — Bandeja de leads + email): LEADS-01..04
+- Phase 12 (Editor de hotspots): HSPOT-01..04
 
 ---
-*Requirements defined: 2026-06-12*
-*Last updated: 2026-06-18 — APP-03 marked Complete (worker deployable shell delivered & verified 4/4 in Phase 3)*
+*Requirements defined: 2026-07-17*
+*Last updated: 2026-07-17 after roadmap creation (Phases 8-12 mapped, 19/19 coverage)*

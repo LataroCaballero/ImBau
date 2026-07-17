@@ -68,6 +68,10 @@ services:
 
   web:
     image: ghcr.io/latarocaballero/imbau-web:${IMAGE_TAG:-latest}
+    # REDIS_URL + R2_* are inherited from the SOPS-decrypted .env (fase-7 D-02): web now
+    # hosts the PDF producer (quotes.create enqueue) + presign (quotes.pdfStatus), so it
+    # needs the same Redis + R2 values worker/media already consume — no new secret to
+    # generate. env.ts validates them at boot (server-only, never NEXT_PUBLIC_ — T-07-05).
     env_file: [.env] # decrypted by deploy.sh (plan 04-06)
     environment:
       APP_NAME: web # -> pino-loki label (Pattern 6)
@@ -77,6 +81,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy # web enqueues quote-pdf jobs (fase-7 D-02)
     mem_limit: 512m
     restart: unless-stopped
 
@@ -99,6 +105,9 @@ services:
     env_file: [.env]
     environment:
       APP_NAME: worker
+      # Public origin of apps/web — used to build the cotizador deep-link + QR rendered
+      # into the PDF footer (fase-7 D-08). Non-secret; hardcoded to the staging host.
+      WEB_PUBLIC_BASE_URL: https://staging.tours.andescode.com.ar
     networks: [internal] # no host port — internal jobs only
     depends_on:
       redis:

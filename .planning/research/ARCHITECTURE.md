@@ -1,380 +1,259 @@
 # Architecture Research
 
-**Domain:** Multi-tenant SaaS foundation (phase 0) — pnpm/Turborepo monorepo, Next.js App Router + tRPC, Postgres 16 + Drizzle with RLS, Better Auth, BullMQ/Redis, Docker Compose + Traefik on a VPS
-**Researched:** 2026-06-12
-**Confidence:** HIGH on monorepo/tRPC/Drizzle/Better-Auth wiring and the RLS-in-a-transaction pattern (verified against current docs and known Postgres semantics); MEDIUM on exact Docker Compose service tuning and CI cache details (depends on VPS specifics not yet pinned).
+**Domain:** Panel de autogestión (developer self-service) sobre monorepo Next.js/tRPC/Drizzle-RLS existente — milestone v1.3
+**Researched:** 2026-07-17
+**Confidence:** HIGH (verified against the actual schema, routers, worker and panel code in-repo)
 
-> Scope note: the stack is **already decided** (CLAUDE.md §Stack). This document is not an ecosystem survey — it answers *how these phase-0 pieces are typically wired together, where the boundaries sit, how the tenant context reaches RLS, and in what order to build them*. It deliberately omits product features (explorer, quoting, panel CRUD) — those are later milestones.
+## Scope
 
----
+This is **integration research for a subsequent milestone**, not greenfield domain research. The stack, tenancy model and worker are decided and shipped (v1.0–v1.2). The question is precisely *how the three new panel surfaces (D1 grilla + Excel, D2 leads + email, editor de hotspots) attach to the existing seams* without violating RLS, the money rules, or the "errores observables" mandate — and in what order to build them.
+
+**Headline findings (each expanded below):**
+
+1. **Excel runs inline in a tRPC mutation on the app pool — no worker, no R2, no multipart.** The dataset is ~tens to low-hundreds of rows (Brigos = 38 units). BullMQ/R2 is reserved for CPU-heavy async work (sharp, PDF); Excel of a building is a KB-scale payload.
+2. **The hotspot data model already exists.** `floors.poligonoSvg` and `units.poligonoSvg` are live TEXT columns with tenant + anon-published RLS policies. **No new table, no migration for the model.** Hotspots = a panel editor UI + write mutations + the *reuse* of the existing anon read policies for the future explorador.
+3. **Lead state transitions append to `leads.timeline` (JSONB) and email should be a queued BullMQ job**, mirroring the "email/PDF is never the critical path" precedent (D-02/D-10). Inline Resend (the invitation precedent) is the simpler fallback.
+4. **Price propagation: leave nothing running this milestone.** Do **not** emit `pg_notify` with no consumer. The single load-bearing move is to funnel every `unit_prices` write through one server path so Fase-5's SSE `NOTIFY` is a one-line insertion later.
+5. **One real schema change is likely needed:** a tenant-scoped `UNIQUE(unit_id, price_list_id)` on `unit_prices` to make the grid/Excel upsert idempotent AND to keep the existing quote resolver (which assumes one contado + one financiado USD row per unit) correct.
 
 ## Standard Architecture
 
-### System Overview — monorepo package graph (build/dependency direction)
+### System Overview — where each new feature attaches
 
 ```
-┌──────────────────────────── apps (deployables) ────────────────────────────┐
-│  ┌──────────────┐      ┌──────────────┐      ┌──────────────┐              │
-│  │  apps/web    │      │  apps/panel  │      │ apps/worker  │              │
-│  │ (public,RSC/ │      │ (Next.js,    │      │ (Node proc,  │              │
-│  │  ISR, anon)  │      │  authed)     │      │  BullMQ)     │              │
-│  └──────┬───────┘      └──────┬───────┘      └──────┬───────┘              │
-│         │                     │                     │                       │
-│         │ imports             │ imports             │ imports               │
-└─────────┼─────────────────────┼─────────────────────┼───────────────────────┘
-          ▼                     ▼                     ▼
-┌──────────────────────────── packages (libraries) ──────────────────────────┐
-│   ┌───────────────────────────────────────────────────────────────────┐   │
-│   │ packages/api   (tRPC routers + context + RLS middleware + auth glue)│   │
-│   └───────┬───────────────────────────┬───────────────────────┬────────┘   │
-│           │ imports                    │ imports               │ imports     │
-│           ▼                            ▼                       ▼             │
-│   ┌──────────────┐            ┌──────────────┐        ┌──────────────┐      │
-│   │ packages/db  │            │packages/quot.│        │ packages/ui  │      │
-│   │ (Drizzle     │            │ (pure quote  │        │ (shadcn kit, │      │
-│   │  schema +    │            │  engine —    │        │  panel/web)  │      │
-│   │  client +    │            │  no I/O)     │        └──────────────┘      │
-│   │  RLS helpers)│            └──────────────┘                              │
-│   └──────┬───────┘                                                          │
-│          │ imports                                                          │
-│          ▼                                                                  │
-│   ┌──────────────┐                                                          │
-│   │packages/config│ (tsconfig base, eslint, env schema/Zod, shared const)  │
-│   └──────────────┘                                                          │
-└─────────────────────────────────────────────────────────────────────────────┘
-          │ (all DB access)                          │ (cross-cutting)
-          ▼                                          ▼
-┌──────────────────────────── runtime infra (Docker Compose) ────────────────┐
-│  Traefik ─► web/panel/worker     Postgres 16 (RLS)     Redis (BullMQ)       │
-│  Better Auth tables ◄── same Postgres        Loki/Grafana   Uptime Kuma     │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│  apps/panel  (Next.js App Router, Better Auth session + activeOrgId)   │
+│  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌────────────────────┐   │
+│  │ Grilla    │  │ Bandeja   │  │ Editor     │  │ (existing)         │   │
+│  │ unidades  │  │ leads     │  │ hotspots   │  │ dashboard + invite │   │
+│  │ + Excel   │  │ + email   │  │ (SVG draw) │  │                    │   │
+│  └─────┬─────┘  └─────┬─────┘  └─────┬──────┘  └──────────┬─────────┘   │
+│  RSC read via createCaller · writes via useTRPC() client islands       │
+└────────┼──────────────┼──────────────┼───────────────────┼────────────┘
+         │ tRPC (type-safe, no codegen) — httpBatchLink → /api/trpc       │
+┌────────┴──────────────┴──────────────┴───────────────────┴────────────┐
+│  packages/api  (tRPC v11)   protectedProcedure → requireRole(...)      │
+│  ┌────────────────┐ ┌──────────────┐ ┌──────────────┐                  │
+│  │ units router   │ │ leads router │ │ floors/units │  ← NEW routers   │
+│  │ (grid/prices/  │ │ (list/estado │ │  hotspot     │                  │
+│  │  Excel import) │ │  /notify)    │ │  mutations)  │                  │
+│  └───────┬────────┘ └──────┬───────┘ └──────┬───────┘                  │
+│          │  ALL writes go through withTenant(ctx.activeOrgId, …)       │
+└──────────┼─────────────────┼────────────────┼─────────────────────────┘
+           │                 │ enqueue email   │
+┌──────────┴─────────────────┼────────────────┴─────────────────────────┐
+│  packages/db  (Drizzle + RLS FORCE)   app pool (app_authenticated)     │
+│  units · unit_prices · price_lists · leads(timeline) · floors          │
+│  units.poligonoSvg / floors.poligonoSvg  ← ALREADY EXIST               │
+└──────────┼─────────────────┼──────────────────────────────────────────┘
+           │                 ↓ (recommended) EMAIL_QUEUE
+┌──────────┼───────────┐  ┌──┴───────────────────────────────────────────┐
+│  PostgreSQL 16 (RLS) │  │ apps/worker (BullMQ)  media · quote-pdf · …   │
+│                      │  │  + NEW email consumer → Resend (React Email)  │
+└──────────────────────┘  └───────────────────────────────────────────────┘
 ```
-
-**The golden rule of the graph: dependencies point downward, never up or sideways between apps.** Apps import packages; packages never import apps; `packages/api` is the only package that touches `db`, `quoting`, and auth together; `quoting` and `ui` import nothing but `config`. No app imports another app. This is what makes Turborepo caching and independent deploys work, and it is the single most common thing to get wrong on day one.
 
 ### Component Responsibilities
 
-| Component | Responsibility (owns) | Typical implementation | Phase-0 scope |
-|-----------|----------------------|------------------------|---------------|
-| `packages/config` | Shared tsconfig, eslint/prettier, **env validation (Zod `t3-env` style)**, shared constants (roles, project states) | Plain TS exports + `tsconfig.base.json`; `env.ts` parses `process.env` and throws at boot | Full |
-| `packages/db` | Drizzle schema, migrations, the **two connection roles** (`app`/`anon`), the `withTenant()` transaction helper that issues `set_config` | Drizzle + `postgres-js`/`node-postgres`; SQL migration files committed; RLS policies defined as SQL | Auth tables + org/membership/project skeleton + RLS scaffolding |
-| `packages/quoting` | Pure deterministic quote math — no I/O, no DB | Pure functions; 100% coverage, property-based tests | **Skeleton only** (package exists, real engine is phase 3) |
-| `packages/ui` | Shared shadcn/ui components, theme tokens | shadcn/ui + Tailwind, consumed by web & panel | Skeleton |
-| `packages/api` | tRPC routers, **request context builder**, RLS middleware, Better-Auth-session→tenant glue, Zod input validation | `@trpc/server` routers; `createContext` reads Better Auth session, resolves active org, opens tenant transaction | `appRouter` skeleton + `auth`/`org` routers + protected/public procedures |
-| `apps/web` | Public showroom; RSC + ISR; reads only `publicado` projects via **anon role** | Next.js App Router; tRPC server-side caller for RSC, no auth session | "Hello tenant" page proving anon RLS read works |
-| `apps/panel` | Authenticated self-service panel | Next.js App Router; Better Auth client + tRPC React Query | Login + org switch + a single RLS-protected query |
-| `apps/worker` | Background jobs (images, PDFs, emails, alerts) | Long-running Node process; BullMQ consumers; imports `db`/`api` service layer | Skeleton consumer + healthcheck + one no-op job |
-| Postgres 16 | System of record + tenant isolation (RLS) + LISTEN/NOTIFY | Single instance, two app roles | Full (this *is* the foundation) |
-| Redis | BullMQ queue backing store | Single instance | Full |
-| Traefik | TLS termination, routing by host, edge rate-limit middleware | Docker labels per service; Let's Encrypt | staging host routing + TLS |
-| Better Auth | Sessions, organizations, memberships, roles, email invites | Better Auth + `organization` plugin + Drizzle adapter, **same Postgres** | Full |
-
----
+| Component | Responsibility (new work) | Reuses / mirrors |
+|-----------|---------------------------|------------------|
+| Panel RSC pages | Read grid/leads/floors via `createCaller` → `withTenant` → RLS | `app/(dashboard)/page.tsx` pattern (listForOrg) |
+| Panel client islands | Interactive edits/import/draw via `useTRPC()` mutations | `invite-form.tsx` + `TRPCReactProvider` |
+| `units` router (NEW) | `list`, `updateEstado`, `upsertPrice`, `importExcel` — all `requireRole("owner","developer")` | `media.ts` (mutation + withTenant + RLS scoping) |
+| `leads` router (NEW) | `listForOrg`, `updateEstado` (append timeline + enqueue email) | `projects.listForOrg`, `quotes.create` enqueue side-effect |
+| hotspots mutations (NEW) | `floors.setPolygon`, `units.setPolygon` writing `poligonoSvg` | flat `withTenant` write, RLS `*_tenant` policy |
+| Worker email consumer (NEW, recommended) | Send lead notifications via Resend, retried + observable | `quote-pdf` worker (concurrency, `failed` handler, jobOptions dedup) |
 
 ## Recommended Project Structure
 
 ```
-imbau/
-├── apps/
-│   ├── web/                    # public showroom (anon role, RSC/ISR)
-│   │   ├── src/app/            # App Router; (public) routes only
-│   │   ├── src/trpc/           # server-side tRPC caller (no client session)
-│   │   └── Dockerfile
-│   ├── panel/                  # authenticated panel
-│   │   ├── src/app/            # App Router; auth-gated layout
-│   │   ├── src/lib/auth-client.ts   # Better Auth React client
-│   │   ├── src/trpc/           # tRPC React Query provider + client
-│   │   └── Dockerfile
-│   └── worker/                 # BullMQ consumers
-│       ├── src/queues/         # one file per queue
-│       ├── src/index.ts        # process bootstrap + graceful shutdown
-│       └── Dockerfile
-├── packages/
-│   ├── config/                 # tsconfig.base, eslint, env.ts (Zod), constants
-│   ├── db/
-│   │   ├── src/schema/         # auth.ts, organizations.ts, projects.ts, ...
-│   │   ├── src/rls/            # policies.sql helpers + withTenant()/withAnon()
-│   │   ├── src/client.ts       # pool(s) + role connections
-│   │   ├── drizzle.config.ts
-│   │   └── migrations/         # *.sql, committed, never edited after apply
-│   ├── api/
-│   │   ├── src/trpc.ts         # initTRPC, procedure builders, middlewares
-│   │   ├── src/context.ts      # createContext: session → org → tenant tx
-│   │   ├── src/root.ts         # appRouter (merges sub-routers)
-│   │   ├── src/routers/        # auth.ts, organization.ts, project.ts ...
-│   │   └── src/auth.ts         # Better Auth server instance (shared)
-│   ├── quoting/                # pure engine (skeleton in phase 0)
-│   └── ui/                     # shadcn components + theme
-├── infra/
-│   ├── docker-compose.yml      # full local + staging topology
-│   ├── docker-compose.staging.yml  # overrides (Traefik labels, volumes)
-│   └── traefik/                # dynamic config, middlewares (rate-limit)
-├── .github/workflows/ci.yml    # lint+typecheck+test → build → deploy staging
-├── turbo.json                  # task graph + cache config
-├── pnpm-workspace.yaml
-└── package.json
+packages/api/src/trpc/routers/
+├── units.ts        # NEW — grid read + estado/price writes + Excel import (inline parse)
+├── leads.ts        # NEW — listForOrg + updateEstado (timeline append + email enqueue)
+├── hotspots.ts     # NEW — floors.setPolygon / units.setPolygon (or fold into units/floors)
+├── _app.ts         # MODIFIED — mount units, leads, hotspots
+packages/api/src/
+├── excel/          # NEW — parse+build helpers (pure; SheetJS/exceljs), Zod row schema
+├── email/
+│   ├── lead-notification.ts   # NEW — payload builder + Resend send (or enqueue verb)
+│   └── templates/lead-*.tsx   # NEW — React Email template(s)
+packages/storage/src/queue.ts  # MODIFIED — add EMAIL_QUEUE + EmailJobData + emailJobOptions
+apps/worker/src/
+├── email.ts        # NEW — processEmail consumer + reportEmailFailure
+├── index.ts        # MODIFIED — createEmailWorker + failed handler in boot()
+apps/panel/app/(dashboard)/
+├── proyectos/[id]/unidades/   # NEW — grilla + import/export
+├── proyectos/[id]/leads/      # NEW — bandeja
+├── proyectos/[id]/hotspots/   # NEW — editor
+└── proyectos/[id]/layout.tsx  # NEW — project-scoped shell + tab nav
+packages/db/drizzle/           # NEW migration — UNIQUE(unit_id, price_list_id) on unit_prices
 ```
 
 ### Structure Rationale
 
-- **`packages/api` is the seam, not the apps.** Both Next.js apps and the worker import the *same* `appRouter` type and the *same* service functions. The router lives in a package so the web app gets server-side type-safe calls in RSC, the panel gets a typed client, and the worker can call business logic directly without HTTP. Putting tRPC inside one app and re-importing across apps breaks Turborepo boundaries.
-- **`db` owns RLS, not `api`.** The connection roles, the `withTenant()` transaction helper, and the policy SQL live next to the schema they protect. `api` *uses* `withTenant()` but never constructs raw connections. This keeps "how isolation works" in one auditable place.
-- **`config/env.ts` is imported by everything that boots.** A single Zod-validated env object that throws on missing vars at startup prevents the classic "deployed to staging, crashes on first request because `DATABASE_URL` was a typo."
-- **`apps/web` has no auth client at all.** It only ever uses the anon connection. Physically separating the public surface (no session cookies, no panel mutations) shrinks the attack surface and lets ISR cache aggressively.
-- **`infra/` is versioned in the repo.** Compose + Traefik config are reviewed like code; staging and prod differ only by an override file and secrets.
-
----
+- **New routers, not fatter existing ones:** each surface gets its own router file mounted in `_app.ts`, exactly as `quotes`/`picker`/`media` are. Keeps the grep-fence ("import ONLY `withTenant/withAnon/schema`") auditable per file.
+- **`packages/api/src/excel/` is pure:** parse/build are I/O-free and unit-testable, matching the "funciones puras" bias of `packages/quoting`. The mutation is the only I/O boundary.
+- **Panel gains a project-scoped route group** (`proyectos/[id]/…`): today the panel is a single dashboard. Units, leads and hotspots are all *project*-scoped, so a shared `[id]` layout carrying "which project am I editing" is a prerequisite for all three (see Build Order, wave 1).
 
 ## Architectural Patterns
 
-### Pattern 1: Tenant context via transaction-scoped `set_config` (the keystone)
+### Pattern 1: Excel import/export inline in a tRPC mutation (no worker, no R2)
 
-**What:** Every authenticated request runs its DB work inside a **single transaction**, and the first statement of that transaction sets the tenant id (and role) using `set_config('app.org_id', $1, true)` — the `true` makes it `SET LOCAL`, scoped to the transaction. RLS policies read `current_setting('app.org_id')`. When the transaction commits/rolls back, the setting evaporates, so the pooled connection is clean for the next request.
+**What:** Import = client reads the `.xlsx` with SheetJS → sends a normalized rows array to `units.importExcel` → Zod-validate → one `withTenant` transaction that upserts prices/estado and returns a per-row result report. Export = `units.exportGrid` returns the grid JSON; the browser builds the `.xlsx`. Server-side parse of an uploaded base64 file is an equivalent variant — the load-bearing rule is *validation + write happen server-side under `withTenant`*, regardless of where bytes are parsed.
 
-**When to use:** Always, for every tenant-scoped read or write. There is no "set it once on connect" shortcut that is safe with pooling.
+**When to use:** Small, bounded datasets (a building is ~38–hundreds of units). Response is synchronous — the user sees "12 filas actualizadas, 2 con error" immediately.
 
-**Trade-offs:** Every request pays for a transaction (cheap) and you must remember that a query *outside* `withTenant()` sees nothing (or errors) — which is the desired fail-closed behavior. Cannot use a statement-pooling pooler (PgBouncer statement mode) — see anti-patterns.
-
-**Example:**
-```typescript
-// packages/db/src/rls/with-tenant.ts
-export async function withTenant<T>(
-  orgId: string,
-  role: "app_user",
-  fn: (tx: Tx) => Promise<T>,
-): Promise<T> {
-  return db.transaction(async (tx) => {
-    // SET LOCAL: scoped to THIS transaction only — pool-safe.
-    await tx.execute(sql`select set_config('app.org_id', ${orgId}, true)`);
-    await tx.execute(sql`set local role ${sql.raw(role)}`);
-    return fn(tx); // all queries here are RLS-filtered to orgId
-  });
-}
-
-// A policy that uses it (in policies.sql):
-//   create policy org_isolation on projects using
-//     (organization_id = current_setting('app.org_id')::uuid);
-```
-
-### Pattern 2: tRPC context = (Better Auth session → active org → tenant tx factory)
-
-**What:** `createContext` validates the Better Auth session, reads `session.activeOrganizationId`, verifies the user's membership/role, and exposes a `db` bound to that org via `withTenant`. A `protectedProcedure` middleware throws `UNAUTHORIZED` if no session and `FORBIDDEN` if the user isn't a member of the requested org. The public app uses a separate `publicProcedure` wired to the **anon role** path that only sees `publicado` projects.
-
-**When to use:** The standard request pipeline for both apps. The web app uses public procedures; the panel uses protected ones.
-
-**Trade-offs:** The active-org indirection (org switcher updates `activeOrganizationId` on the session) is the right model but means org membership must be re-checked server-side on every call — never trust the client's claimed org.
+**Trade-offs:** Inline blocks the request for the parse+write, but at these row counts that is milliseconds. **Do not** route this through BullMQ/R2 — that pattern exists for CPU-heavy async work (sharp variants, react-pdf) where the user must not wait; Excel here is neither heavy nor async. Cap the row count (e.g. ≤2000) and the payload at the tRPC boundary as a DoS guard, mirroring `media.ts`'s `MAX_UPLOAD_BYTES`.
 
 **Example:**
 ```typescript
-// packages/api/src/context.ts
-export async function createContext({ headers }: { headers: Headers }) {
-  const session = await auth.api.getSession({ headers });
-  return { session, db };
-}
-
-// packages/api/src/trpc.ts
-export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
-  const orgId = ctx.session?.session.activeOrganizationId;
-  if (!ctx.session || !orgId) throw new TRPCError({ code: "UNAUTHORIZED" });
-  // membership re-check happens inside withTenant via RLS + an explicit guard
-  return next({
-    ctx: { ...ctx, orgId, runTenant: <T>(fn: (tx: Tx) => Promise<T>) =>
-      withTenant(orgId, "app_user", fn) },
-  });
-});
+// units.importExcel — protectedProcedure + requireRole("owner","developer")
+.input(z.object({ projectId: z.uuid(), rows: z.array(unitPriceRowSchema).max(2000) }))
+.mutation(({ ctx, input }) =>
+  withTenant(ctx.activeOrgId, async (tx) => {
+    // RLS scopes every read/write to activeOrg; a foreign unitId is invisible → reported, not written.
+    // upsert unit_prices (needs UNIQUE(unit_id, price_list_id)); update units.estado.
+    // return { updated, skipped: [{ row, reason }] } — never throw on one bad row.
+  }))
 ```
 
-### Pattern 3: Two Postgres roles, one database, fail-closed by default
+### Pattern 2: Hotspot polygons as data on existing columns (zero-migration model)
 
-**What:** Create a privileged migration/owner role (used only by Drizzle migrations and the worker's trusted paths), an `app_user` role for authenticated requests (RLS-enforced, scoped by `app.org_id`), and an `anon` role for the public web (RLS limited to `projects.estado = 'publicado'`). The app connects as a login role that `SET ROLE`s into `app_user`/`anon` per transaction. Tables have `enable row level security` **and `force row level security`** so even the table owner is constrained.
+**What:** Each floor already owns `floors.poligonoSvg` (its shape on the building/exterior render) and each unit owns `units.poligonoSvg` (its shape on the floor-plan render). The editor loads a background render, lets the operator draw a polygon, and persists the point list as TEXT via `floors.setPolygon` / `units.setPolygon` under `withTenant`. The future explorador reads the same columns through the **already-shipped** `floors_anon_published` / `units_anon_published` SELECT policies.
 
-**When to use:** From the first migration. Retrofitting RLS after tables exist is a known rewrite trap.
+**When to use:** This is the intended model — the columns and both policies exist. No new `hotspots` table is warranted; the navigation graph is exactly building→floor polygon→unit polygon.
 
-**Trade-offs:** Slightly more setup; you must remember to add a policy whenever you add a tenant table (enforce via a test that asserts every tenant table has RLS enabled).
+**Trade-offs:** One polygon per level per row (sufficient for this navigation). If richer per-hotspot metadata is ever needed, a table comes later — not now. **XSS posture:** store polygon *coordinates* (validate a points/JSON string with Zod), and render them through React `<polygon points=…>` — never `dangerouslySetInnerHTML` a stored SVG document. This is consistent with `media.ts` deliberately rejecting `image/svg+xml` uploads.
 
-### Pattern 4: Worker calls the service layer directly, not over HTTP
+**Open confirmation (LOW-risk):** the *building-level* background render (the image the floor polygons sit on) — `floors.renderKey` is the floor-plan render; confirm where the exterior/building render lives (a `projects` field or a designated `media` row) before wiring the floor editor's canvas. Unit polygons clearly sit on `floors.renderKey`.
 
-**What:** The worker imports the same business functions `packages/api` exposes (or a thin `services` layer beneath the routers) and runs them with an explicit org context (jobs carry `orgId` in their payload, fed into `withTenant`). It does not call the Next.js apps over HTTP.
+### Pattern 3: Lead state transition = timeline append + queued email (email off the critical path)
 
-**When to use:** All background work. Realtime fan-out (later) is the worker/DB emitting `NOTIFY`; SSE endpoints in the web app `LISTEN`.
+**What:** `leads.updateEstado` runs under `withTenant`, sets `leads.estado` and appends a typed `LeadNote` to `leads.timeline` (validated by the existing `leadNoteSchema`), then enqueues an `EMAIL_QUEUE` job. The transition commits regardless of email outcome; the worker sends via Resend with attempts/backoff and a `failed` → Sentry+pino handler.
 
-**Trade-offs:** Requires keeping a clean service layer that doesn't assume an HTTP request object — good discipline anyway. In phase 0 this is just a no-op job proving the wiring + graceful shutdown.
+**When to use:** Any developer-facing action whose latency matters and whose email is non-critical. This mirrors the shipped decision that the PDF/WhatsApp path never blocks on the side effect (D-02/D-10).
 
----
+**Trade-offs:** A queued email adds a queue + worker consumer (~1 file + `queue.ts` contract + boot wiring — all cloned from `quote-pdf`). The simpler alternative is **inline Resend in the mutation**, exactly as `send-invitation.ts` does today (awaited, throws on failure). Inline is acceptable for v1 low volume but couples transition latency and success to email delivery. Recommendation: **queue it** to match the async precedent and the observability mandate; fall back to inline only if the queue wiring is deemed out of budget.
+
+**Events table note:** `events` (partitioned analytics) is a *Fase-6 metrics* concern. This milestone's source of truth for a lead's history is `leads.timeline`. Emitting an `events` row per transition is optional and cheap, but building the metrics consumer is explicitly out of scope — do not couple D2 to it.
 
 ## Data Flow
 
-### Request flow — authenticated panel mutation (the canonical path)
-
+### D1 — grid edit / Excel import
 ```
-[Panel UI action]
-   ↓  tRPC client (React Query) + Better Auth session cookie
-[Traefik] → [apps/panel Next.js route handler]
-   ↓  createContext: auth.getSession() → activeOrganizationId
-[protectedProcedure middleware]  → verify session + org membership
-   ↓  runTenant(orgId, tx => ...)
-[BEGIN tx; set_config('app.org_id', orgId, true); set local role app_user]
-   ↓  Drizzle query
-[Postgres RLS] filters rows to orgId  →  rows
-   ↓  COMMIT (tenant context auto-discarded)
-[typed result] → tRPC → React Query cache → UI
+Operator edits cell / drops .xlsx
+    ↓ (client island; SheetJS parses xlsx → rows[])
+useTRPC().units.updateEstado | upsertPrice | importExcel  (POST /api/trpc)
+    ↓ protectedProcedure → requireRole("owner","developer")
+withTenant(ctx.activeOrgId) → RLS units_tenant / unit_prices_tenant
+    ↓ upsert unit_prices (UNIQUE unit_id+price_list_id) · update units.estado
+Postgres commits → per-row report returned → grid refetch
 ```
 
-### Request flow — public read (anon)
-
+### D2 — lead transition + notification
 ```
-[Visitor opens proyecto.com] → [Traefik] → [apps/web RSC]
-   ↓  server-side tRPC caller, publicProcedure (NO session)
-[BEGIN tx; set local role anon]
-   ↓  Drizzle query
-[Postgres RLS] → only projects.estado = 'publicado' visible → rows
-   ↓  COMMIT  →  RSC renders, ISR caches
-```
-
-### Tenant-context flow (the thing to get exactly right)
-
-```
-Better Auth session
-   └─ session.activeOrganizationId   (set on login / org switch)
-        └─ tRPC protectedProcedure re-validates membership
-             └─ withTenant(orgId): SET LOCAL app.org_id INSIDE a tx
-                  └─ Postgres current_setting('app.org_id') in RLS policy
-                       └─ rows physically filtered by the database
+Operator moves lead nuevo→contactado
+    ↓ useTRPC().leads.updateEstado
+withTenant(activeOrgId): set estado + append LeadNote to timeline (commit)
+    ↓ enqueue EMAIL_QUEUE { leadId, organizationId, event }
+apps/worker → processEmail → withTenant(orgId) read lead/broker recipient
+    ↓ Resend send (React Email) · retries · failed→Sentry+pino
 ```
 
-The isolation guarantee lives in **Postgres**, not in application `where` clauses. Application code can forget a filter; RLS can't. That is the whole point of choosing RLS over app-level scoping for this product.
-
-### Key data flows (phase 0)
-
-1. **Login + org bootstrap:** user authenticates (Better Auth) → if no active org, a `databaseHook` `before` session creation sets `activeOrganizationId` to their first membership → subsequent requests carry it.
-2. **Invite:** owner invites email → Better Auth `organization` plugin creates an invitation row → Resend (via worker) sends the email → invitee accepts → membership row created with role.
-3. **Migration/deploy:** CI builds images → on merge to main, deploy step runs `pnpm db:migrate` (privileged role) against staging Postgres *before* swapping app containers.
-
----
-
-## Suggested Build Order (phase-0 components, by dependency)
-
-Derived strictly from the package graph above — build leaves first, then the seam, then the deployables, then the operational shell.
-
-1. **Repo skeleton + `packages/config`** — pnpm workspaces, `turbo.json`, base tsconfig/eslint, **Zod env schema**. Nothing compiles meaningfully without this. (Unblocks everything.)
-2. **`docker compose up` for Postgres + Redis** — you need a real DB locally before schema work. Keep it minimal here (data services only); add Traefik/observability later.
-3. **`packages/db`: Drizzle + Better Auth tables + org/membership/project skeleton + the two roles + `withTenant`/`withAnon` + first RLS policies.** This is the riskiest, highest-value unit — do it early while attention is fresh. Ship with a test asserting RLS isolation (org A cannot see org B).
-4. **Better Auth server instance (`packages/api/src/auth.ts`) wired to the Drizzle adapter + organization plugin.** Depends on db (auth tables). Verify sessions + org switch + invite create.
-5. **`packages/api`: tRPC init, context (session→org→tx), protected/public procedures, a trivial `organization`/`project` router.** Depends on db + auth.
-6. **`apps/panel`: login, org switcher, one protected query that proves RLS end-to-end through the UI.** Depends on api.
-7. **`apps/web`: one public page that reads a `publicado` project via the anon path** — proves the public/anon isolation boundary. Depends on api/db.
-8. **`apps/worker`: BullMQ consumer skeleton, graceful shutdown, one no-op job + healthcheck.** Depends on db (+ redis already up).
-9. **Full Docker Compose topology + Traefik** (web/panel/worker/traefik labels, TLS, edge rate-limit middleware for `leads`/`events` later). Depends on apps building into images.
-10. **Observability: pino structured logs → Loki/Grafana, Sentry init in each app, Uptime Kuma, OTel scaffolding.** Cross-cutting; wire once apps run.
-11. **CI/CD: GitHub Actions** — `lint → typecheck → test (incl. RLS isolation test) → build images → push registry → deploy staging + run migrations`. Last because it orchestrates everything above.
-
-**Critical ordering constraints:** RLS (step 3) must precede any app code, because retrofitting it is a rewrite. Auth (4) precedes api context (5) precedes both apps (6,7). Migrations run *before* container swap in deploy (step 11). Observability (10) and CI (11) are the "operable from day one" payoff and should not be deferred past the milestone even though they come last in dependency order.
-
----
-
-## CI Pipeline Shape (GitHub Actions)
-
+### Price-propagation seam (leave dormant)
 ```
-on: push → [ install (pnpm, cached) ]
-   → turbo run lint typecheck test   (affected-graph aware, remote/Turbo cache)
-        └─ includes the RLS isolation test (spins ephemeral Postgres service)
-   → turbo run build                  (Next.js standalone output for web/panel)
-   → docker build + push per app      (only on main)
-on: merge to main →
-   → ssh/registry deploy to VPS
-   → pnpm db:migrate (privileged role) BEFORE container swap
-   → docker compose up -d (rolling)   → smoke check via Uptime Kuma / healthchecks
-prod: same workflow, manual approval gate.
+unit_prices write (grid/Excel)  ──▶  [ Fase-5 insertion point: pg_notify inside the SAME withTenant tx ]
+                                       (NO consumer, NO NOTIFY built this milestone)
 ```
-
-Build order inside CI mirrors the package graph (Turborepo computes it); the only hand-ordered step is **migrate-before-swap** in deploy.
-
----
-
-## Scaling Considerations
-
-| Scale | Architecture adjustments |
-|-------|--------------------------|
-| 0–1k visitors (MVP/staging) | Single VPS, single Postgres, single Redis, Compose. ISR + R2 absorb public read load. No pooler needed yet. This is the whole milestone-v1 target. |
-| 1k–100k visitors | Add a **transaction-mode** connection pooler (PgBouncer/Supavisor) — compatible because the RLS pattern already uses `SET LOCAL`-in-a-transaction. Move worker to its own VPS. Read replicas for the public/anon read path. |
-| 100k+ | Partition `events` is already designed (monthly); offload analytics to ClickHouse (already noted as the path). Consider per-large-tenant schema/db split only if a single tenant dwarfs others — RLS handles the long tail. |
-
-### Scaling priorities
-
-1. **First bottleneck: image/media delivery on 4G**, not the DB. Mitigated by R2 + AVIF/WebP variants (phase 1) and Lighthouse budget in CI — architectural, not a DB concern.
-2. **Second bottleneck: connections under concurrency.** The transaction-scoped RLS choice future-proofs this: a transaction-mode pooler drops in without touching app code. (If we had chosen session-level `SET`, adding a pooler would be a rewrite — which is exactly why we didn't.)
-
----
-
-## Anti-Patterns
-
-### Anti-Pattern 1: Setting tenant context once per connection (or in middleware before a transaction)
-
-**What people do:** `SET app.org_id = ...` (session-level) on connect or at the start of a request, then run queries on a pooled connection.
-**Why it's wrong:** With any connection pooling, a later request reuses that connection and inherits the previous tenant's context → cross-tenant data leak that only manifests under concurrency in production. Statement-mode poolers break it outright.
-**Do this instead:** `SET LOCAL` / `set_config(..., true)` **inside the transaction** that runs the queries (Pattern 1). Context dies with the transaction; the connection returns clean.
-
-### Anti-Pattern 2: Enforcing tenancy with application `where org_id = ?` instead of RLS
-
-**What people do:** Skip RLS and add a `where` clause in every Drizzle query.
-**Why it's wrong:** One forgotten clause = silent cross-tenant leak; nothing fails loudly. CLAUDE.md mandates RLS for this reason.
-**Do this instead:** RLS in the database with `force row level security`; the app `where` clauses become an optimization, not the security boundary. Add a test that fails if any tenant table lacks RLS.
-
-### Anti-Pattern 3: Putting tRPC routers inside one app and importing across apps
-
-**What people do:** Define routers in `apps/panel` and import them from `apps/web`/`apps/worker`.
-**Why it's wrong:** Creates app→app dependencies, breaks Turborepo caching and independent deploys, and tangles the public and authed surfaces.
-**Do this instead:** Routers + context live in `packages/api`; every app imports the package. Apps never import apps.
-
-### Anti-Pattern 4: Mixing Better Auth tables into a hand-rolled migration flow
-
-**What people do:** Let Better Auth own one schema generation path and Drizzle own another, drifting apart.
-**Why it's wrong:** Two sources of truth for the schema → migration conflicts, RLS not applied to auth-adjacent tables.
-**Do this instead:** Use the Better Auth **Drizzle adapter**, generate its tables into `packages/db/src/schema`, and let Drizzle migrations be the single source of truth (commit them; never hand-edit applied migrations).
-
-### Anti-Pattern 5: Deferring observability/CI to "after it works"
-
-**What people do:** Build features first, add logging/monitoring/deploy later.
-**Why it's wrong:** Directly violates the project's core value ("operable from day one; not 'works on my machine'"). You discover staging is broken via the client, not your dashboards.
-**Do this instead:** Steps 10–11 are part of the milestone definition of done, not optional polish.
-
----
 
 ## Integration Points
 
-### External Services
+### Internal boundaries — every new write path and its RLS implication
 
-| Service | Integration pattern | Notes / gotchas |
-|---------|---------------------|-----------------|
-| Resend (email) | Called from the **worker**, not the request path; React Email templates | Invitations/leads emails are async jobs; keep API keys server-only via `config/env.ts` |
-| Cloudflare R2 | S3 SDK; signed URLs from panel | Not phase-0 critical (media is phase 1) but env vars and bucket should exist in staging |
-| Sentry | SDK init per app (web/panel/worker) | Set `tracesSampleRate` low; tag events with `orgId` (never PII) |
-| Loki/Grafana | pino → JSON logs → Promtail/Loki | Structured logs with `orgId`, `requestId`; one log schema across apps |
-| Uptime Kuma | HTTP healthcheck endpoints per app | Each app exposes `/healthz` (liveness) and `/readyz` (DB/Redis reachable) |
-| Traefik / Let's Encrypt | Docker labels per service; on-demand TLS for custom domains (later) | Phase 0: just staging host + TLS; rate-limit middleware defined but lightly used |
+| New write path | Procedure guard | Tenancy enforcement | Notes |
+|----------------|-----------------|---------------------|-------|
+| `units.updateEstado` | protected + requireRole | `withTenant(activeOrgId)` → `units_tenant` | client never sends orgId; foreign unitId → 0 rows |
+| `units.upsertPrice` | protected + requireRole | `unit_prices_tenant` + 3 composite FKs org-pin | **needs `UNIQUE(unit_id, price_list_id)` migration** for onConflict upsert |
+| `units.importExcel` | protected + requireRole | one `withTenant` tx; per-row RLS visibility | bad row → reported, never throws whole batch; row/size cap |
+| `leads.updateEstado` | protected + requireRole | `leads_tenant`; timeline validated by `leadNoteSchema` | append note; enqueue email carries orgId in payload |
+| `floors.setPolygon` / `units.setPolygon` | protected + requireRole | `floors_tenant` / `units_tenant` | validate coordinates (Zod), store TEXT; render via React not raw SVG |
+| Email worker read | (worker, no session) | `withTenant(orgId)` from job payload | orgId travels in job data, exactly like media/pdf jobs |
 
-### Internal Boundaries
+### External services
 
-| Boundary | Communication | Considerations |
-|----------|---------------|----------------|
-| apps ↔ `packages/api` | Direct import (RSC server caller / typed client / worker direct call) | No HTTP between worker and apps; type-safe contracts, no codegen |
-| `packages/api` ↔ `packages/db` | Direct import; api uses `withTenant`/`withAnon`, never raw pool | All tenant scoping funneled through db helpers |
-| `packages/api` ↔ Better Auth | api owns the single `auth` server instance; reads `activeOrganizationId` | Re-validate membership server-side every request |
-| worker ↔ Redis ↔ apps | BullMQ queues; jobs carry `orgId` in payload | Worker sets tenant context from payload, same `withTenant` path |
-| web/panel ↔ Postgres realtime | LISTEN/NOTIFY → SSE (later phases) | Channel/payload conventions decided in db package now to avoid churn |
+| Service | Integration Pattern | Notes |
+|---------|---------------------|-------|
+| Resend + React Email | Reuse `send-invitation.ts` shape (dev console fallback when no `RESEND_API_KEY`) | New lead template; verified `INVITE_FROM`-style sender required in staging/prod |
+| Cloudflare R2 | **Not needed for Excel.** Only touched if hotspot editor uploads new renders (that reuses the existing `media.createUpload/confirmUpload` presigned pipeline) | do not build a new upload path |
+| BullMQ/Redis | Add `EMAIL_QUEUE` to `packages/storage/src/queue.ts`; producer in api, consumer in worker | clone `MEDIA_QUEUE`/`QUOTE_PDF_QUEUE` contract + `boot()` wiring verbatim |
 
----
+## Anti-Patterns (specific to this milestone)
+
+### Anti-Pattern 1: Routing Excel through the worker/R2 pipeline
+**What people do:** upload `.xlsx` to R2 → enqueue a job → worker parses.
+**Why it's wrong:** adds Redis + R2 + async polling for a KB payload that parses in milliseconds; the operator must then wait for a round-trip to learn row 12 failed.
+**Do this instead:** parse client-side (or in the mutation), validate + upsert inline under `withTenant`, return a synchronous per-row report.
+
+### Anti-Pattern 2: Emitting `pg_notify` now "so SSE is ready later"
+**What people do:** add `NOTIFY price_changed` to the price write this milestone.
+**Why it's wrong:** there is no LISTENer; it is an untested moving part that can't be verified and isn't in scope. The master doc's "cambio de precio al instante" is a *future phase* deliverable.
+**Do this instead:** funnel all price writes through one `upsertPrice`/`importExcel` path so Fase-5 adds `pg_notify` (inside the existing `withTenant` tx) in one place. Build nothing else.
+
+### Anti-Pattern 3: Multiple `unit_prices` rows per (unit, list) via price history
+**What people do:** INSERT a new `vigencia` row on every edit for audit history.
+**Why it's wrong:** the shipped quote resolver (`resolveAndQuote` in `quotes.ts`) reads `unit_prices` by `unitId` and expects exactly one contado + one financiado USD row — no `max(vigencia)` selection. Multiple rows silently break/duplicate the quote.
+**Do this instead:** **upsert one row per (unit, price_list)** (UPDATE `precio`, set `vigencia = now()`) behind a `UNIQUE(unit_id, price_list_id)` constraint. If append-only price history is ever wanted, it is a joint change: the resolver must switch to latest-`vigencia` at the same time. Flag, don't sneak.
+
+### Anti-Pattern 4: Rendering stored hotspot SVG as raw markup
+**What people do:** `dangerouslySetInnerHTML` the `poligonoSvg` string.
+**Why it's wrong:** turns a tenant-writable field into a stored-XSS vector on the public explorador.
+**Do this instead:** store coordinates, validate with Zod, render through React `<svg><polygon points=…>` — consistent with the existing `image/svg+xml` upload rejection.
+
+## Recommended Build Order
+
+Dependencies: (a) the merge debt gates realistic staging verification of everything; (b) all three features are project-scoped and need a panel shell that today does not exist; (c) D1 and D2 are mutually independent; (d) hotspots depends on nothing in D1/D2 and only unlocks the *future* Fase-2 explorador, so it is lowest-urgency but fully parallelizable.
+
+```
+Task 0  ─ MERGE fase-0/foundation → main + staging re-verify (v1.2 debt)
+          rate-limit 429 · full PDF flow · QR with staging URL. No feature code; unblocks all.
+             │
+Wave 1  ─ Panel project-scoped shell: proyectos list → [id] layout + tab nav
+          (reuses projects.listForOrg; prerequisite for D1/D2/hotspots)
+             │
+Wave 2  ─ ┌─ D1 grilla de unidades ──────────────┐   ┌─ D2 bandeja de leads ───────┐
+          │  1. migration UNIQUE(unit,list)       │   │  1. leads.listForOrg + UI    │
+          │  2. read grid (RSC)                   │   │  2. updateEstado + timeline  │
+          │  3. estado/price write mutations      │   │  3. EMAIL_QUEUE + worker +   │
+          │  4. Excel EXPORT (read-only, trivial) │   │     Resend template          │
+          │  5. Excel IMPORT (validate + upsert)  │   └──────────────────────────────┘
+          └──────────────────────────────────────┘     (parallel with D1)
+             │
+Wave 3  ─ Editor de hotspots (floors/units setPolygon + canvas UI)
+          zero D1/D2 dependency; could shift earlier/parallel if capacity allows.
+```
+
+**Rationale for D1-before/with-D2, hotspots last:** D1 is the highest-value surface, exercises the write-under-`withTenant` + `requireRole` pattern that D2 and hotspots then clone, and forces the `unit_prices` uniqueness decision that also protects the quote engine. D2 is independent and can run in parallel once the shell exists. Hotspots is the most UI-heavy (SVG drawing), needs the render-image confirmation, and its only downstream consumer (explorador) is a *later* milestone — so it carries the least schedule risk if it slips to the end.
+
+## Scaling Considerations
+
+| Scale | Adjustments |
+|-------|-------------|
+| 1 developer, ~40 units | Inline Excel + inline reads are trivially fast; nothing to tune |
+| Dozens of projects, hundreds of units each | Grid read stays a single tenant-scoped SELECT; add pagination only if a project exceeds ~1k units. Excel row cap already bounds import |
+| Multi-org, high lead volume | Queued email decouples transition latency from Resend; worker concurrency already the tuning knob (clone `concurrency: 2`) |
+
+### Scaling priorities
+1. **First bottleneck:** none realistic at MVP volumes — keep it simple, resist premature async.
+2. **Second bottleneck:** if the public lead-capture endpoint (Fase-2) drives high inbound volume, the queued email design already absorbs it; inline email would not.
 
 ## Sources
 
-- [Drizzle ORM — Row-Level Security (RLS)](https://orm.drizzle.team/docs/rls) — HIGH (official)
-- [Better Auth — Drizzle Adapter](https://better-auth.com/docs/adapters/drizzle) and [Active Organization & Context](https://deepwiki.com/better-auth/better-auth/5.5-access-control-deep-dive) — HIGH/MEDIUM (official + community wiki)
-- [Restore Supabase RLS with Drizzle using tRPC middlewares](https://mortadha.dev/blog/restore-supabase-rls-with-drizzle-using-trpc-middlewares/) — MEDIUM (community, corroborates the tx-scoped middleware pattern)
-- [PostgreSQL RLS notes — set/set local only persist in a transaction](https://imfeld.dev/notes/postgresql_row_level_security) — HIGH (matches Postgres semantics)
-- [Postgres Row-Level Security Footguns — Bytebase](https://www.bytebase.com/blog/postgres-row-level-security-footguns/) and [RLS sounds great until it isn't — PlanetScale](https://planetscale.com/blog/rls-sounds-great-until-it-isnt) — MEDIUM (pooling/SET ROLE pitfalls, cross-checked)
-- [Mastering PostgreSQL RLS for multi-tenancy](https://ricofritzsche.me/mastering-postgresql-row-level-security-rls-for-rock-solid-multi-tenancy/) — MEDIUM (corroborating)
-- Project docs: `docs/modelo-mvp.md` §3 (architecture/stack/data model), `CLAUDE.md` (stack/quality), `.planning/PROJECT.md` (phase-0 scope) — HIGH (authoritative for this project)
+- In-repo schema: `packages/db/src/schema/{units,floors,unit-prices,price-lists,leads,quotes,events,enums}.ts` — `poligonoSvg` columns, RLS policies, composite FKs, `leadNoteSchema`, enums. **HIGH** (source of truth)
+- In-repo routers: `packages/api/src/trpc/routers/{quotes,projects,media}.ts`, `middleware.ts` (requireRole), `with-tenant.ts` — established mutation/withTenant/enqueue patterns. **HIGH**
+- In-repo worker + storage: `apps/worker/src/index.ts`, `quote-pdf-runtime.ts`, `packages/api/src/quotes/runtime.ts`, `packages/storage/src/queue.ts` — BullMQ producer/consumer contract to clone for email. **HIGH**
+- In-repo email + panel: `packages/api/src/email/send-invitation.ts`, `apps/panel/app/(dashboard)/page.tsx`, `lib/trpc-client.tsx` — Resend fallback pattern, RSC caller vs client island. **HIGH**
+- `.planning/PROJECT.md` (v1.3 goal, D-01/D-02/D-10/D-13 decisions) + `docs/modelo-mvp.md` §3.3 (referenced) — feature scope + "cambio de precio al instante" future-phase promise. **HIGH**
 
 ---
-*Architecture research for: multi-tenant SaaS foundation (phase 0)*
-*Researched: 2026-06-12*
+*Architecture research for: ImBau panel de autogestión (milestone v1.3) — integration of D1/D2/hotspots into the shipped monorepo.*
+*Researched: 2026-07-17*

@@ -1,17 +1,36 @@
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
-import { baseEnv, dbEnv, sentryEnv, lokiEnv } from "@imbau/config/env/presets";
+import {
+  baseEnv,
+  dbEnv,
+  redisEnv,
+  r2Env,
+  sentryEnv,
+  lokiEnv,
+} from "@imbau/config/env/presets";
 
 // web env validation (D-01, D-02): declares ONLY what it uses. NODE_ENV (server)
 // comes from the shared baseEnv preset; NEXT_PUBLIC_APP_ENV is the single client
 // var, listed under `client` so t3-env's split guards against leaking a
 // server-only secret into the browser bundle (Pitfall 3, T-03-01). web does NOT
-// declare the worker-only Redis connection var nor the tenant DATABASE_APP_URL —
-// it is anon-only (D-03): the RSC read goes through withAnon, which uses the anon
-// pool fed by DATABASE_ANON_URL. That var stays in the `server` block so only the
-// anon connection string is validated at boot and never reaches the client bundle
-// (T-03-19). Next inlines NEXT_PUBLIC_* at build, so each must be wired explicitly
-// in `experimental__runtimeEnv`.
+// declare the worker-only Redis connection var.
+//
+// Phase-5 A1 widening (D-06): web is no longer anon-only. It now ALSO validates
+// DATABASE_APP_URL because the quotesRouter's publicProcedures run withTenant(orgId)
+// server-side for the anonymous quote path (QUOTE-01) — the org is resolved from the
+// `publicado` project, never trusted from the client. Importing @imbau/api in the web
+// tRPC route handler boots the @imbau/db barrel (appDb/anonDb constructed at import),
+// so both the app-pool and anon-pool URLs must exist at boot or the container fails
+// fast (Pitfall 6). Both stay in the `server` block, so the connection strings are
+// validated at boot and never reach the client bundle (T-03-19).
+//
+// The fence that keeps A1 safe (T-03-09, grep-verified): apps/web reaches data ONLY
+// through withTenant/withAnon inside packages/api routers — it never constructs or
+// imports the elevated/owner-pool clients from @imbau/db directly. web does NOT declare
+// DATABASE_URL (owner pool); it never needs it.
+//
+// Next inlines NEXT_PUBLIC_* at build, so each must be wired explicitly in
+// `experimental__runtimeEnv`.
 export const env = createEnv({
   ...baseEnv,
   server: {
@@ -19,6 +38,19 @@ export const env = createEnv({
     // anon published-only read path (D-06/D-14): the server caller's withAnon
     // path needs this validated at boot. Server-only — never NEXT_PUBLIC_.
     DATABASE_ANON_URL: dbEnv.server.DATABASE_ANON_URL,
+    // app_authenticated runtime pool (D-06/A1): the quotesRouter publicProcedures run
+    // withTenant(orgId) server-side for the anonymous quote path (QUOTE-01). Server-only
+    // — never NEXT_PUBLIC_. Reached ONLY via withTenant inside packages/api (T-03-09).
+    DATABASE_APP_URL: dbEnv.server.DATABASE_APP_URL,
+    // fase-7 PDF producer + presign (D-02, PDF-01): the quotesRouter now runs the
+    // BullMQ enqueue (quotes.create) AND the presigned R2 GET (quotes.pdfStatus)
+    // INSIDE the web process — so web must validate the Redis connection + the R2
+    // credentials at boot. These are SERVER-ONLY secrets (T-07-05 / T-03-01): they
+    // live in the `server:` block, never `client:`, never NEXT_PUBLIC_, and never
+    // reach the browser bundle. Reached only through packages/api's quotes runtime
+    // (lazy-memoized), so importing the router opens no infra (Pitfall 3).
+    REDIS_URL: redisEnv.server.REDIS_URL,
+    ...r2Env.server,
     // Observability (OBS-01/OBS-02): server Sentry DSN + Loki shipping target.
     // All optional — with no DSN/LOKI_URL the SDK + logger are local no-ops, so
     // dev still boots with zero external deps.

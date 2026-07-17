@@ -1,95 +1,90 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-current_phase: 04
-current_phase_name: staging-observability-ci-cd
-status: executing
-stopped_at: Phase 4 context gathered
-last_updated: "2026-06-26T13:21:58.443Z"
-last_activity: 2026-06-26
-last_activity_desc: Phase 04 execution started
+milestone: v1.3
+milestone_name: Panel de autogestión
+current_phase: 8
+current_phase_name: merge + re-verificación staging
+status: planning
+stopped_at: Phase 8 context gathered
+last_updated: "2026-07-17T20:45:06.389Z"
+last_activity: 2026-07-17
+last_activity_desc: ROADMAP v1.3 creado (5 fases, 19/19 requirements mapeados)
 progress:
-  total_phases: 4
-  completed_phases: 3
-  total_plans: 18
-  completed_plans: 17
-  percent: 75
+  total_phases: 5
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-12)
+See: .planning/PROJECT.md (updated 2026-07-17)
 
-**Core value:** La fundación técnica queda desplegada y operable desde el día uno: cada commit a main termina en software corriendo en staging con aislamiento multi-tenant verificable por RLS.
-**Current focus:** Phase 04 — staging-observability-ci-cd
+**Core value:** La fundación técnica desplegada y operable: cada commit a main termina corriendo en staging con aislamiento multi-tenant verificable por RLS.
+**Current focus:** v1.3 roadmap creado (Phases 8-12). Primer paso: Phase 8 — merge de `fase-0/foundation` a `main` + re-verificación en staging antes de cualquier feature del panel.
 
 ## Current Position
 
-Phase: 04 (staging-observability-ci-cd) — EXECUTING
-Plan: 7 of 7
-Status: Ready to execute
-Last activity: 2026-06-26 — Phase 04 executed 6/7 (04-07 deferred); quick task 260626-f90 fixes red CI
+Phase: Phase 8 — Deuda v1.2 (merge + re-verificación staging) — not started
+Plan: —
+Status: Roadmap creado, listo para planificar Phase 8
+Last activity: 2026-07-17 — ROADMAP v1.3 creado (5 fases, 19/19 requirements mapeados)
 
-Progress: [░░░░░░░░░░] 0%
+## Roadmap (v1.3 — Phases 8-12)
+
+Numeración GSD continúa desde v1.2 (última fase = 7).
+
+| Phase | Goal | Requirements | Depende de |
+|-------|------|--------------|------------|
+| 8. Deuda v1.2 — merge + re-verificación staging | Todo v1.2 corre verificado en staging tras merge a main | DEBT-01, DEBT-02 | v1.2 (rama a mergear) |
+| 9. Shell del panel scoped al proyecto + role gate | Layout `proyectos/[id]` con tabs + role-gate server-side | PANEL-01, PANEL-02 | Phase 8 |
+| 10. D1 — Grilla de unidades + Excel | Grilla editable (precio/estado/listas) + Excel round-trip transaccional | GRID-01..07 | Phase 9 |
+| 11. D2 — Bandeja de leads + email | Bandeja + pipeline 4 estados + notas + email queued idempotente | LEADS-01..04 | Phase 9 (reusa patrón de 10) |
+| 12. Editor de hotspots | Editor SVG draw/edit/delete + vínculo piso/unidad, coords viewBox | HSPOT-01..04 | Phase 9 |
+
+**Orden de ejecución:** 8 → 9 → 10 → 11 → 12. Phases 11 y 12 son paralelizables una vez existe el shell (9), si hay capacidad.
+
+**UI hint:** Phases 9, 10, 11, 12 tienen superficie frontend en el panel (candidatas a `/gsd-ui-phase`). Phase 8 es infra/ops, sin UI.
+
+**Research flags (resolver al planificar):**
+
+- Phase 10 (D1 Excel import): edge cases de parsing de dinero es-AR (separador `.`, fecha DD/MM/YYYY, encoding) + UX de validación/error.
+- Phase 12 (hotspots): dónde vive el render exterior del edificio (`projects` vs fila `media`) antes de cablear el editor de pisos.
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 6
-- Average duration: -
-- Total execution time: 0 hours
+- Total plans completed (proyecto): 39 (v1.0: 18 + v1.1: 12 + v1.2: 9)
+- v1.3 plans completed: 0 (roadmap recién creado)
 
-**By Phase:**
+**By Phase (v1.3):**
 
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 01 | 3 | - | - |
-| 02 | 3 | - | - |
-
-**Recent Trend:**
-
-- Last 5 plans: -
-- Trend: -
+| Phase | Plans | Status |
+|-------|-------|--------|
+| 8. Deuda v1.2 — merge + re-verificación staging | 0/TBD | Not started |
+| 9. Shell del panel scoped al proyecto + role gate | 0/TBD | Not started |
+| 10. D1 — Grilla de unidades + Excel | 0/TBD | Not started |
+| 11. D2 — Bandeja de leads + email | 0/TBD | Not started |
+| 12. Editor de hotspots | 0/TBD | Not started |
 
 *Updated after each plan completion*
-| Phase 03 P01 | 26min | 3 tasks | 13 files |
-| Phase 3 P02 | 5min | 3 tasks | 11 files |
-| Phase 03 P03 | 45min | 4 tasks | 20 files |
-| Phase 03 P05 | 5min | 2 tasks | 8 files |
-| Phase 04 P05 | 18min | 3 tasks | 7 files |
-| Phase 04 P01 | 12m | 3 tasks | 10 files |
-| Phase 04 P03 | 8min | 2 tasks | 1 files |
-| Phase 04 P04 | 40min | 2 tasks | 4 files |
-| Phase 04 P02 | 9 | 3 tasks | 15 files |
-| Phase 04 P06 | 5min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
+Decisions are logged in PROJECT.md Key Decisions table (full log). Decisiones vigentes / abiertas que enmarcan v1.3:
 
-- [Roadmap]: v1 = solo fase 0 del modelo-mvp.md; estructura horizontal por capas en orden de dependencias (config → db/RLS → auth/api/apps → infra/CI/CD)
-- [Roadmap]: DATA-04 (tests de ausencia cross-tenant) es la puerta de salida del milestone; corre en CI contra Postgres real (CI-02)
-- [Phase ?]: A1 locked: Better Auth adapter uses createOwnerDb (owner pool) to write RLS-FORCED organization/member; app data path stays on withTenant/withAnon (03-01)
-- [Phase ?]: Custom Better Auth AC must merge org-plugin defaultStatements; owner gets invitation:[create,cancel] so invite stays owner-only (03-01)
-- [Phase ?]: Panel mirrors access-control to the client via a @imbau/api/access-control subpath so the Better Auth server runtime never bundles into the browser (03-03)
-- [Phase ?]: Auth + tRPC handlers mount ONLY in apps/panel (D-03); apps/web stays anon-only with no auth route (03-03)
-- [Phase ?]: Task-4 human-verify approved: human accepted the green Playwright auth e2e (login persistence + invite/accept vs live Postgres) in lieu of manual click-through (03-03)
-- [Phase ?]: 03-05: web/panel/worker multi-stage Dockerfiles via turbo prune; no prod install in standalone/dist; created public/.gitkeep for build-valid COPY
-- [Phase ?]: [04-05]: migrate.ts reads raw DATABASE_URL (owner, max:1), never src/env.ts; runs from source via Node type-stripping (no drizzle-kit/tsup) as a one-off migrate-before-swap image
-- [Phase ?]: [04-05]: staging Postgres runs -c imbau.env=production so 0001_rls.sql skips :dev passwords; real app/anon passwords provisioned out-of-band from SOPS (Pattern 4, 04-06)
-- [Phase ?]: [04-05]: staging topology = internal-only pg/redis (no host ports), web/panel loopback 8090/8091 behind host nginx, observability under profiles + per-service mem_limit; Grafana/Kuma SSH-tunnel only
-- [Phase ?]: [04-05]: two DNS A records for one SAN cert (staging.tours + panel.staging.tours -> 31.97.175.128); cert via certbot --webroot never --nginx (04-07)
-- [Phase 04]: pino-loki transport over Promtail (refines D-03): zero extra container, fallback-symmetric with D-04 via LOKI_URL swap
-- [Phase 04]: Allow @sentry/cli native build (pnpm allowBuilds:true) — binary required for CI source-map upload (OBS-01)
-- [Phase 04]: 04-03: CI quality gate (lint+typecheck+test) + RLS-in-CI via postgres:16-alpine service; branch protection on main requires the quality check (CI-01/CI-02)
-- [Phase 04]: 04-03 finding: inaugural CI run failed on PRE-EXISTING gaps (monorepo ESLint 9 flat-config resolution; @imbau/db#test in CI postgres) — out-of-scope for 04-03, needs separate remediation before milestone PR merges
+- [Carry v1.0 / A1]: RLS = GUC transaction-scoped (`SET LOCAL`) + roles app/anon sin BYPASSRLS; tabla nueva = clon del template RLS verificado por la suite cross-tenant. **RLS prueba aislamiento de tenant, no autorización** → las tres superficies de escritura del panel necesitan `requireRole` explícito además de RLS.
+- [Carry CLAUDE.md]: dinero en enteros (USD precios) / decimal (ARS cuotas), nunca floats; migraciones Drizzle versionadas; errores observables (Sentry + pino). **Crítico en D1**: nunca confiar en números tipados de celdas Excel (contaminación float del USD entero).
+- [Carry v1.2 / D-12]: rate-limit de borde nginx (`quotes` zona, 10r/s + burst 20 nodelay, 429) — el archivo del repo es la fuente de verdad; re-verificar en staging en Phase 8.
+- [Research / v1.3]: `exceljs@4.4.0` (MIT) es la única dependencia runtime net-new; **NO instalar `xlsx`/SheetJS** (CVE-2023-30533 sin patch en el path de import). Editor de hotspots hand-rolled (SVG `viewBox` pointer-events, ~250 líneas) — sin canvas/Konva (viola "sin motor tipo game engine").
+- [Research / v1.3, a decidir en planning]: migración `UNIQUE(unit_id, price_list_id)` en `unit_prices` — hace idempotente el upsert de grilla/Excel y protege el resolver de cotización de v1.2 (una fila por unidad×lista). Excel parse/build en módulo puro `packages/api/src/excel/` (I/O-free, testeable).
+- [Research / v1.3, a decidir en planning]: email de lead **queued** (BullMQ, clona el contrato quote-pdf) vs inline Resend (patrón invitación) — decidir en Phase 11; emisión de `events` por transición lead/precio (cheap, forward-compatible) vs diferir — decidir en Phase 10/11.
 
 ### Pending Todos
 
@@ -97,26 +92,28 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Phase 2/3]: APIs relativamente nuevas (Drizzle `pgPolicy`/`pgRole`, Better Auth org plugin) — re-verificar contra versiones pineadas en planning; reconciliar `member` (org plugin) vs `memberships`
-- [Control de fase 0]: si el milestone supera 1 semana, recalibrar todo el plan antes de seguir (regla del doc maestro; estimación 3-4 días con Fable)
-- [CI roja → merge bloqueado]: branch protection sobre `main` exige `quality` (enforce_admins); quick task 260626-f90 arregla el root cause (turbo strict-env stripping + falta de redis service). Verificar verde antes del merge de PR #1.
+Abiertos entrando a v1.3:
 
-### Quick Tasks Completed
-
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 260626-f90 | Fix red CI — pass test DB/Redis env through Turbo strict mode + add Redis service | 2026-06-26 | d537fed | [260626-f90-fix-red-ci-pass-test-db-redis-env-throug](./quick/260626-f90-fix-red-ci-pass-test-db-redis-env-throug/) |
+- ⚠️ Staging corre imagen pre-fase-5 (`a599bb7`) — TODO v1.2 (fases 5-7: rutas quotes, UI cotizador, PDF) llega a staging recién al mergear la rama a main. **Es el trabajo de Phase 8** (DEBT-01/02): merge → deploy → re-verificar rate-limit 429, flujo PDF completo, QR con URL de staging. Gate real: infra del operador (merge + deploy a VPS).
+- Pasada visual de fase 6 (v1.2) → sigue trackeada en Deferred Items (abajo), no bloquea v1.3.
 
 ## Deferred Items
 
-Items acknowledged and carried forward from previous milestone close:
+Items acknowledged and deferred at milestone closes (v1.0 2026-06-26, v1.2 2026-07-09 — ambos override_closeout):
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
-| *(none)* | | | |
+| verification | phase-03 (v1.0) live re-runs: Playwright auth e2e (login persistence, invite→accept) + worker Redis smoke | human_needed (4/4 must-haves verified by code) | 2026-06-26 |
+| uat_gap | phase-06 (v1.2) 06-UAT.md — pasada visual humana del layout mobile-first + tema de marca en viewport real | testing (1 pending scenario; criterios de fase verificados por código + e2e 4/4) | 2026-07-08 |
+
+**Detail:** Re-run `pnpm --filter @imbau/panel test:e2e` and `pnpm --filter @imbau/worker test -t "worker connects"` with the Compose stack up to clear. Para el item de v1.2: `/gsd-verify-work 6` con `pnpm dev` y abrir `/p/brigos-recoleta/cotizador` en viewport móvil. La re-verificación en staging de v1.2 se absorbe en Phase 8 (DEBT-02).
 
 ## Session Continuity
 
-Last session: 2026-06-26T13:21:52.038Z
-Stopped at: Phase 4 context gathered
-Resume file: .planning/phases/04-staging-observability-ci-cd/04-CONTEXT.md
+Last session: 2026-07-17T20:45:06.384Z
+Stopped at: Phase 8 context gathered
+Resume file: .planning/phases/08-deuda-v1-2-merge-a-main-re-verificaci-n-en-staging/08-CONTEXT.md
+
+## Operator Next Steps
+
+- Planificar la primera fase con `/gsd-plan-phase 8` (o `/gsd-discuss-phase 8` primero). Phase 8 es mecánica pero depende de infra del operador: merge de `fase-0/foundation` a `main` + deploy a staging + re-verificación en vivo.

@@ -9,9 +9,26 @@
 // No transformer is configured: the only values crossing the boundary are JSON-native
 // (project rows are strings/enums). Add superjson only if a Date/Map must cross.
 import { initTRPC, TRPCError } from "@trpc/server";
+import { QuoteError } from "@imbau/quoting";
 import { createTRPCContext, type TRPCContext } from "./context";
 
-const t = initTRPC.context<TRPCContext>().create();
+// errorFormatter (RESEARCH Pattern 3 — trpc.io/docs/server/error-formatting) surfaces the
+// quoting engine's MACHINE-READABLE code to the client without ever leaking the error object or
+// stack (D-08, V7). When a resolver re-throws a TRPCError whose `cause` is a QuoteError, the
+// client can read `error.data.quoteErrorCode` and map it to es-AR copy; for any other error the
+// field is simply absent. This is the ONLY behavior added to the tRPC root.
+const t = initTRPC.context<TRPCContext>().create({
+  errorFormatter({ shape, error }) {
+    const cause = error.cause;
+    return {
+      ...shape,
+      data: {
+        ...shape.data,
+        quoteErrorCode: cause instanceof QuoteError ? cause.code : undefined,
+      },
+    };
+  },
+});
 
 export const router = t.router;
 export const createCallerFactory = t.createCallerFactory;

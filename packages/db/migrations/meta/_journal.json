@@ -15,6 +15,27 @@
       "when": 1781625709634,
       "tag": "0001_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782774211291,
+      "tag": "0002_domain",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1782774211292,
+      "tag": "0003_rls_domain",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783218780529,
+      "tag": "0004_project_whatsapp",
+      "breakpoints": true
     }
   ]
 }

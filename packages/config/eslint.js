@@ -8,7 +8,19 @@ import prettier from "eslint-config-prettier";
 // last so it disables the stylistic rules Prettier owns.
 export const config = tseslint.config(
   {
-    ignores: ["**/dist/**", "**/.next/**", "**/.turbo/**", "**/node_modules/**"],
+    ignores: [
+      "**/dist/**",
+      "**/.next/**",
+      "**/.turbo/**",
+      "**/node_modules/**",
+      // Coverage reports are generated artifacts (gitignored); never lint them.
+      "**/coverage/**",
+      // PostCSS config (Tailwind v4 entry) is a plain config file outside any
+      // tsconfig project, so `projectService` type-aware linting cannot resolve
+      // it ("not found by the project service"). Config files carry no app logic
+      // to type-lint — exclude them like the other non-source artifacts above.
+      "**/postcss.config.mjs",
+    ],
   },
   ...tseslint.configs.recommendedTypeChecked,
   {

@@ -47,7 +47,8 @@ Esquema lógico completo en `docs/modelo-mvp.md` §3.3: organizations, membershi
 ## Comandos (mantener actualizado a medida que existan)
 
 - `pnpm dev` — levanta todo (turbo). `pnpm test` / `pnpm lint` / `pnpm typecheck`.
-- `pnpm db:migrate` / `pnpm db:seed` — migraciones y seed.
+- `pnpm db:migrate` — migraciones versionadas (Drizzle).
+- `pnpm db:seed` — siembra determinista e idempotente del edificio "Brigos Recoleta" (safe re-run, no duplica filas). Prerrequisitos: `pnpm db:migrate` primero, `docker compose up -d postgres redis worker`, y las envs `DATABASE_URL`/`DATABASE_APP_URL`/`DATABASE_ANON_URL`/`R2_*`/`REDIS_URL`; hace fail-fast nombrando lo que falte. Detalle en `README.md`.
 - `docker compose up -d` — Postgres, Redis y servicios locales.
 
 <!-- GSD:project-start source:PROJECT.md -->

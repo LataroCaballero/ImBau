@@ -1,269 +1,121 @@
-# Stack Research
+# Stack Research — v1.3 Panel de autogestión
 
-**Domain:** Multi-tenant SaaS foundation (phase 0) — real-estate presale showroom platform (Argentina)
-**Researched:** 2026-06-12
-**Confidence:** HIGH (versions verified against live npm registry; integration patterns verified against official docs)
+**Domain:** Developer self-service panel — editable unit/price grid with Excel import/export, leads inbox with email notification, and a visual SVG-polygon hotspot editor. Additions layered on an already-validated Next.js 16 / tRPC v11 / Drizzle+RLS / BullMQ+Resend stack.
+**Researched:** 2026-07-17
+**Confidence:** HIGH (all versions verified against the npm registry 2026-07-17; SheetJS npm/CVE situation confirmed against the official CVE-2023-30533 advisory and SheetJS issue tracker; polygon-library peer ranges read directly from npm)
 
-> **Scope note.** The stack is DECIDED and non-negotiable per `CLAUDE.md`. This document does NOT propose alternatives. It pins **current versions (mid-2026)**, flags **compatibility constraints**, and prescribes **phase-0 configuration** for: monorepo + CI/CD + Docker/staging + observability + auth + multi-tenancy + Postgres RLS. The "Alternatives Considered" and "What NOT to Use" sections below are scoped to *configuration choices within the decided stack* (e.g. which driver, which RLS pattern), not to swapping out the stack itself.
+## TL;DR — what to add
 
----
+- **Excel:** add **`exceljs@4.4.0`** (MIT). Handles both import and export in one dependency. **Do NOT install `xlsx` (SheetJS) from npm** — the npm build is frozen at a vulnerable 0.18.5.
+- **SVG hotspot editor:** add **nothing** — hand-roll a ~250-line React 19 pointer-events `<svg>` component. The stored format already *is* the editor's output (`poligonoSvg` = raw SVG `points`). Every maintained library is either canvas-based (Konva) or a heavyweight W3C-annotation framework — both fight the architecture.
+- **Leads inbox + email:** add **nothing**. Schema, RLS, Resend, React Email and the BullMQ worker are all in place. Reuse the invitation/quote-pdf email pattern.
+- **Editable grid UI:** add **nothing** for now — a plain controlled `<table>` covers ~38 rows. Reach for `@tanstack/react-table` only if sort/filter/virtualization actually appears.
+
+The schema needs **no changes**: `floors.poligonoSvg` / `units.poligonoSvg` / `floors.renderKey` already store hotspot geometry; `leads` already has the `lead_estado` enum (`nuevo|contactado|negociacion|cerrado`), `origen`, the `unitId`/`brokerId`/`quoteId` in-tenant pointers and a typed `timeline` JSONB; `unit_prices`/`price_lists`/`units.estado` already model the grid.
 
 ## Recommended Stack
 
-### Core Technologies (versions verified on npm, 2026-06-12)
+### Core Technologies (net-new for v1.3)
 
-| Technology | Version | Purpose | Why / phase-0 note |
-|------------|---------|---------|--------------------|
-| **pnpm** | `11.6.0` | Package manager + workspaces | Pin via `packageManager` field in root `package.json` + Corepack so CI and local match exactly. |
-| **Turborepo** | `2.9.18` | Monorepo task orchestration + caching | `turbo.json` with `tasks` (not the legacy `pipeline` key). Use `turbo prune` for Docker (see Architecture). |
-| **TypeScript** | `5.9.x` | Strict typing end-to-end | **Do NOT jump to TS 6.x blindly** (npm `latest` shows `6.0.3`). TS 6 is the new native/perf line; verify every tool (ESLint TS plugin, Drizzle Kit, Next) supports it before adopting. **Pin TS `5.9.x` for phase 0** — safest with the rest of the matrix. `strict: true`, `noUncheckedIndexedAccess: true`. |
-| **Node.js** | `22 LTS` (`>=20.9` required by Next) | Runtime | Use Node 22 LTS in CI and Docker base images. Pin in `.nvmrc` + `engines`. |
-| **Next.js** | `16.2.x` | `apps/web` (public, RSC + ISR) and `apps/panel` | App Router. Set `output: 'standalone'` for Docker. Requires React 19. |
-| **React** | `19.2.x` | UI runtime for both Next apps | Matches Next 16. tRPC v11 + TanStack Query v5 are React-19 compatible. |
-| **tRPC** | `11.17.0` (`@trpc/server`, `@trpc/client`, `@trpc/tanstack-react-query`) | Typed API in `packages/api` | v11 has first-class App Router + RSC support and native TanStack Query v5 integration. No codegen. |
-| **Zod** | `4.4.x` | Validation at the tRPC boundary + env parsing | tRPC v11 supports Zod 4. Use `z.input`/`z.output` awareness; Zod 4 changed some error/format APIs vs v3 — write new code against v4 idioms. |
-| **PostgreSQL** | `16.x` | Primary DB, multi-tenant via RLS | Pin the **Postgres 16** image tag (`postgres:16-alpine`) in Compose — do not float to 17/18. |
-| **Drizzle ORM** | `drizzle-orm 0.45.2` | Schema, queries, **RLS policies as code** | Native `pgPolicy` / `pgRole` support. See RLS pattern below. |
-| **Drizzle Kit** | `drizzle-kit 0.31.10` | Versioned migrations + role/policy generation | Set `entities.roles: true` in `drizzle.config.ts` so policies/roles are emitted into migrations. |
-| **Better Auth** | `better-auth 1.6.18` | Sessions + organizations + memberships + email invites | Use the built-in **organization plugin** + **access control** for roles. CLI: `@better-auth/cli`. |
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| **exceljs** | `4.4.0` | Read (import) + write (export) `.xlsx` server-side | MIT-licensed and installs cleanly from npm (unlike SheetJS — see "What NOT to Use"). One dependency covers both directions. Rich cell/format API produces the styled, human-legible sheet developers expect to open in Excel. Streaming API exists if ever needed, but our files are tiny (~38 unit rows), so the simple `workbook.xlsx.load()/write()` path is enough. |
 
-### Supporting Libraries
+That is the **only** new runtime dependency this milestone strictly requires.
+
+### Supporting Libraries (optional / conditional)
 
 | Library | Version | Purpose | When to Use |
 |---------|---------|---------|-------------|
-| **postgres** (porsager) | `3.4.9` | Postgres driver for Drizzle | **Recommended driver.** Lightweight, fast, clean transaction API ideal for the per-request RLS transaction pattern. Use this over `pg` for app queries. |
-| **drizzle-zod** | `0.8.3` | Derive Zod schemas from Drizzle tables | Keep tRPC input/output validation in sync with the schema without duplication. |
-| **@tanstack/react-query** | `5.101.0` | Client cache for tRPC in the panel | Required peer for `@trpc/tanstack-react-query`. v5 (not v4 — v4 is for tRPC v10). |
-| **bullmq** | `5.78.0` | Background jobs in `apps/worker` | Phase 0 only needs the wiring/skeleton + a health job; heavy jobs (sharp, PDFs) land in later phases. |
-| **ioredis** | `5.11.1` | Redis client for BullMQ | BullMQ's expected client. |
-| **pino** | `10.3.1` | Structured logging | Phase-0 observability requirement. JSON logs → Loki via Promtail/Alloy. Use `pino-pretty` only in dev. |
-| **@sentry/nextjs** | `10.57.0` | Error + perf monitoring (web/panel) | Wire from first deploy. Free tier is sufficient for MVP. Use a separate Sentry SDK for the worker. |
-| **@opentelemetry/sdk-node** | `0.219.0` | Tracing (worker + API) | Phase-0: minimal trace exporter; deepen in later phases. |
-| **resend** + **react-email** | `resend 6.12.4`, `@react-email/components 1.0.12` | Transactional email (org invitations) | Phase 0 needs invitation emails for memberships. |
-| **@aws-sdk/client-s3** | `3.10xx` | S3-compatible client for Cloudflare R2 | Skeleton/config in phase 0; media pipeline is phase 1. |
+| **@tanstack/react-table** | `8.21.x` (verify at adoption) | Headless table state (sort/filter/column sizing) for the unit grid | ONLY if the plain controlled `<table>` becomes unwieldy (many columns, client-side sort/filter, virtualization). Headless = no imposed styling, pairs with existing Tailwind v4 tokens. Not needed for the v1.3 MVP grid. |
+| **@protobi/exceljs** | `4.4.0-protobi.10` | Drop-in exceljs replacement | Escape hatch only: if a security advisory lands against exceljs's transitive deps (it bumps `archiver` to 7.x and is actively maintained). 100% API-compatible; swap the import, nothing else. |
+| **read-excel-file** + **write-excel-file** | `9.3.2` / `4.1.1` | Schema-driven parse + minimal write | Alternative to exceljs if you want a smaller, actively-maintained pair and don't need rich export styling. `read-excel-file`'s schema API maps rows → typed objects and pairs naturally with a Zod re-validation. Two packages instead of one; weaker export formatting. |
 
 ### Development Tools
 
 | Tool | Purpose | Notes |
 |------|---------|-------|
-| **ESLint** | Lint gate in CI | npm `latest` is `10.x`. **Verify flat-config + `typescript-eslint` support** for whatever ESLint major you pick; if the TS-ESLint stack lags, pin ESLint `9.x` (flat config) for stability in phase 0. |
-| **Vitest** | `4.1.8` — unit tests (later: quoting at 100%) | Phase 0 sets up the runner + coverage gate; the quoting suite is phase 3. |
-| **@playwright/test** | `1.60.0` — e2e of auth/tenancy flows | Phase-0 e2e: login, create org, invite member, RLS isolation smoke test. |
-| **Docker + Compose** | Local + staging parity | Compose: Postgres 16, Redis, web, panel, worker, Traefik, Loki/Grafana, Uptime Kuma. |
-| **Traefik** | `v3.x` | Reverse proxy + ACME TLS (incl. on-demand for custom client domains) | See Architecture for cert-resolver config. |
-| **GitHub Actions** | CI/CD | Lint+typecheck+test → build Docker images → registry → auto-deploy staging, manual prod. |
-
----
+| (none new) | — | Vitest + Playwright already present. Add unit tests for the row-parse/validation mapper and a Playwright test for the import→preview→commit and export-download flows. Test the SVG editor via Playwright pointer actions (`page.mouse` / `dispatchEvent`) against a fixed `viewBox`. |
 
 ## Installation
 
 ```bash
-# Pin pnpm via corepack (root package.json: "packageManager": "pnpm@11.6.0")
-corepack enable
+# Excel import/export — the one net-new runtime dep.
+# Install where the parsing lives: apps/panel (Route Handler) or packages/api.
+pnpm --filter @imbau/panel add exceljs
+pnpm --filter @imbau/panel add -D @types/exceljs   # ships its own types in 4.x; add only if TS complains
 
-# --- Core (workspace root / shared) ---
-pnpm add -w typescript@5.9 zod@4
+# Optional, only if the grid UI grows beyond a controlled <table>:
+# pnpm --filter @imbau/panel add @tanstack/react-table
 
-# --- apps/web & apps/panel ---
-pnpm add next@16 react@19 react-dom@19
-pnpm add @trpc/server@11 @trpc/client@11 @trpc/tanstack-react-query@11 @tanstack/react-query@5
-pnpm add @sentry/nextjs@10
-
-# --- packages/db ---
-pnpm add drizzle-orm@0.45 postgres@3
-pnpm add -D drizzle-kit@0.31
-pnpm add drizzle-zod@0.8
-
-# --- auth (likely packages/api or apps/* depending on layout) ---
-pnpm add better-auth@1.6
-pnpm add -D @better-auth/cli
-
-# --- apps/worker ---
-pnpm add bullmq@5 ioredis@5 pino@10
-pnpm add @opentelemetry/sdk-node
-pnpm add resend@6 @react-email/components@1
-pnpm add @aws-sdk/client-s3
-
-# --- dev / tooling (root) ---
-pnpm add -D turbo@2 vitest@4 @playwright/test@1 eslint pino-pretty
+# SVG hotspot editor: NOTHING to install — hand-rolled component in packages/ui or apps/panel.
+# Leads inbox + email: NOTHING to install — reuse resend + react-email + bullmq already in the repo.
 ```
 
----
+## Integration with the existing stack
 
-## RLS + Auth integration (the load-bearing decision)
+### D1 — Unit/price grid + Excel import/export
 
-This is the single highest-risk integration of phase 0. Getting it wrong = a silent tenant data leak, which is fatal for a multi-tenant SaaS.
+- **File size reality:** a project is ~13 floors / ~38 units. Import/export files are kilobytes and dozens of rows. **No streaming, no worker, no chunking.** Parse inline in the request. (Contrast with the PDF pipeline, which *is* offloaded to the worker because rendering is heavy — Excel parsing here is not.)
+- **Upload path:** tRPC/JSON is a poor fit for binary. Prefer a **Next.js App Router Route Handler** in `apps/panel` that accepts `multipart/form-data` (`await req.formData()`), reads the `File` into a `Buffer`, and hands it to a parse function. (Acceptable alternative for these tiny files: base64 the sheet into a tRPC mutation input — keeps everything in the typed Zod boundary — but mind Next's body-size limit and the base64 bloat.)
+- **The real work is validation, not the library.** Pipeline: `exceljs.load(buffer)` → map each row to a raw record → **re-validate every row with a Zod schema** (reuse/derive from the `drizzle-zod` schemas already in `packages/db`) → return a per-row error report to the UI for a preview/confirm step → on confirm, **transactional upsert under `withTenant`** so RLS pins every write to the developer's org. Never trust cell values (types, ranges, enum membership for `estado`, integer USD for `precio` per the money rule — never float).
+- **Export path:** a Route Handler that builds the workbook from a `withTenant` query and streams it back with `Content-Disposition: attachment; filename="..."` and the xlsx content-type — the same download ergonomics already used for the quote PDF's presigned GET. Round-trip the column headers so an exported sheet re-imports cleanly.
+- **RLS:** all reads/writes go through the existing `withTenant` transaction wrapper; the app role is `NOSUPERUSER NOBYPASSRLS`, so a bug can't leak or cross-write another tenant's grid.
 
-### Pattern: transaction-scoped session variable + a dedicated non-superuser app role
+### Hotspot editor — hand-rolled SVG, no dependency
 
-1. **Two database roles, two connection contexts.**
-   - **`app_authenticated`** (NOSUPERUSER, NOBYPASSRLS) — used by tRPC for all tenant-scoped application queries. RLS policies are evaluated against this role.
-   - **`anon`** (NOSUPERUSER, NOBYPASSRLS) — used for the public web read path; policies restrict it to `projects.estado = 'publicado'`.
-   - **Migrations / Better Auth's own tables** run under the migration/owner role (privileged). Better Auth manages `user`/`session`/`organization`/`member`/`invitation` via the Drizzle adapter on a privileged connection — **do NOT route Better Auth's internal queries through the RLS-scoped role.** RLS guards *application* tables, not the auth system tables.
+- **Storage already dictates the format.** `floors.poligonoSvg` and `units.poligonoSvg` are `text` columns holding SVG polygon geometry; the public explorer (future fase 2) will consume them as raw `<polygon points="x1,y1 x2,y2 …">`. The editor's job is exactly to *produce that string* over a static render (`floors.renderKey`). Any library that models geometry as canvas objects or W3C-annotation JSON adds a serialize/deserialize impedance layer around a format we already own.
+- **Shape of the component:** an inline `<svg viewBox="0 0 W H">` overlaying the render `<image>`; `onPointerDown` adds a vertex, dragging a vertex uses `setPointerCapture` + `onPointerMove`, double-click / Enter closes the polygon, emit `points` in **normalized `viewBox` coordinates** so the same polygon scales responsively on mobile. React 19's pointer-event handling makes this ~200-400 LOC with full control over snap/delete/keyboard UX, strict typing, and Playwright-testability.
+- **Why not a library:** see "What NOT to Use." The maintained options pull in Konva (a canvas 2D engine — directly contradicts the product's explicit "renders estáticos + SVG, sin motor tipo game engine" decision and the per-page weight budget) or Annotorious (a full W3C image-annotation framework with its own data model). Crib UX patterns from `choutkamartin/image-annotation` (MIT, React Hooks, SVG polygons) as a **reference**, not a dependency.
 
-2. **Per-request transaction sets the tenant context, then runs the query.** With the `postgres` driver + Drizzle:
+### D2 — Leads inbox + email notification
 
-```ts
-// pseudo-pattern inside tRPC context / a db helper
-await db.transaction(async (tx) => {
-  await tx.execute(sql`select set_config('app.current_org_id', ${orgId}, true)`); // true = LOCAL (transaction-scoped)
-  // ...all tenant queries here see only rows for orgId
-});
-```
+- **Nothing new.** The `leads` table is complete: `lead_estado` enum drives the `nuevo → contactado → negociacion → cerrado` pipeline, `origen` records source (broker/unidad/cotización), the nullable composite-FK'd `unitId`/`brokerId`/`quoteId` link back into the same tenant, and `timeline` is a typed `LeadNote[]` JSONB for notes. RLS `leads_tenant` scopes all panel reads/writes.
+- **Inbox** = tRPC queries + Drizzle under `withTenant`; status changes and notes are tRPC mutations. Live updates (SSE via Postgres `LISTEN/NOTIFY`) are already the decided stack but are **not required** for v1.3 — a normal query + refetch/poll is fine; defer SSE unless UX demands it.
+- **Email on new lead:** reuse **Resend + React Email** (already used for org invitations). The anon lead-insert path is server-side, so enqueue a **BullMQ** job on insert and let the **worker** send the notification — the exact decoupling pattern already proven by `quote-pdf` (jobId-dedup, retries, Sentry+pino observability). No new dependency.
 
-   `set_config(..., true)` == `SET LOCAL`: the variable resets at COMMIT/ROLLBACK, so it is **safe with connection pooling** (no leak between requests). The `orgId` comes from the Better Auth session's `activeOrganizationId`.
-
-3. **Policies in Drizzle schema, emitted to migrations.** Example for a tenant table:
-
-```ts
-import { sql } from 'drizzle-orm';
-import { pgPolicy, pgRole, pgTable, uuid, text } from 'drizzle-orm/pg-core';
-
-export const appAuthenticated = pgRole('app_authenticated');         // .existing() if created outside Drizzle
-export const anon = pgRole('anon');
-
-export const projects = pgTable('projects', {
-  id: uuid().primaryKey().defaultRandom(),
-  organizationId: uuid().notNull(),
-  estado: text().notNull(), // borrador | publicado | archivado
-}, () => [
-  pgPolicy('projects_tenant_isolation', {
-    for: 'all',
-    to: appAuthenticated,
-    using: sql`organization_id = current_setting('app.current_org_id', true)::uuid`,
-    withCheck: sql`organization_id = current_setting('app.current_org_id', true)::uuid`,
-  }),
-  pgPolicy('projects_public_read', {
-    for: 'select',
-    to: anon,
-    using: sql`estado = 'publicado'`,
-  }),
-]);
-```
-
-   Set `entities: { roles: true }` in `drizzle.config.ts` so Drizzle Kit generates the role + policy DDL. Adding a policy auto-enables RLS on the table.
-
-4. **CRITICAL gotchas (verified against PostgreSQL docs + RLS footgun write-ups):**
-   - **Table owners bypass RLS by default.** If the app role owns the tables (common when migrations create them), policies are silently ignored. **Use `ALTER TABLE ... FORCE ROW LEVEL SECURITY`** on every tenant table, OR ensure the app role is never the table owner. Add a phase-0 test that asserts this.
-   - **Superusers and `BYPASSRLS` roles ignore policies.** Never run app/test queries as a superuser — they make broken RLS look like it works. The `app_authenticated`/`anon` roles must be plain NOSUPERUSER NOBYPASSRLS.
-   - **`current_setting('app.current_org_id', true)`** — the second arg `true` returns NULL instead of erroring when unset; combined with default-deny this means "no context → no rows" (fail-closed). Without it, a missing GUC throws.
-   - **No policy on a table = default deny** for non-owner roles. Good default, but means every new tenant table needs an explicit policy or the app breaks. Enforce via a schema lint / migration review checklist.
-
-5. **Mandatory phase-0 verification (e2e):** create two orgs, insert rows in each, then prove that a query under `app_authenticated` with org A's GUC cannot see org B's rows, and that `anon` only sees `publicado` projects. This is the acceptance gate for the multi-tenancy requirement.
-
-### Better Auth organization plugin config (verified against official docs)
-
-```ts
-import { betterAuth } from 'better-auth';
-import { organization } from 'better-auth/plugins';
-import { createAccessControl } from 'better-auth/plugins/access';
-import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-
-const statement = {
-  project: ['create', 'update', 'delete', 'publish'],
-  unit:    ['update'],
-  member:  ['create', 'update', 'delete'],
-} as const;
-const ac = createAccessControl(statement);
-
-// Roles map to CLAUDE.md: owner / developer / viewer
-const owner     = ac.newRole({ project: ['create','update','delete','publish'], unit:['update'], member:['create','update','delete'] });
-const developer = ac.newRole({ project: ['create','update','publish'], unit:['update'] });
-const viewer    = ac.newRole({});
-
-export const auth = betterAuth({
-  database: drizzleAdapter(db, { provider: 'pg' }),
-  plugins: [
-    organization({
-      ac,
-      roles: { owner, developer, viewer },
-      creatorRole: 'owner',
-      // membershipLimit, invitation email handler, etc.
-    }),
-  ],
-  databaseHooks: {
-    session: { create: { before: async (s) => ({ data: { ...s, activeOrganizationId: /* user's org */ } }) } },
-  },
-});
-```
-
-- Plugin creates `organization`, `member`, `invitation` tables and adds `activeOrganizationId` to `session`. The session's `activeOrganizationId` is exactly the value to feed into the RLS GUC.
-- Mirror `ac`/roles in the client via `organizationClient`.
-- Run Better Auth's migration/generate (`@better-auth/cli`) and **commit the generated schema into your Drizzle schema** so all DDL stays versioned in one migration history (don't let two migration systems fight).
-
----
-
-## Alternatives Considered (configuration-level, within the decided stack)
+## Alternatives Considered
 
 | Recommended | Alternative | When to Use Alternative |
 |-------------|-------------|-------------------------|
-| `postgres` (porsager) driver | `pg` (`8.21.0`) | If a dependency requires the `pg` pool interface specifically. `pg` works with Drizzle too, but `postgres` has a cleaner transaction API for the per-request RLS pattern. |
-| TS `5.9.x` for phase 0 | TS `6.0.x` (npm latest) | Once the whole tool matrix (typescript-eslint, drizzle-kit, next) confirms TS 6 support. Adopt deliberately, not by floating `latest`. |
-| ESLint `9.x` flat config (if TS-ESLint lags) | ESLint `10.x` | Once `typescript-eslint` ships a stable major for ESLint 10. |
-| HTTP-01 ACME challenge for custom domains | DNS-01 challenge | Use DNS-01 only if you need a **wildcard** cert (ACME wildcards require DNS-01). For per-client custom domains via CNAME, HTTP-01 on-demand is simpler. |
-| Transaction-scoped `SET LOCAL` GUC RLS | Schema-per-tenant / DB-per-tenant | Only if a future enterprise client demands physical isolation. For MVP, RLS in a shared schema is correct (matches modelo-mvp.md §3.1). |
+| `exceljs@4.4.0` (npm, MIT) | **SheetJS `xlsx` via CDN override** (Apache-2.0) | Only if you need format breadth exceljs lacks — legacy `.xls`, `.ods`, `.xlsb`. We only need `.xlsx`, so the off-npm operational cost isn't worth it. If ever adopted, install via a `package.json` `overrides` entry pointing at `https://cdn.sheetjs.com/xlsx-0.20.x/...tgz` (a current, patched build) — **never** the npm `xlsx@0.18.5`. |
+| `exceljs@4.4.0` | `read-excel-file` + `write-excel-file` (MIT, more actively maintained) | If you want smaller, currently-maintained packages and minimal export styling; `read-excel-file`'s schema API is a clean Zod pairing. Trade-off: two deps, and plainer exports than developers may expect. |
+| `exceljs@4.4.0` | `@protobi/exceljs@4.4.0-protobi.10` (active fork) | If a vuln surfaces in exceljs's transitive deps before upstream moves — it's a drop-in with `archiver@7` and security fixes. Fork = supply-chain trust cost, so treat as a reactive swap, not the default. |
+| Hand-rolled SVG editor | `@annotorious/react@3.8.8` (maintained Jul 2026) | If the product ever needs full W3C Web Annotation semantics (comments, tags, multi-user annotation layers) over images. Overkill for "draw a polygon, store its points." |
+| Hand-rolled SVG editor | `polygon-annotation@2.0.0` (Konva) | If you deliberately move rendering to a canvas engine for very large/complex scenes. Contradicts the SVG-as-data architecture and the no-game-engine product decision — avoid for hotspots. |
+| Plain controlled `<table>` | `@tanstack/react-table@8` (headless) | When the grid genuinely needs client-side sort/filter/column resize/virtualization. Not for ~38 rows. |
 
 ## What NOT to Use
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| Turborepo `pipeline` key in `turbo.json` | Renamed to `tasks` in Turborepo 2.x; `pipeline` is removed. | `"tasks": { ... }` |
-| TanStack Query **v4** with tRPC v11 | v4 pairs with tRPC v10; v11 needs v5. Mixing causes type/runtime breakage. | `@tanstack/react-query@5` + `@trpc/tanstack-react-query@11` |
-| Running app/tests as Postgres **superuser** or a `BYPASSRLS` role | Silently bypasses RLS — broken policies look like they work; tenant leak ships. | Dedicated `app_authenticated` / `anon` NOSUPERUSER NOBYPASSRLS roles. |
-| Letting the app role **own** RLS tables without `FORCE ROW LEVEL SECURITY` | Table owners bypass RLS by default → policies ignored. | `ALTER TABLE ... FORCE ROW LEVEL SECURITY` on every tenant table (or separate owner role). |
-| `SET` (session-level) for the tenant GUC | Persists on a pooled connection → cross-request tenant leak. | `set_config(..., true)` / `SET LOCAL` inside a transaction. |
-| `pnpm install --prod` inside `.next/standalone` | Breaks the @vercel/nft-traced `node_modules` (pnpm symlinks). | Trust `output: 'standalone'` tracing; copy the traced tree as-is. |
-| Two competing migration histories (Better Auth auto-migrate **and** Drizzle Kit both writing DDL at runtime) | Drift + conflicts between systems. | Generate Better Auth schema, fold it into Drizzle schema, run **all** DDL through Drizzle Kit migrations. |
-| Neon-only helpers (`crudPolicy`, `authUid()`) | They target Neon/Supabase managed roles; this is self-hosted Postgres. | Raw `pgPolicy` + `current_setting()` expressions. |
-| Manual schema edits in Postgres | Violates CLAUDE.md (versioned migrations only). | Drizzle Kit migrations, reviewed in PR. |
+| **`xlsx` (SheetJS) from the npm registry** | npm is frozen at **`0.18.5` (2022)** and is no longer maintained there. It carries **CVE-2023-30533** (prototype pollution on **file read** — i.e. exactly our import path) and a ReDoS advisory, both fixed only in ≥0.19.3/0.20.x distributed via `cdn.sheetjs.com`, not npm. Shipping it into a multi-tenant SaaS that parses developer-uploaded files is a known, Dependabot-flagging hole. | `exceljs@4.4.0` (npm, MIT). If SheetJS features are truly required, pin a patched build via `overrides` → `cdn.sheetjs.com`, never the npm tarball. |
+| **Unofficial SheetJS npm mirrors** (`@e965/xlsx`, etc.) | Third-party republishes of SheetJS to dodge the CDN. Supply-chain trust risk for a security-conscious, RLS-everywhere codebase where "el código es la carta de presentación." | `exceljs`, or the official CDN override if SheetJS is unavoidable. |
+| **Konva / react-konva for hotspots** | A canvas 2D engine — adds weight, contradicts the explicit product decision (renders estáticos + SVG, *sin motor tipo game engine*), and forces canvas-object ↔ SVG-string serialization around a format we already store natively. | Hand-rolled inline `<svg>` + React 19 pointer events. |
+| **`react-image-annotate`** | Unmaintained since **2022**, targets React 16, heavy full-screen annotation UI. | Hand-rolled SVG editor (crib patterns from `choutkamartin/image-annotation`). |
+| **ag-grid / react-data-grid** for the unit grid | Heavyweight, styling/licensing baggage, and unnecessary for dozens of rows; fights the Tailwind-tokens design system and the page-weight budget. | Controlled `<table>`; `@tanstack/react-table` (headless) only if it grows. |
+| **Streaming/worker offload for Excel** | Files are kilobytes / dozens of rows. Streaming APIs and a BullMQ hop add complexity with zero benefit here (unlike the genuinely-heavy PDF job). | Parse inline in a Route Handler (or tRPC mutation), validate row-by-row with Zod, upsert transactionally under `withTenant`. |
+| **New tables / migrations for these features** | The v1.1 schema already models units, prices, price lists, leads (with enum/timeline/origen) and hotspot geometry columns. Adding columns risks drift. | Reuse existing tables; a migration is only warranted if a genuinely new field emerges during planning. |
 
----
+## Version Verification (npm registry, 2026-07-17)
 
-## Architecture-adjacent configuration notes (phase 0)
-
-**Docker — Next.js standalone in a pnpm/Turborepo monorepo (verified pattern):**
-- `next.config`: `output: 'standalone'`.
-- Multi-stage Dockerfile per app: a **prune stage** runs `turbo prune <app> --docker` → `./out` (pruned workspace + pruned lockfile); an **install/build stage** runs `pnpm install --frozen-lockfile` then `turbo build`; a slim **runner stage** copies `.next/standalone`, `.next/static`, and `public`. Do not re-run `pnpm install --prod` inside standalone.
-- Use a Node 22 Alpine base for the runner.
-
-**Traefik v3 — TLS for staging + custom client domains (verified pattern):**
-- One ACME **certResolver** using **HTTP-01** challenge (Let's Encrypt). Persist `acme.json` (chmod 600) on a volume.
-- Per-app routers derive their cert from the router's `Host()` rule — so a new client custom domain (added via CNAME → label/dynamic config) triggers an on-demand cert request with no infra change. This delivers the "dominios custom por CNAME sin tocar infra" requirement.
-- For a single wildcard (`*.tours.andescode.com.ar`) you'd need DNS-01 instead; for arbitrary client domains, stick with per-domain HTTP-01.
-- Anonymous insert endpoints (`events`, `leads`) get a Traefik rate-limit middleware at the edge (per modelo-mvp.md §3.3).
-
-**GitHub Actions — Turborepo + Docker:**
-- Cache Turborepo via the GitHub Actions cache (or self-hosted remote cache) keyed on lockfile + `turbo` hash; restore before `turbo run lint typecheck test build`.
-- Build images with Buildx + layer cache (`cache-from/cache-to: type=gha`), push to a registry, then deploy to the VPS (SSH `docker compose pull && up -d`). Auto on merge to `main` → staging; manual `workflow_dispatch` → prod.
-
----
-
-## Version Compatibility Matrix
-
-| Package | Compatible With | Notes |
-|---------|-----------------|-------|
-| `next@16.2` | `react@19.2`, `react-dom@19.2` | Next 16 requires React 19. Node `>=20.9` (use 22 LTS). |
-| `@trpc/*@11.17` | `@tanstack/react-query@5`, `zod@4`, React 19 | v11 = TanStack Query **v5** only; Zod 4 supported. |
-| `drizzle-orm@0.45` | `drizzle-kit@0.31`, Postgres 16, `postgres@3` / `pg@8` | Keep ORM + Kit majors aligned; `entities.roles:true` needed for RLS DDL. |
-| `better-auth@1.6` | `drizzle-orm@0.45` via `drizzleAdapter`, Postgres 16 | Organization plugin tables; adapter `joins` opt-in since 1.4. Use matching `@better-auth/cli`. |
-| `bullmq@5.78` | `ioredis@5.11`, Redis 7 | Pin Redis 7 image in Compose. |
-| `typescript@5.9` | typescript-eslint, drizzle-kit, next 16 | **Do not** float to TS 6 until each tool confirms support. |
-| `vitest@4` / `@playwright/test@1.60` | Node 22 | Standard. |
-
----
+| Package | Version | License | Notes |
+|---------|---------|---------|-------|
+| `exceljs` | `4.4.0` | MIT | Last published Dec 2024; upstream "inactive" (maintainer on leave) but API-stable and low-risk for this workload. Active fork `@protobi/exceljs@4.4.0-protobi.10` (May 2026) as escape hatch. |
+| `xlsx` (SheetJS, npm) | `0.18.5` | Apache-2.0 | **Rejected.** Stale/frozen on npm; CVE-2023-30533 unpatched on this channel. Current builds only on `cdn.sheetjs.com`. |
+| `read-excel-file` / `write-excel-file` | `9.3.2` / `4.1.1` | MIT | Actively maintained alternative pair. |
+| `@annotorious/react` | `3.8.8` | BSD-3 | Maintained (Jul 2026) but heavyweight W3C annotation framework — mismatch for raw-SVG storage. |
+| `polygon-annotation` | `2.0.0` | MIT | Requires `konva`+`react-konva` (canvas) — architectural mismatch. |
+| `react-konva` | `19.2.5` | MIT | React 19 compatible (peer `^19.2.0`) — noted only to confirm the canvas route is *available* but not chosen. |
+| `@tanstack/react-table` | `8.21.x` | MIT | React 19 compatible; optional, conditional. |
 
 ## Sources
 
-- npm registry (`npm view <pkg> version`), 2026-06-12 — exact current versions of every package above. **HIGH**
-- [Drizzle ORM — Row-Level Security](https://orm.drizzle.team/docs/rls) — `pgRole`, `pgPolicy`, `using`/`withCheck`, `entities.roles`, default-deny, self-hosted caveats. **HIGH**
-- [Better Auth — Organization plugin](https://better-auth.com/docs/plugins/organization) — plugin setup, `createAccessControl`, roles, `creatorRole`, tables created, `activeOrganizationId`, session hooks. **HIGH**
-- [Better Auth — Drizzle adapter](https://better-auth.com/docs/adapters/drizzle) — adapter config, `experimental.joins` (since 1.4). **HIGH**
-- [PostgreSQL docs — Row Security Policies](https://www.postgresql.org/docs/current/ddl-rowsecurity.html) + [Bytebase — RLS footguns](https://www.bytebase.com/blog/postgres-row-level-security-footguns/) — owner bypass, `FORCE ROW LEVEL SECURITY`, BYPASSRLS/superuser, testing gotcha. **HIGH**
-- [ECOSIRE — Drizzle + Postgres RLS multi-tenancy (2026)](https://ecosire.com/blog/drizzle-orm-postgres-rls-multitenancy) + [OneUptime — RLS for multi-tenant](https://oneuptime.com/blog/post/2026-01-25-row-level-security-postgresql/view) — `SET LOCAL` / `set_config(...,true)` transaction-scoped GUC, pooling safety. **MEDIUM** (cross-checked against PG docs → effectively HIGH).
-- [Turborepo — Docker guide](https://turborepo.dev/docs/guides/tools/docker) + [pnpm + Next standalone + Docker](https://dev.to/kochan/pnpm-nextjs-standalone-docker-5-failures-before-success-part-9-g3o) — `turbo prune --docker`, standalone tracing, avoid `pnpm install --prod` in standalone. **HIGH** (official) / **MEDIUM** (blog).
-- [Traefik — ACME cert resolvers](https://doc.traefik.io/traefik/reference/install-configuration/tls/certificate-resolvers/acme/) — HTTP-01 vs DNS-01, per-router cert derivation, wildcard requires DNS-01. **HIGH**
-- [tRPC v11 + Next App Router setup](https://trpc.io/docs) (and 2026 RSC guides) — v11 RSC support, TanStack Query v5 pairing, Zod 4. **MEDIUM/HIGH**
-
----
-*Stack research for: multi-tenant SaaS foundation (phase 0)*
-*Researched: 2026-06-12*
+- [SheetJS issue #2961 / #3098 / #3316 — 0.18.5 is the last npm build; fixes only via cdn.sheetjs.com](https://git.sheetjs.com/sheetjs/sheetjs/issues/2961) — **HIGH**
+- [CVE-2023-30533 — Prototype Pollution in SheetJS, GitHub Advisory GHSA-4r6h-8v6p-xvw6](https://github.com/advisories/GHSA-4r6h-8v6p-xvw6) — affects file **read** (import) path, all CE ≤0.19.2. **HIGH**
+- [ReversingLabs — xlsx@0.18.5 vulnerabilities](https://secure.software/npm/packages/xlsx/vulnerabilities/0.18.5) — **HIGH**
+- [ExcelJS Discussion #2987 / Issue #2969 — maintenance status "inactive", maintainer on leave](https://github.com/exceljs/exceljs/discussions/2987) — **HIGH**
+- [ExcelJS Discussion #3008 — active community fork @protobi/exceljs](https://github.com/exceljs/exceljs/discussions/3008) — **MEDIUM/HIGH**
+- npm registry (`npm view <pkg> version license peerDependencies time.modified`), 2026-07-17 — exact versions/peers/licenses of exceljs, @protobi/exceljs, read/write-excel-file, polygon-annotation, react-konva, @annotorious/react, react-image-annotate. **HIGH**
+- [definite2/polygon-annotation](https://github.com/definite2/polygon-annotation) + [Annotorious](https://annotorious.dev/getting-started/) + [choutkamartin/image-annotation (SVG polygons, React Hooks)](https://github.com/choutkamartin/image-annotation) — polygon-editor landscape; canvas vs SVG vs W3C-framework trade-offs. **HIGH** (peer deps verified) / **MEDIUM** (fit judgment)
+- Local schema inspection: `packages/db/src/schema/{floors,units,leads,unit-prices,price-lists,enums}.ts` — confirmed `poligonoSvg`/`renderKey`, `lead_estado`, `origen`, `timeline`, `unit_prices.precio` (integer), RLS `withTenant` — **HIGH**
