@@ -41,3 +41,6 @@ secrets/*.tmp
 
 # Transient GSD agent worktrees
 .claude/worktrees/
+
+# GSD updater backup of user-owned files (transient, machine-local)
+.claude/gsd-user-files-backup/
