@@ -31,6 +31,13 @@ export default mergeConfig(
       // globalSetup (tests/setup.ts) migrates the shared @imbau/db journal once and runs the
       // app_authenticated role guard before any test — REQUIRED for the integration suite (A8).
       globalSetup: ["./tests/setup.ts"],
+      // The media suites run REAL sharp AVIF/WebP encoding (8 encodes + decodes per case) and the
+      // MEDIA-04 integration suite hits real PG16 — legitimately slow work that Vitest's 5000ms
+      // default flakes on under CI CPU contention (turbo runs the worker + db test tasks in
+      // parallel). Match the @imbau/db harness timeouts so a slow encode fails loudly only when
+      // genuinely stuck, not when merely contended. No production code path is affected.
+      testTimeout: 30_000,
+      hookTimeout: 60_000,
       env: {
         // R2: dummy non-empty values; media-runtime is always mocked, so these are never used
         // to contact R2 — they only satisfy env.ts's import-time Zod validation.
