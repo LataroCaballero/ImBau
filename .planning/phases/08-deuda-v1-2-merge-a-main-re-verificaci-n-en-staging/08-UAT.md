@@ -1,14 +1,20 @@
 ---
-status: complete
+status: testing
 phase: 08-deuda-v1-2-merge-a-main-re-verificaci-n-en-staging
-source: [08-01-SUMMARY.md, 08-02-SUMMARY.md]
+source: [08-01-SUMMARY.md, 08-02-SUMMARY.md, 08-VERIFICATION.md]
 started: 2026-07-17T21:34:00Z
-updated: 2026-07-17T21:40:00Z
+updated: 2026-07-17T22:05:00Z
 ---
 
 ## Current Test
 
-[testing complete]
+number: 5
+name: Drill de migración fallida — el gate migrate-before-swap aborta sin swap
+expected: |
+  Con una migración deliberadamente rota, `deploy/deploy.sh` falla en el paso migrate
+  (set -euo pipefail) ANTES del swap de contenedores: staging queda corriendo la imagen
+  anterior intacta, sin downtime. Nunca drilleado desde v1.0 (T-4-MIGRATE).
+awaiting: user response
 
 ## Tests
 
@@ -120,12 +126,43 @@ evidence: |
     van directo a Loki, no a json-file) — consistente con "Loki recibiendo".
   Sentry: 0 líneas de error de init de Sentry en logs web/worker (últimos 20m) — SDK sano.
 
+### 4. Deploy no-op con cero migraciones pendientes (backstop 08-01 "empty", verificación post-fase)
+expected: Un `workflow_dispatch` de deploy-staging.yml sobre el mismo SHA de main (sin migraciones nuevas) completa verde: migrate corre y no aplica nada, el swap procede igual y staging queda sano sobre las mismas imágenes.
+result: pass
+evidence: |
+  Ejecutado por Claude el 2026-07-17 22:00Z (gh workflow run + SSH read-only al VPS).
+
+  DISPATCH: run 29616360314 (workflow_dispatch, headSha 22d1e96 — el mismo merge SHA ya deployado)
+    → conclusion=success (4 builds + deploy). Nota: un primer intento (run 29616218879) falló en el
+    SSH handshake del runner ("dial tcp 31.97.175.128:22: i/o timeout") ANTES de ejecutar deploy.sh
+    — transitorio de red del runner (VPS accesible y staging 200 durante el fallo); el retry pasó.
+
+  NO-OP CONFIRMADO (SSH):
+    /opt/imbau HEAD = 22d1e967636561e269b1858e1ef2c79052ae204f (sin cambio)
+    drizzle.__drizzle_migrations: count = 5 (0000–0004, SIN filas nuevas → migrate no aplicó nada)
+    Contenedores web/panel/worker: "Up 51 seconds" sobre las MISMAS imágenes
+      ghcr.io/.../imbau-{web,panel,worker}:22d1e96... → el swap procedió tras el migrate vacío.
+    Postgres: Up 38 min (healthy) — no reciclado por el deploy.
+
+  SUPERFICIES POST-NOOP: web / = 200, /p/brigos-recoleta/cotizador = 200, panel = 307. ✓
+
+### 5. Drill de migración fallida — migrate-before-swap aborta sin swap (backstop 08-01 "interrupción", T-4-MIGRATE)
+expected: Con una migración deliberadamente rota, `deploy/deploy.sh` (set -euo pipefail, migrate como paso previo al swap) falla en migrate y NO swapea: staging sigue sirviendo la imagen anterior sin downtime. Flagueado desde v1.0 (T-4-MIGRATE) y nunca drilleado en 3 milestones.
+result: [pending]
+notes: |
+  No se corre autónomamente: requiere inyectar una migración rota en el path de deploy del VPS
+  compartido con prod — decisión humana. El código del gate está verificado por lectura
+  (deploy/deploy.sh: sops decrypt → migrate → role bootstrap → swap, bajo set -euo pipefail) y el
+  path feliz corrió 2 veces hoy (con y sin migraciones pendientes). Sugerencia para el drill:
+  branch descartable con una migración `SELECT 1/0;`, deploy manual vía workflow_dispatch sobre ese
+  ref, observar abort sin swap, y borrar el branch.
+
 ## Summary
 
-total: 3
-passed: 3
+total: 5
+passed: 4
 issues: 0
-pending: 0
+pending: 1
 skipped: 0
 blocked: 0
 
