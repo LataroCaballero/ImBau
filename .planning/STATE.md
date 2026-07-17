@@ -2,9 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Panel de autogestión
+current_phase: 8
+current_phase_name: merge + re-verificación staging
 status: planning
-last_updated: "2026-07-17T20:30:00.000Z"
+stopped_at: Phase 8 context gathered
+last_updated: "2026-07-17T20:45:06.389Z"
 last_activity: 2026-07-17
+last_activity_desc: ROADMAP v1.3 creado (5 fases, 19/19 requirements mapeados)
 progress:
   total_phases: 5
   completed_phases: 0
@@ -46,6 +50,7 @@ Numeración GSD continúa desde v1.2 (última fase = 7).
 **UI hint:** Phases 9, 10, 11, 12 tienen superficie frontend en el panel (candidatas a `/gsd-ui-phase`). Phase 8 es infra/ops, sin UI.
 
 **Research flags (resolver al planificar):**
+
 - Phase 10 (D1 Excel import): edge cases de parsing de dinero es-AR (separador `.`, fecha DD/MM/YYYY, encoding) + UX de validación/error.
 - Phase 12 (hotspots): dónde vive el render exterior del edificio (`projects` vs fila `media`) antes de cablear el editor de pisos.
 
@@ -105,9 +110,9 @@ Items acknowledged and deferred at milestone closes (v1.0 2026-06-26, v1.2 2026-
 
 ## Session Continuity
 
-Last session: 2026-07-17
-Stopped at: ROADMAP v1.3 creado (Phases 8-12, 19/19 requirements mapeados, coverage 100%)
-Resume file: None
+Last session: 2026-07-17T20:45:06.384Z
+Stopped at: Phase 8 context gathered
+Resume file: .planning/phases/08-deuda-v1-2-merge-a-main-re-verificaci-n-en-staging/08-CONTEXT.md
 
 ## Operator Next Steps
 
