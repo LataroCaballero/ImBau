@@ -18,9 +18,17 @@ La fundación técnica queda desplegada y operable desde el día uno: cada commi
 - Merge de `fase-0/foundation` a `main` → deploy a staging (staging corre imagen pre-fase-5) + re-verificación en vivo: rate-limit 429, flujo PDF completo, QR con URL de staging.
 - Pasada visual humana del cotizador en viewport real (06-UAT.md, diferido — `/gsd-verify-work 6`).
 
-## Next Milestone Goals
+## Current Milestone: v1.3 Panel de autogestión
 
-**v1.3 Panel de autogestión (Fase 4 del plan maestro)** — siguiente en el orden ventana-Fable (0 → 1 → 3 → **4** → 2 → 5 → 6): el developer administra su proyecto sin tocar código — precios/listas, disponibilidad de unidades, bandeja de leads, brokers y métricas básicas sobre el panel existente. Definir requirements y roadmap con `/gsd-new-milestone`.
+**Goal:** El developer administra su proyecto sin tocar código ni depender del operador: edita precios/estados de unidades (incl. import/export Excel), gestiona su bandeja de leads y dibuja los hotspots del edificio desde el panel — sobre la fundación auth/RLS existente y con todo v1.2 corriendo verificado en staging.
+
+**Target features:**
+- Deuda v1.2 primero: merge de `fase-0/foundation` a `main` → deploy a staging + re-verificación en vivo (rate-limit 429, flujo PDF completo, QR con URL de staging)
+- D1 — Grilla de unidades: editar precio, estado y listas por forma de pago; import/export Excel (el formato en que los developers ya manejan sus datos)
+- D2 — Bandeja de leads: origen (broker/unidad/cotización), estados nuevo → contactado → negociación → cerrado, aviso por email
+- Editor de hotspots: polígonos SVG como datos, editor visual en el panel (habilita el explorador de fase 2)
+
+**Fuera de este milestone (fase 6 del plan maestro):** métricas (D4), alertas de interés repetido (D6) y configuración/branding (D5).
 
 ## Requirements
 
@@ -46,7 +54,12 @@ La fundación técnica queda desplegada y operable desde el día uno: cada commi
 
 ### Active
 
-Milestone **v1.3 Panel de autogestión** — requirements a definir con `/gsd-new-milestone` (candidatos del plan maestro, fase 4): gestión de precios/listas, disponibilidad de unidades, bandeja de leads, brokers, métricas básicas.
+Milestone **v1.3 Panel de autogestión** (fase 4 del plan maestro):
+
+- [ ] Deuda v1.2: merge a `main` + deploy y re-verificación en staging (rate-limit 429, PDF, QR)
+- [ ] D1 — Grilla de unidades: editar precio/estado/listas por forma de pago + import/export Excel
+- [ ] D2 — Bandeja de leads: origen, estados nuevo/contactado/negociación/cerrado, aviso por email
+- [ ] Editor de hotspots: polígonos SVG como datos con editor visual en el panel
 
 ### Out of Scope
 
@@ -114,4 +127,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-09 after v1.2 milestone (Cotizador shipped: 19/19 requirements, override_closeout con 1 UAT visual diferido). Próximo: merge a main + re-verificación staging, luego `/gsd-new-milestone` para v1.3 Panel de autogestión.*
+*Last updated: 2026-07-17 after starting milestone v1.3 Panel de autogestión (fase 4 del plan maestro: deuda v1.2 → D1 grilla + Excel, D2 leads, editor de hotspots).*
