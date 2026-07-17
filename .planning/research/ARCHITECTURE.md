@@ -1,321 +1,259 @@
 # Architecture Research
 
-**Domain:** Quoting engine + public-web quote flow + async PDF + WhatsApp handoff, integrated into an existing pnpm/Turborepo multi-tenant SaaS (ImBau v1.2 Cotizador)
-**Researched:** 2026-07-01
-**Confidence:** HIGH (grounded in the actual codebase — schema, RLS policies, tRPC context, media pipeline — not on generic patterns)
+**Domain:** Panel de autogestión (developer self-service) sobre monorepo Next.js/tRPC/Drizzle-RLS existente — milestone v1.3
+**Researched:** 2026-07-17
+**Confidence:** HIGH (verified against the actual schema, routers, worker and panel code in-repo)
 
-## Executive Finding (read this first)
+## Scope
 
-The single load-bearing architectural decision of this milestone is **where the CAC read and the quote write happen**, because of an RLS fact already baked into the schema:
+This is **integration research for a subsequent milestone**, not greenfield domain research. The stack, tenancy model and worker are decided and shipped (v1.0–v1.2). The question is precisely *how the three new panel surfaces (D1 grilla + Excel, D2 leads + email, editor de hotspots) attach to the existing seams* without violating RLS, the money rules, or the "errores observables" mandate — and in what order to build them.
 
-- `quotes` is **tenant-private**: only a `quotes_tenant` policy for `app_authenticated`, **no anon policy, no anon GRANT** → an anon SELECT/INSERT raises `42501` (documented in `quotes.ts:1-9`).
-- `cac_index` is **tenant-private** for the same reason (`cac-index.ts:1-8`): CAC is org-private business data, never exposed to the public web.
-- `payment_plans`, `unit_prices`, `brokers` **do** have `*_anon_published` SELECT policies → the public web already reads them via `withAnon`.
+**Headline findings (each expanded below):**
 
-Consequence: a public/anonymous buyer **cannot** read the CAC index nor persist a quote through the anon pool. The CAC value is required to display the ARS installment ("cuota inicial en pesos al valor del mes"). Therefore **quote emission must run server-side through the app pool (`withTenant`), not the anon pool** — regardless of the fact that the buyer is anonymous.
-
-This collides with the PROJECT.md assumption "no schema changes anticipated." It is resolvable **without** a schema change (recommended), but the roadmapper must pick a lane explicitly. See **Integration Points → The tenant-private crux**.
+1. **Excel runs inline in a tRPC mutation on the app pool — no worker, no R2, no multipart.** The dataset is ~tens to low-hundreds of rows (Brigos = 38 units). BullMQ/R2 is reserved for CPU-heavy async work (sharp, PDF); Excel of a building is a KB-scale payload.
+2. **The hotspot data model already exists.** `floors.poligonoSvg` and `units.poligonoSvg` are live TEXT columns with tenant + anon-published RLS policies. **No new table, no migration for the model.** Hotspots = a panel editor UI + write mutations + the *reuse* of the existing anon read policies for the future explorador.
+3. **Lead state transitions append to `leads.timeline` (JSONB) and email should be a queued BullMQ job**, mirroring the "email/PDF is never the critical path" precedent (D-02/D-10). Inline Resend (the invitation precedent) is the simpler fallback.
+4. **Price propagation: leave nothing running this milestone.** Do **not** emit `pg_notify` with no consumer. The single load-bearing move is to funnel every `unit_prices` write through one server path so Fase-5's SSE `NOTIFY` is a one-line insertion later.
+5. **One real schema change is likely needed:** a tenant-scoped `UNIQUE(unit_id, price_list_id)` on `unit_prices` to make the grid/Excel upsert idempotent AND to keep the existing quote resolver (which assumes one contado + one financiado USD row per unit) correct.
 
 ## Standard Architecture
 
-### System Overview
+### System Overview — where each new feature attaches
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│                     apps/web  (public, anon-only today)               │
-│  ┌────────────────────┐        ┌──────────────────────────────────┐  │
-│  │ Unit page (RSC/ISR) │───────▶│ Cotizador UI (client component)  │  │
-│  │ reads via withAnon: │        │ plan selector · anticipo · cuotas│  │
-│  │  unit_price, plan,  │        │ renders QuoteResult · WhatsApp   │  │
-│  │  broker (whatsapp)  │        └───────────────┬──────────────────┘  │
-│  └────────────────────┘                        │ quotes.compute /     │
-│                                                 │ quotes.create        │
-├─────────────────────────────────────────────────┼─────────────────────┤
-│                    packages/api  (tRPC v11)      ▼                     │
-│  quotesRouter (NEW):                                                   │
-│   compute  (publicProcedure)  ── run engine, return QuoteResult (no DB write)
-│   create   (publicProcedure)  ── resolve+revalidate org, run engine,   │
-│                                  persist snapshot via withTenant,      │
-│                                  enqueue PDF job                       │
-│                          │                    │                       │
-│              ┌───────────▼─────────┐   ┌───────▼───────────┐          │
-│              │ packages/quoting    │   │ withTenant(org)   │          │
-│              │ PURE engine (NEW):  │   │ app_authenticated │          │
-│              │ calcQuote()         │   │ INSERT quotes     │          │
-│              │ toWhatsAppText()    │   │ (snapshot+version)│          │
-│              │ toPdfModel()        │   └───────┬───────────┘          │
-│              │ ENGINE_VERSION      │           │ enqueue              │
-│              └─────────────────────┘           ▼                       │
-├────────────────────────────────────────────────┼─────────────────────┤
-│                        Redis / BullMQ           │ QUOTE_PDF_QUEUE      │
-├────────────────────────────────────────────────┼─────────────────────┤
-│                     apps/worker                 ▼                     │
-│   processQuotePdf (NEW): read quote via withTenant → render PDF        │
-│   (react-pdf) → PUT R2 (quotePdfKey) → withTenant UPDATE quotes.pdfKey │
-│   failure → Sentry + pino (reportQuotePdfFailure)                     │
-├──────────────────────────────────────────────────────────────────────┤
-│   PostgreSQL 16 (RLS)          Cloudflare R2          Redis            │
-│   quotes / cac_index tenant-priv   quotes/{…}.pdf     BullMQ jobs      │
-└──────────────────────────────────────────────────────────────────────┘
+│  apps/panel  (Next.js App Router, Better Auth session + activeOrgId)   │
+│  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌────────────────────┐   │
+│  │ Grilla    │  │ Bandeja   │  │ Editor     │  │ (existing)         │   │
+│  │ unidades  │  │ leads     │  │ hotspots   │  │ dashboard + invite │   │
+│  │ + Excel   │  │ + email   │  │ (SVG draw) │  │                    │   │
+│  └─────┬─────┘  └─────┬─────┘  └─────┬──────┘  └──────────┬─────────┘   │
+│  RSC read via createCaller · writes via useTRPC() client islands       │
+└────────┼──────────────┼──────────────┼───────────────────┼────────────┘
+         │ tRPC (type-safe, no codegen) — httpBatchLink → /api/trpc       │
+┌────────┴──────────────┴──────────────┴───────────────────┴────────────┐
+│  packages/api  (tRPC v11)   protectedProcedure → requireRole(...)      │
+│  ┌────────────────┐ ┌──────────────┐ ┌──────────────┐                  │
+│  │ units router   │ │ leads router │ │ floors/units │  ← NEW routers   │
+│  │ (grid/prices/  │ │ (list/estado │ │  hotspot     │                  │
+│  │  Excel import) │ │  /notify)    │ │  mutations)  │                  │
+│  └───────┬────────┘ └──────┬───────┘ └──────┬───────┘                  │
+│          │  ALL writes go through withTenant(ctx.activeOrgId, …)       │
+└──────────┼─────────────────┼────────────────┼─────────────────────────┘
+           │                 │ enqueue email   │
+┌──────────┴─────────────────┼────────────────┴─────────────────────────┐
+│  packages/db  (Drizzle + RLS FORCE)   app pool (app_authenticated)     │
+│  units · unit_prices · price_lists · leads(timeline) · floors          │
+│  units.poligonoSvg / floors.poligonoSvg  ← ALREADY EXIST               │
+└──────────┼─────────────────┼──────────────────────────────────────────┘
+           │                 ↓ (recommended) EMAIL_QUEUE
+┌──────────┼───────────┐  ┌──┴───────────────────────────────────────────┐
+│  PostgreSQL 16 (RLS) │  │ apps/worker (BullMQ)  media · quote-pdf · …   │
+│                      │  │  + NEW email consumer → Resend (React Email)  │
+└──────────────────────┘  └───────────────────────────────────────────────┘
 ```
 
 ### Component Responsibilities
 
-| Component | Responsibility | Implementation |
-|-----------|----------------|----------------|
-| `packages/quoting` (NEW, fills empty placeholder) | Pure, deterministic calc: base USD → anticipo → cuotas (CAC/fijo) → refuerzos → totals. Serializers to WhatsApp text and PDF model. Engine version. **No I/O.** | Pure TS functions + exhaustive types; Vitest unit + property-based; 100% coverage gate |
-| `quotesRouter` (NEW in `packages/api`) | Boundary: validate inputs (Zod), run engine, resolve/revalidate the published-project org, persist snapshot via `withTenant`, enqueue PDF | tRPC v11 `publicProcedure`s (buyer is anonymous), reuse `withTenant`/`withAnon` |
-| Cotizador UI (NEW in `apps/web`) | Mobile-first plan configurator; render `QuoteResult`; WhatsApp CTA; optional lead capture | Client component under the unit route; calls `quotes.*` |
-| `processQuotePdf` (NEW in `apps/worker`) | Render the persisted snapshot to PDF (legal legend "cotización no vinculante"), store in R2, write back `pdfKey` | Mirrors `processMedia`; react-pdf; `withTenant` UPDATE |
-| `packages/storage` (MODIFIED) | Add `QUOTE_PDF_QUEUE`, `QuotePdfJobData`, `quotePdfKey()`, `quotePdfJobOptions()` | Same "shared contract, no bullmq import" pattern as `queue.ts` |
-| `quotes` table (UNCHANGED) | Stores `snapshot` (versioned envelope), `pdfKey` (nullable), `leadId` (nullable) — all columns already exist | Drizzle schema from v1.1; no migration |
+| Component | Responsibility (new work) | Reuses / mirrors |
+|-----------|---------------------------|------------------|
+| Panel RSC pages | Read grid/leads/floors via `createCaller` → `withTenant` → RLS | `app/(dashboard)/page.tsx` pattern (listForOrg) |
+| Panel client islands | Interactive edits/import/draw via `useTRPC()` mutations | `invite-form.tsx` + `TRPCReactProvider` |
+| `units` router (NEW) | `list`, `updateEstado`, `upsertPrice`, `importExcel` — all `requireRole("owner","developer")` | `media.ts` (mutation + withTenant + RLS scoping) |
+| `leads` router (NEW) | `listForOrg`, `updateEstado` (append timeline + enqueue email) | `projects.listForOrg`, `quotes.create` enqueue side-effect |
+| hotspots mutations (NEW) | `floors.setPolygon`, `units.setPolygon` writing `poligonoSvg` | flat `withTenant` write, RLS `*_tenant` policy |
+| Worker email consumer (NEW, recommended) | Send lead notifications via Resend, retried + observable | `quote-pdf` worker (concurrency, `failed` handler, jobOptions dedup) |
 
 ## Recommended Project Structure
 
 ```
-packages/quoting/src/
-├── index.ts             # barrel: calcQuote, types, ENGINE_VERSION, serializers
-├── types.ts             # QuoteInput, QuoteResult, CuotaLine, RefuerzoLine (typed, integer money)
-├── engine.ts            # calcQuote(input): pure calc, embeds { version: ENGINE_VERSION }
-├── serialize.ts         # toWhatsAppText(result), toPdfModel(result) — pure
-├── money.ts             # integer-USD + decimal-ARS helpers, explicit rounding
-├── version.ts           # ENGINE_VERSION = 1  (== snapshot envelope version)
-├── engine.test.ts       # unit tables (contado / CAC / refuerzos / edge cases)
-└── engine.property.test.ts  # fast-check invariants (sum(cuotas)+anticipo == saldo, monotonicity…)
-
 packages/api/src/trpc/routers/
-└── quotes.ts            # NEW quotesRouter (compute + create); registered in _app.ts
-
-packages/storage/src/
-├── quote-pdf.ts         # NEW: QUOTE_PDF_QUEUE, QuotePdfJobData, quotePdfJobOptions
-└── keys.ts              # MODIFIED: add quotePdfKey(orgId, projectId, quoteId)
-
+├── units.ts        # NEW — grid read + estado/price writes + Excel import (inline parse)
+├── leads.ts        # NEW — listForOrg + updateEstado (timeline append + email enqueue)
+├── hotspots.ts     # NEW — floors.setPolygon / units.setPolygon (or fold into units/floors)
+├── _app.ts         # MODIFIED — mount units, leads, hotspots
+packages/api/src/
+├── excel/          # NEW — parse+build helpers (pure; SheetJS/exceljs), Zod row schema
+├── email/
+│   ├── lead-notification.ts   # NEW — payload builder + Resend send (or enqueue verb)
+│   └── templates/lead-*.tsx   # NEW — React Email template(s)
+packages/storage/src/queue.ts  # MODIFIED — add EMAIL_QUEUE + EmailJobData + emailJobOptions
 apps/worker/src/
-├── quote-pdf.ts         # NEW: processQuotePdf + reportQuotePdfFailure
-├── quote-pdf-render.tsx # NEW: react-pdf document from toPdfModel() output
-└── index.ts             # MODIFIED boot(): QUOTE_PDF_QUEUE + worker + failed handler
-
-apps/web/app/
-└── [projectSlug]/[unitId]/   # NEW unit route: RSC reads (withAnon) + cotizador client UI
-    ├── page.tsx              # server: read unit_price, payment_plans, broker via anon caller
-    └── cotizador.tsx         # client: configurator, calls quotes.*, WhatsApp CTA
+├── email.ts        # NEW — processEmail consumer + reportEmailFailure
+├── index.ts        # MODIFIED — createEmailWorker + failed handler in boot()
+apps/panel/app/(dashboard)/
+├── proyectos/[id]/unidades/   # NEW — grilla + import/export
+├── proyectos/[id]/leads/      # NEW — bandeja
+├── proyectos/[id]/hotspots/   # NEW — editor
+└── proyectos/[id]/layout.tsx  # NEW — project-scoped shell + tab nav
+packages/db/drizzle/           # NEW migration — UNIQUE(unit_id, price_list_id) on unit_prices
 ```
 
 ### Structure Rationale
 
-- **`packages/quoting` has zero dependencies on `db`/`api`/`storage`.** Its input/output types are plain (mirror the DB shapes but are not Drizzle rows). This keeps it pure, trivially 100%-coverable, and re-runnable for audit. Everything else depends on *its output type* — hence it is built first.
-- **Serializers live inside `quoting`** (`toWhatsAppText`, `toPdfModel`) so on-screen, PDF, and WhatsApp text all derive from the **same** `QuoteResult` — guaranteeing they never drift.
-- **PDF rendering (react-pdf) lives in the worker**, not in `quoting`: rendering is I/O-adjacent and server-only. `quoting` produces a pure `PdfModel` (data); the worker owns the JSX/render. This preserves the engine's purity.
+- **New routers, not fatter existing ones:** each surface gets its own router file mounted in `_app.ts`, exactly as `quotes`/`picker`/`media` are. Keeps the grep-fence ("import ONLY `withTenant/withAnon/schema`") auditable per file.
+- **`packages/api/src/excel/` is pure:** parse/build are I/O-free and unit-testable, matching the "funciones puras" bias of `packages/quoting`. The mutation is the only I/O boundary.
+- **Panel gains a project-scoped route group** (`proyectos/[id]/…`): today the panel is a single dashboard. Units, leads and hotspots are all *project*-scoped, so a shared `[id]` layout carrying "which project am I editing" is a prerequisite for all three (see Build Order, wave 1).
 
 ## Architectural Patterns
 
-### Pattern 1: Pure engine, versioned snapshot, server-authoritative compute
+### Pattern 1: Excel import/export inline in a tRPC mutation (no worker, no R2)
 
-**What:** `calcQuote(input): QuoteResult` is pure. Every result embeds `{ version: ENGINE_VERSION }`. The persisted `snapshot` stores **inputs + outputs + version** (`{ version: 1, inputs: {...}, result: {...} }`) so any emitted quote can be re-verified/re-rendered exactly as issued even after prices or CAC change — full auditability (modelo §3.4).
+**What:** Import = client reads the `.xlsx` with SheetJS → sends a normalized rows array to `units.importExcel` → Zod-validate → one `withTenant` transaction that upserts prices/estado and returns a per-row result report. Export = `units.exportGrid` returns the grid JSON; the browser builds the `.xlsx`. Server-side parse of an uploaded base64 file is an equivalent variant — the load-bearing rule is *validation + write happen server-side under `withTenant`*, regardless of where bytes are parsed.
 
-**When to use:** Always. The engine never reads a clock, DB, or env; the caller passes the CAC vigente and prices in.
+**When to use:** Small, bounded datasets (a building is ~38–hundreds of units). Response is synchronous — the user sees "12 filas actualizadas, 2 con error" immediately.
 
-**Trade-offs:** Snapshot is larger (stores inputs too) — worth it for probative value ("cotización no vinculante" but archivable). Version bump is the ONLY way the interior shape changes; the DB envelope (`quoteSnapshotSchema = z.object({version: z.literal(1)}).passthrough()`) stays fixed, so evolving the calc needs **no migration** — just a new `ENGINE_VERSION` and a widened `z.literal(1)` → `z.union([...])`.
-
-**Example:**
-```typescript
-// packages/quoting/src/engine.ts
-export function calcQuote(input: QuoteInput): QuoteResult {
-  const anticipoUsd = roundUsd(input.precioUsd * input.anticipoPct / 100);
-  const saldoUsd = input.precioUsd - anticipoUsd;
-  // ... cuotas (CAC vs fijo), refuerzos, totals — all integer USD / decimal ARS
-  return { version: ENGINE_VERSION, precioUsd: input.precioUsd, anticipoUsd, cuotas, refuerzos, totals };
-}
-```
-
-### Pattern 2: Read-anon, compute+persist-app (the media pipeline, re-applied)
-
-**What:** Mirror the proven `createUpload`/`confirmUpload` → BullMQ → `processMedia` → `withTenant` UPDATE flow. Quote emission = insert `quotes` via `withTenant` → enqueue → worker renders PDF → `withTenant` UPDATE `pdfKey`. The job payload carries `organizationId` (the worker has no session), exactly like `MediaJobData`.
-
-**When to use:** The persist + PDF path. Reuse `mediaJobOptions`' shape: `jobId = quoteId` (dedup/idempotent), `attempts: 5`, exponential backoff; `failed` handler → Sentry + pino.
-
-**Trade-offs:** Requires the **app pool** in whatever process runs `quotes.create` (see the crux below). That is the price of keeping `quotes`/`cac_index` invisible to raw anon SQL.
+**Trade-offs:** Inline blocks the request for the parse+write, but at these row counts that is milliseconds. **Do not** route this through BullMQ/R2 — that pattern exists for CPU-heavy async work (sharp variants, react-pdf) where the user must not wait; Excel here is neither heavy nor async. Cap the row count (e.g. ≤2000) and the payload at the tRPC boundary as a DoS guard, mirroring `media.ts`'s `MAX_UPLOAD_BYTES`.
 
 **Example:**
 ```typescript
-// packages/storage/src/quote-pdf.ts  (no bullmq import — shared contract, like queue.ts)
-export const QUOTE_PDF_QUEUE = "quote-pdf";
-export interface QuotePdfJobData { quoteId: string; organizationId: string; projectId: string; }
-export function quotePdfJobOptions(quoteId: string) {
-  return { jobId: quoteId, attempts: 5, backoff: { type: "exponential", delay: 2000 } } as const;
-}
+// units.importExcel — protectedProcedure + requireRole("owner","developer")
+.input(z.object({ projectId: z.uuid(), rows: z.array(unitPriceRowSchema).max(2000) }))
+.mutation(({ ctx, input }) =>
+  withTenant(ctx.activeOrgId, async (tx) => {
+    // RLS scopes every read/write to activeOrg; a foreign unitId is invisible → reported, not written.
+    // upsert unit_prices (needs UNIQUE(unit_id, price_list_id)); update units.estado.
+    // return { updated, skipped: [{ row, reason }] } — never throw on one bad row.
+  }))
 ```
 
-### Pattern 3: WhatsApp CTA as a pure link from the engine output
+### Pattern 2: Hotspot polygons as data on existing columns (zero-migration model)
 
-**What:** `toWhatsAppText(result)` returns the message body; the CTA is `https://wa.me/<brokerPhone>?text=<encodeURIComponent(text)>`. Broker phone comes from `brokers.whatsapp`, which is **anon-readable** (`brokers_anon_published` SELECT confirmed) — read in the RSC via `withAnon`, no privileged path needed.
+**What:** Each floor already owns `floors.poligonoSvg` (its shape on the building/exterior render) and each unit owns `units.poligonoSvg` (its shape on the floor-plan render). The editor loads a background render, lets the operator draw a polygon, and persists the point list as TEXT via `floors.setPolygon` / `units.setPolygon` under `withTenant`. The future explorador reads the same columns through the **already-shipped** `floors_anon_published` / `units_anon_published` SELECT policies.
 
-**When to use:** Immediately on the unit page, from the in-memory `QuoteResult`. Do **not** wait for the PDF (it may not be rendered yet). Optionally append the public quote-page URL.
+**When to use:** This is the intended model — the columns and both policies exist. No new `hotspots` table is warranted; the navigation graph is exactly building→floor polygon→unit polygon.
 
-**Trade-offs:** wa.me text length is bounded — keep the message a concise summary (unit id, precio, anticipo, N cuotas, first cuota ARS + CAC legend), not the full schedule. The full detail lives in the PDF and on-screen.
+**Trade-offs:** One polygon per level per row (sufficient for this navigation). If richer per-hotspot metadata is ever needed, a table comes later — not now. **XSS posture:** store polygon *coordinates* (validate a points/JSON string with Zod), and render them through React `<polygon points=…>` — never `dangerouslySetInnerHTML` a stored SVG document. This is consistent with `media.ts` deliberately rejecting `image/svg+xml` uploads.
+
+**Open confirmation (LOW-risk):** the *building-level* background render (the image the floor polygons sit on) — `floors.renderKey` is the floor-plan render; confirm where the exterior/building render lives (a `projects` field or a designated `media` row) before wiring the floor editor's canvas. Unit polygons clearly sit on `floors.renderKey`.
+
+### Pattern 3: Lead state transition = timeline append + queued email (email off the critical path)
+
+**What:** `leads.updateEstado` runs under `withTenant`, sets `leads.estado` and appends a typed `LeadNote` to `leads.timeline` (validated by the existing `leadNoteSchema`), then enqueues an `EMAIL_QUEUE` job. The transition commits regardless of email outcome; the worker sends via Resend with attempts/backoff and a `failed` → Sentry+pino handler.
+
+**When to use:** Any developer-facing action whose latency matters and whose email is non-critical. This mirrors the shipped decision that the PDF/WhatsApp path never blocks on the side effect (D-02/D-10).
+
+**Trade-offs:** A queued email adds a queue + worker consumer (~1 file + `queue.ts` contract + boot wiring — all cloned from `quote-pdf`). The simpler alternative is **inline Resend in the mutation**, exactly as `send-invitation.ts` does today (awaited, throws on failure). Inline is acceptable for v1 low volume but couples transition latency and success to email delivery. Recommendation: **queue it** to match the async precedent and the observability mandate; fall back to inline only if the queue wiring is deemed out of budget.
+
+**Events table note:** `events` (partitioned analytics) is a *Fase-6 metrics* concern. This milestone's source of truth for a lead's history is `leads.timeline`. Emitting an `events` row per transition is optional and cheap, but building the metrics consumer is explicitly out of scope — do not couple D2 to it.
 
 ## Data Flow
 
-### Quote generation (anonymous buyer) — recommended flow
-
+### D1 — grid edit / Excel import
 ```
-Buyer on /[projectSlug]/[unitId]  (published project, RSC via withAnon reads
-   unit_price + payment_plans + broker.whatsapp)
-        │  configures plan (anticipo %, cuotas, refuerzos)
-        ▼
-quotes.compute  (publicProcedure)  ── engine runs SERVER-SIDE ──────────┐
-        │  needs CAC vigente → read via withTenant(orgResolved) [app]    │  (crux)
-        ▼                                                                │
-QuoteResult returned → rendered on screen + WhatsApp CTA built ──────────┘
-        │  buyer clicks "Consultar por WhatsApp" / leaves contact
-        ▼
-quotes.create  (publicProcedure, rate-limited)
-   1. withAnon: SELECT project WHERE id=? AND estado='publicado'  → orgId  (revalidate!)
-   2. withTenant(orgId): read unit_price + plan + cac_index vigente
-   3. calcQuote(...) → snapshot {version, inputs, result}
-   4. withTenant(orgId): INSERT quotes (snapshot), optional leads (anon path or app)
-   5. enqueue QUOTE_PDF_QUEUE { quoteId, organizationId, projectId }
-        ▼
-on-screen result + WhatsApp fire IMMEDIATELY (no PDF wait)
-        ▼ (async, background)
-worker processQuotePdf → render → R2 → withTenant UPDATE quotes.pdf_key
-        ▼
-PDF download link appears (poll quote.pdfKey, or included in broker email)
+Operator edits cell / drops .xlsx
+    ↓ (client island; SheetJS parses xlsx → rows[])
+useTRPC().units.updateEstado | upsertPrice | importExcel  (POST /api/trpc)
+    ↓ protectedProcedure → requireRole("owner","developer")
+withTenant(ctx.activeOrgId) → RLS units_tenant / unit_prices_tenant
+    ↓ upsert unit_prices (UNIQUE unit_id+price_list_id) · update units.estado
+Postgres commits → per-row report returned → grid refetch
 ```
 
-### Sync vs async for the PDF — recommendation: ASYNC
+### D2 — lead transition + notification
+```
+Operator moves lead nuevo→contactado
+    ↓ useTRPC().leads.updateEstado
+withTenant(activeOrgId): set estado + append LeadNote to timeline (commit)
+    ↓ enqueue EMAIL_QUEUE { leadId, organizationId, event }
+apps/worker → processEmail → withTenant(orgId) read lead/broker recipient
+    ↓ Resend send (React Email) · retries · failed→Sentry+pino
+```
 
-The product goal is "portada → cotización por WhatsApp en <2 min" and "<3s en 4G." react-pdf rendering is heavy and must not block the buyer.
+### Price-propagation seam (leave dormant)
+```
+unit_prices write (grid/Excel)  ──▶  [ Fase-5 insertion point: pg_notify inside the SAME withTenant tx ]
+                                       (NO consumer, NO NOTIFY built this milestone)
+```
 
-- **On-screen result + WhatsApp CTA: synchronous** (from the in-memory `QuoteResult` — zero extra latency).
-- **PDF: asynchronous** via BullMQ, exactly like media variants. The download button either (a) polls `quotes.pdfKey` until non-null (simple, MVP-appropriate), or (b) the PDF link is delivered in the broker/lead notification email once ready. **Do not** reuse SSE/LISTEN-NOTIFY for this in the MVP — polling a single quote is simpler and cheaper.
+## Integration Points
 
-### State ownership
+### Internal boundaries — every new write path and its RLS implication
+
+| New write path | Procedure guard | Tenancy enforcement | Notes |
+|----------------|-----------------|---------------------|-------|
+| `units.updateEstado` | protected + requireRole | `withTenant(activeOrgId)` → `units_tenant` | client never sends orgId; foreign unitId → 0 rows |
+| `units.upsertPrice` | protected + requireRole | `unit_prices_tenant` + 3 composite FKs org-pin | **needs `UNIQUE(unit_id, price_list_id)` migration** for onConflict upsert |
+| `units.importExcel` | protected + requireRole | one `withTenant` tx; per-row RLS visibility | bad row → reported, never throws whole batch; row/size cap |
+| `leads.updateEstado` | protected + requireRole | `leads_tenant`; timeline validated by `leadNoteSchema` | append note; enqueue email carries orgId in payload |
+| `floors.setPolygon` / `units.setPolygon` | protected + requireRole | `floors_tenant` / `units_tenant` | validate coordinates (Zod), store TEXT; render via React not raw SVG |
+| Email worker read | (worker, no session) | `withTenant(orgId)` from job payload | orgId travels in job data, exactly like media/pdf jobs |
+
+### External services
+
+| Service | Integration Pattern | Notes |
+|---------|---------------------|-------|
+| Resend + React Email | Reuse `send-invitation.ts` shape (dev console fallback when no `RESEND_API_KEY`) | New lead template; verified `INVITE_FROM`-style sender required in staging/prod |
+| Cloudflare R2 | **Not needed for Excel.** Only touched if hotspot editor uploads new renders (that reuses the existing `media.createUpload/confirmUpload` presigned pipeline) | do not build a new upload path |
+| BullMQ/Redis | Add `EMAIL_QUEUE` to `packages/storage/src/queue.ts`; producer in api, consumer in worker | clone `MEDIA_QUEUE`/`QUOTE_PDF_QUEUE` contract + `boot()` wiring verbatim |
+
+## Anti-Patterns (specific to this milestone)
+
+### Anti-Pattern 1: Routing Excel through the worker/R2 pipeline
+**What people do:** upload `.xlsx` to R2 → enqueue a job → worker parses.
+**Why it's wrong:** adds Redis + R2 + async polling for a KB payload that parses in milliseconds; the operator must then wait for a round-trip to learn row 12 failed.
+**Do this instead:** parse client-side (or in the mutation), validate + upsert inline under `withTenant`, return a synchronous per-row report.
+
+### Anti-Pattern 2: Emitting `pg_notify` now "so SSE is ready later"
+**What people do:** add `NOTIFY price_changed` to the price write this milestone.
+**Why it's wrong:** there is no LISTENer; it is an untested moving part that can't be verified and isn't in scope. The master doc's "cambio de precio al instante" is a *future phase* deliverable.
+**Do this instead:** funnel all price writes through one `upsertPrice`/`importExcel` path so Fase-5 adds `pg_notify` (inside the existing `withTenant` tx) in one place. Build nothing else.
+
+### Anti-Pattern 3: Multiple `unit_prices` rows per (unit, list) via price history
+**What people do:** INSERT a new `vigencia` row on every edit for audit history.
+**Why it's wrong:** the shipped quote resolver (`resolveAndQuote` in `quotes.ts`) reads `unit_prices` by `unitId` and expects exactly one contado + one financiado USD row — no `max(vigencia)` selection. Multiple rows silently break/duplicate the quote.
+**Do this instead:** **upsert one row per (unit, price_list)** (UPDATE `precio`, set `vigencia = now()`) behind a `UNIQUE(unit_id, price_list_id)` constraint. If append-only price history is ever wanted, it is a joint change: the resolver must switch to latest-`vigencia` at the same time. Flag, don't sneak.
+
+### Anti-Pattern 4: Rendering stored hotspot SVG as raw markup
+**What people do:** `dangerouslySetInnerHTML` the `poligonoSvg` string.
+**Why it's wrong:** turns a tenant-writable field into a stored-XSS vector on the public explorador.
+**Do this instead:** store coordinates, validate with Zod, render through React `<svg><polygon points=…>` — consistent with the existing `image/svg+xml` upload rejection.
+
+## Recommended Build Order
+
+Dependencies: (a) the merge debt gates realistic staging verification of everything; (b) all three features are project-scoped and need a panel shell that today does not exist; (c) D1 and D2 are mutually independent; (d) hotspots depends on nothing in D1/D2 and only unlocks the *future* Fase-2 explorador, so it is lowest-urgency but fully parallelizable.
 
 ```
-QuoteResult (ephemeral)  ──lives in the client while configuring──▶ display + WhatsApp
-       │ (on emit)
-       ▼
-quotes.snapshot (durable, versioned)  ──▶ authoritative record ──▶ PDF render source
+Task 0  ─ MERGE fase-0/foundation → main + staging re-verify (v1.2 debt)
+          rate-limit 429 · full PDF flow · QR with staging URL. No feature code; unblocks all.
+             │
+Wave 1  ─ Panel project-scoped shell: proyectos list → [id] layout + tab nav
+          (reuses projects.listForOrg; prerequisite for D1/D2/hotspots)
+             │
+Wave 2  ─ ┌─ D1 grilla de unidades ──────────────┐   ┌─ D2 bandeja de leads ───────┐
+          │  1. migration UNIQUE(unit,list)       │   │  1. leads.listForOrg + UI    │
+          │  2. read grid (RSC)                   │   │  2. updateEstado + timeline  │
+          │  3. estado/price write mutations      │   │  3. EMAIL_QUEUE + worker +   │
+          │  4. Excel EXPORT (read-only, trivial) │   │     Resend template          │
+          │  5. Excel IMPORT (validate + upsert)  │   └──────────────────────────────┘
+          └──────────────────────────────────────┘     (parallel with D1)
+             │
+Wave 3  ─ Editor de hotspots (floors/units setPolygon + canvas UI)
+          zero D1/D2 dependency; could shift earlier/parallel if capacity allows.
 ```
+
+**Rationale for D1-before/with-D2, hotspots last:** D1 is the highest-value surface, exercises the write-under-`withTenant` + `requireRole` pattern that D2 and hotspots then clone, and forces the `unit_prices` uniqueness decision that also protects the quote engine. D2 is independent and can run in parallel once the shell exists. Hotspots is the most UI-heavy (SVG drawing), needs the render-image confirmation, and its only downstream consumer (explorador) is a *later* milestone — so it carries the least schedule risk if it slips to the end.
 
 ## Scaling Considerations
 
 | Scale | Adjustments |
 |-------|-------------|
-| 0–1k quotes/day | Current single-worker BullMQ is ample. `compute` is pure/fast; `create` is one short `withTenant` tx + one enqueue. |
-| 1k–100k | Add PDF worker concurrency (like media `concurrency: 2`); ensure `quotes` has an index on `(organization_id, project_id)`; cache CAC-vigente read per (org, período) request-scoped. |
-| 100k+ | Separate the PDF worker from the media worker (own queue already isolates them); consider ISR/edge-cache for the unit page shell; move CAC lookups behind a small read cache. |
+| 1 developer, ~40 units | Inline Excel + inline reads are trivially fast; nothing to tune |
+| Dozens of projects, hundreds of units each | Grid read stays a single tenant-scoped SELECT; add pagination only if a project exceeds ~1k units. Excel row cap already bounds import |
+| Multi-org, high lead volume | Queued email decouples transition latency from Resend; worker concurrency already the tuning knob (clone `concurrency: 2`) |
 
 ### Scaling priorities
-
-1. **First bottleneck: PDF rendering throughput** — react-pdf is CPU-heavy. Async queue already absorbs bursts; raise concurrency before anything else.
-2. **Second: the app-pool connection count on the public path** — if `quotes.create` runs in `apps/web`, watch pool sizing; the anonymous surface can be spiked. Rate-limit at the edge (below).
-
-## Anti-Patterns
-
-### Anti-Pattern 1: Running the engine (and CAC read) client-side
-
-**What people do:** Compute the quote in the browser and send the result up to be stored.
-**Why it's wrong:** The calc is the product's differentiator and the snapshot is probative — a client-computed value can be tampered, and CAC is org-private (must not ship to the browser as raw data). It also breaks "on-screen == PDF == persisted."
-**Do this instead:** Compute server-side (`quotes.compute`/`create`); the browser only renders the returned `QuoteResult`.
-
-### Anti-Pattern 2: Giving the anon role read/write on `cac_index`/`quotes` to "keep it simple"
-
-**What people do:** Add `*_anon_published` policies to `cac_index` and an anon INSERT to `quotes` (mirroring `leads`) so the web can use `withAnon` end-to-end.
-**Why it's wrong:** It exposes org-private CAC values and lets anon enumerate quote rows — weaker isolation, and it *is* the schema change PROJECT.md wanted to avoid.
-**Do this instead:** Keep both tenant-private; concentrate the privileged read/write in one audited `publicProcedure` that re-derives the org from the published project (app-pool elevation). (This is a genuine fork — see the crux; if the team decides CAC exposure is acceptable, the anon-policy route is the alternative.)
-
-### Anti-Pattern 3: Blocking the WhatsApp/on-screen result on PDF generation
-
-**What people do:** `await` PDF render inside `quotes.create` before returning.
-**Why it's wrong:** Kills the <2 min / <3s goals; couples a fast path to a slow one; a react-pdf failure would fail the whole quote.
-**Do this instead:** Return the result immediately; enqueue the PDF; surface it when ready.
-
-### Anti-Pattern 4: Trusting a client-supplied `organizationId` or price on the public path
-
-**What people do:** Let the browser pass org/price into `quotes.create`.
-**Why it's wrong:** Cross-tenant write / price tampering. The whole codebase's rule (T-03-05) is "org is server-derived only."
-**Do this instead:** Resolve org from the `(projectSlug/unitId)` via a `withAnon` published-only read, re-validate `estado='publicado'`, then `withTenant(org)`. Read the price from the DB, never from input.
-
-## Integration Points
-
-### The tenant-private crux (the decision the roadmapper must make)
-
-| Option | How | Schema change? | Isolation | Recommendation |
-|--------|-----|----------------|-----------|----------------|
-| **A — App-pool elevation (recommended)** | One `publicProcedure` resolves+revalidates the published-project org, then reads CAC / writes quote via `withTenant`. The public-serving process holds the app pool. | **None** | Strong — CAC/quotes stay invisible to raw anon SQL | **Choose this.** Concentrates privilege in one audited, rate-limited function; no migration. |
-| B — Add anon policies | `cac_index` anon-published SELECT + `quotes` anon INSERT (like `leads`); engine runs in RSC via `withAnon`. | **Yes** (2 policies + grants) | Weaker — anon can read CAC, enumerate quotes | Only if the team explicitly accepts exposing CAC to the public role. |
-
-**Option A sub-decision — where the app pool lives:**
-- **A1 (leaning recommended):** `apps/web` gains `DATABASE_APP_URL` used *only* by the `quotes.create/compute` path. This widens the D-03 "web is anon-only" isolation deliberately — it must be documented as a Key Decision, the app-pool usage grep-fenced to the quotes router, and the endpoint edge-rate-limited.
-- **A2:** Relocate quote emission to a surface that already holds the app pool (a dedicated public API route / the panel's server runtime), keeping `apps/web` strictly anon. Cleaner isolation, one more moving part.
-
-Flag both to the user; do not silently widen D-03.
-
-### Rate limiting (anon-triggered write)
-
-`quotes.create` is an anonymous write, same class as `events`/`leads` (modelo §3.3 requires an edge rate-limit). **Note the staging reality:** the proxy is **nginx-host + certbot, not Traefik** (Decision D-01). So the rate limit is `nginx limit_req` (or an app-layer limiter) — the Traefik middleware from CLAUDE.md is not available on the shared staging box. Roadmapper should not plan a Traefik middleware here.
-
-### External services
-
-| Service | Integration | Notes |
-|---------|-------------|-------|
-| Cloudflare R2 | Reuse `makeR2Client` + a new `quotePdfKey()`; deterministic key `quotes/{orgId}/{projectId}/{quoteId}.pdf` → retry overwrites in place (idempotent, like `variantKey`) | Reuse `@imbau/storage` transport; add key + queue contract only |
-| Redis / BullMQ | New `QUOTE_PDF_QUEUE`; producer = `@imbau/api`, consumer = `apps/worker`; contract in `@imbau/storage` (no bullmq import) | Same producer/consumer split as `MEDIA_QUEUE` |
-| Sentry + pino | `reportQuotePdfFailure` on the worker `failed` handler; errors never swallowed | Mirror `reportMediaFailure` |
-| WhatsApp (wa.me) | Pure link from `brokers.whatsapp` (anon-readable) + `toWhatsAppText()` | No API, just a URL |
-
-### Internal boundaries
-
-| Boundary | Communication | Notes |
-|----------|---------------|-------|
-| `quoting` ↔ everything | Types only (import `QuoteInput`/`QuoteResult`); pure functions | `quoting` imports nothing from `db`/`api`/`storage` — keep it acyclic and pure |
-| `api` ↔ `db` | `withTenant`/`withAnon` only (never `appDb`/owner pool) | Same rule the media/projects routers already follow (T-03-09) |
-| `api` ↔ `worker` | Via `@imbau/storage` queue contract (`QuotePdfJobData`) | Payload carries `organizationId` (worker has no session) |
-| `worker` ↔ `db` | `withTenant(payload.organizationId)` for read + `pdfKey` UPDATE | Exactly the `processMedia` write-back pattern |
-
-## Suggested Build Order (dependency-driven)
-
-1. **`packages/quoting` — engine first, 100% coverage + property tests.** Densest pure logic; defines the `QuoteResult` type every other surface consumes. Includes `toWhatsAppText`/`toPdfModel` and `ENGINE_VERSION`. No integration. *(This is the milestone's quality centerpiece — CI coverage gate.)*
-2. **API + persistence — `quotesRouter` (`compute` + `create`).** Resolve the tenant-private crux (Option A). Wire `withAnon` org-resolution, `withTenant` CAC read + snapshot insert, register in `_app.ts`. Add the `@imbau/storage` PDF queue/key contract here (producer side).
-3. **Web UI — unit route + cotizador.** RSC anon reads (unit_price, plans, broker) + client configurator calling `quotes.*`; render `QuoteResult`; **WhatsApp CTA lands here** (it's a pure link, cheap). Add a tRPC client to `apps/web` (currently none) or use server actions.
-4. **PDF worker — async render.** `processQuotePdf` + react-pdf document + R2 store + `pdfKey` write-back + `failed`→Sentry; register queue/worker in `boot()`; wire the download/poll on the UI. Last because it's async and non-blocking to the core UX.
-
-Rationale: each step depends only on prior ones; the engine's output type is the contract; WhatsApp (cheap) ships with UI; PDF (heavy, async) is isolated last so a PDF slip never blocks the demo-critical on-screen + WhatsApp path.
-
-## New vs Modified — explicit
-
-**New:**
-- `packages/quoting/src/*` — engine, types, serializers, version, unit + property tests (fills the empty placeholder).
-- `packages/api/src/trpc/routers/quotes.ts` — `quotesRouter` (`compute`, `create`).
-- `packages/storage/src/quote-pdf.ts` — `QUOTE_PDF_QUEUE`, `QuotePdfJobData`, `quotePdfJobOptions`.
-- `apps/worker/src/quote-pdf.ts` + `quote-pdf-render.tsx` — `processQuotePdf`, react-pdf document, `reportQuotePdfFailure`.
-- `apps/web/app/[projectSlug]/[unitId]/*` — unit route + cotizador client UI + WhatsApp CTA (+ possibly a web tRPC client).
-
-**Modified:**
-- `packages/api/src/trpc/routers/_app.ts` — register `quotes`.
-- `packages/storage/src/index.ts` — export the new contract; `keys.ts` — add `quotePdfKey()`.
-- `apps/worker/src/index.ts` `boot()` — declare `QUOTE_PDF_QUEUE`, stand up the worker, wire `failed`.
-- `apps/web/env.ts` — **only under Option A1**: add `DATABASE_APP_URL` (documented D-03 widening).
-- nginx staging vhost — add `limit_req` for the quote-create endpoint (no Traefik).
-
-**Unchanged (no migration):**
-- `quotes` table — `snapshot`, `pdfKey`, `leadId` already exist; envelope `{version:1}.passthrough()` accommodates the engine interior.
-- `payment_plans`, `unit_prices`, `cac_index`, `brokers` — schema/policies as shipped in v1.1.
-
-## Money & determinism notes (for the engine planner)
-
-- USD amounts are **integers** (`unit_prices.precio integer`, `Refuerzo.montoUsd int`, `anticipoPct numeric`) — never float (CLAUDE.md D-14). ARS installments derive from CAC (`cac_index.valor numeric(12,4)`).
-- Recommend integer-USD arithmetic + a **decimal** discipline for ARS (integer minor units or `decimal.js`), with **explicit, tested rounding rules** — rounding is the classic quoting pitfall and a property-test target (e.g. `sum(cuotas) + anticipo + sum(refuerzos) == precio` in USD).
-- Keep `quoting` dependency-light; if a decimal lib is added, it's the only runtime dep and must be pinned.
+1. **First bottleneck:** none realistic at MVP volumes — keep it simple, resist premature async.
+2. **Second bottleneck:** if the public lead-capture endpoint (Fase-2) drives high inbound volume, the queued email design already absorbs it; inline email would not.
 
 ## Sources
 
-- Codebase (HIGH — direct read): `packages/db/src/schema/{quotes,payment-plans,cac-index,unit-prices,leads,brokers,json-schemas}.ts`; `packages/db/src/with-tenant.ts`; `packages/api/src/trpc/{init,context,middleware}.ts`, `routers/{projects,media,_app}.ts`, `media/register.ts`; `packages/storage/src/{queue,keys,index}.ts`; `apps/worker/src/index.ts`; `apps/web/app/page.tsx`, `env.ts`.
-- `docs/modelo-mvp.md` §3.3 (schema + anon-insert-with-rate-limit), §3.4 (cotizador engine spec), §3.5 (deploy). HIGH.
-- `.planning/PROJECT.md` — v1.2 milestone goal, D-01 (nginx not Traefik), D-03 (web anon-only), money conventions. HIGH.
+- In-repo schema: `packages/db/src/schema/{units,floors,unit-prices,price-lists,leads,quotes,events,enums}.ts` — `poligonoSvg` columns, RLS policies, composite FKs, `leadNoteSchema`, enums. **HIGH** (source of truth)
+- In-repo routers: `packages/api/src/trpc/routers/{quotes,projects,media}.ts`, `middleware.ts` (requireRole), `with-tenant.ts` — established mutation/withTenant/enqueue patterns. **HIGH**
+- In-repo worker + storage: `apps/worker/src/index.ts`, `quote-pdf-runtime.ts`, `packages/api/src/quotes/runtime.ts`, `packages/storage/src/queue.ts` — BullMQ producer/consumer contract to clone for email. **HIGH**
+- In-repo email + panel: `packages/api/src/email/send-invitation.ts`, `apps/panel/app/(dashboard)/page.tsx`, `lib/trpc-client.tsx` — Resend fallback pattern, RSC caller vs client island. **HIGH**
+- `.planning/PROJECT.md` (v1.3 goal, D-01/D-02/D-10/D-13 decisions) + `docs/modelo-mvp.md` §3.3 (referenced) — feature scope + "cambio de precio al instante" future-phase promise. **HIGH**
 
 ---
-*Architecture research for: ImBau v1.2 Cotizador — quoting engine integration*
-*Researched: 2026-07-01*
+*Architecture research for: ImBau panel de autogestión (milestone v1.3) — integration of D1/D2/hotspots into the shipped monorepo.*
+*Researched: 2026-07-17*
