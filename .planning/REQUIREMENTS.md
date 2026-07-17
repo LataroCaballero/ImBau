@@ -9,7 +9,7 @@ Requirements de este milestone (fase 4 del plan maestro). Cada uno mapea a una f
 
 ### Deuda v1.2
 
-- [ ] **DEBT-01**: `fase-0/foundation` mergeada a `main` con todo v1.2 desplegado en staging
+- [x] **DEBT-01**: `fase-0/foundation` mergeada a `main` con todo v1.2 desplegado en staging
 - [ ] **DEBT-02**: Re-verificación en vivo en staging: rate-limit 429 en `quotes.*`, flujo PDF completo, QR con URL de staging
 
 ### Shell del panel
@@ -79,7 +79,7 @@ Qué fases cubren qué requirements. Se actualiza al crear el roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DEBT-01 | Phase 8 | Pending |
+| DEBT-01 | Phase 8 | Complete |
 | DEBT-02 | Phase 8 | Pending |
 | PANEL-01 | Phase 9 | Pending |
 | PANEL-02 | Phase 9 | Pending |
@@ -100,11 +100,13 @@ Qué fases cubren qué requirements. Se actualiza al crear el roadmap.
 | HSPOT-04 | Phase 12 | Pending |
 
 **Coverage:**
+
 - v1.3 requirements: 19 total
 - Mapped to phases: 19 ✓
 - Unmapped: 0
 
 **Phase distribution:**
+
 - Phase 8 (Deuda v1.2 — merge + re-verificación staging): DEBT-01, DEBT-02
 - Phase 9 (Shell del panel scoped al proyecto + role gate): PANEL-01, PANEL-02
 - Phase 10 (D1 — Grilla de unidades + Excel): GRID-01..07

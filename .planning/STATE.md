@@ -3,18 +3,18 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Panel de autogestión
 current_phase: 8
-current_phase_name: merge + re-verificación staging
-status: planning
-stopped_at: Phase 8 context gathered
-last_updated: "2026-07-17T20:45:06.389Z"
+current_phase_name: Deuda v1.2 — merge a main + re-verificación en staging
+status: executing
+stopped_at: "Completed 08-01-PLAN.md (DEBT-01: v1.2 merged to main + deployed+seeded on staging)"
+last_updated: "2026-07-17T21:31:09.731Z"
 last_activity: 2026-07-17
-last_activity_desc: ROADMAP v1.3 creado (5 fases, 19/19 requirements mapeados)
+last_activity_desc: "Completed 08-01 — DEBT-01 (v1.2 merged to main, deployed + seeded on staging)"
 progress:
   total_phases: 5
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 2
+  completed_plans: 1
+  percent: 50
 ---
 
 # Project State
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-17)
 
 **Core value:** La fundación técnica desplegada y operable: cada commit a main termina corriendo en staging con aislamiento multi-tenant verificable por RLS.
-**Current focus:** v1.3 roadmap creado (Phases 8-12). Primer paso: Phase 8 — merge de `fase-0/foundation` a `main` + re-verificación en staging antes de cualquier feature del panel.
+**Current focus:** Phase 8 — Deuda v1.2 — merge a main + re-verificación en staging
 
 ## Current Position
 
-Phase: Phase 8 — Deuda v1.2 (merge + re-verificación staging) — not started
-Plan: —
-Status: Roadmap creado, listo para planificar Phase 8
-Last activity: 2026-07-17 — ROADMAP v1.3 creado (5 fases, 19/19 requirements mapeados)
+Phase: 8 (Deuda v1.2 — merge a main + re-verificación en staging) — EXECUTING
+Plan: 2 of 2 (08-01 complete — DEBT-01 done)
+Status: Ready to execute 08-02 (DEBT-02 live re-verification)
+Last activity: 2026-07-17 — 08-01 complete: PR #5 merged (22d1e96), deploy green, staging seeded publicado
 
 ## Roadmap (v1.3 — Phases 8-12)
 
@@ -72,6 +72,11 @@ Numeración GSD continúa desde v1.2 (última fase = 7).
 | 12. Editor de hotspots | 0/TBD | Not started |
 
 *Updated after each plan completion*
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 8 P01 | 27min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -85,6 +90,8 @@ Decisions are logged in PROJECT.md Key Decisions table (full log). Decisiones vi
 - [Research / v1.3]: `exceljs@4.4.0` (MIT) es la única dependencia runtime net-new; **NO instalar `xlsx`/SheetJS** (CVE-2023-30533 sin patch en el path de import). Editor de hotspots hand-rolled (SVG `viewBox` pointer-events, ~250 líneas) — sin canvas/Konva (viola "sin motor tipo game engine").
 - [Research / v1.3, a decidir en planning]: migración `UNIQUE(unit_id, price_list_id)` en `unit_prices` — hace idempotente el upsert de grilla/Excel y protege el resolver de cotización de v1.2 (una fila por unidad×lista). Excel parse/build en módulo puro `packages/api/src/excel/` (I/O-free, testeable).
 - [Research / v1.3, a decidir en planning]: email de lead **queued** (BullMQ, clona el contrato quote-pdf) vs inline Resend (patrón invitación) — decidir en Phase 11; emisión de `events` por transición lead/precio (cheap, forward-compatible) vs diferir — decidir en Phase 10/11.
+- [Phase ?]: Phase 8-01: merged PR #5 to main via merge commit (22d1e96, not squash) preserving 397-commit history + v1.2 tag; kept fase-0/foundation (D-01/D-03)
+- [Phase ?]: Phase 8-01: fixed two shared-_test-DB Vitest flakes (db fileParallelism:false for concurrent partition-DDL race; worker testTimeout 30s for real sharp/PG suites) to green the required quality gate
 
 ### Pending Todos
 
@@ -94,7 +101,7 @@ None yet.
 
 Abiertos entrando a v1.3:
 
-- ⚠️ Staging corre imagen pre-fase-5 (`a599bb7`) — TODO v1.2 (fases 5-7: rutas quotes, UI cotizador, PDF) llega a staging recién al mergear la rama a main. **Es el trabajo de Phase 8** (DEBT-01/02): merge → deploy → re-verificar rate-limit 429, flujo PDF completo, QR con URL de staging. Gate real: infra del operador (merge + deploy a VPS).
+- ✅ RESUELTO (08-01, DEBT-01): staging ya corre las imágenes v1.2 tageadas por el merge SHA `22d1e96` (web/panel/worker), migraciones 0000–0004 aplicadas vía migrate-before-swap, seed 'Brigos Recoleta' publicado. Falta la re-verificación EN VIVO (rate-limit 429, PDF e2e, QR con URL de staging) → es 08-02 (DEBT-02).
 - Pasada visual de fase 6 (v1.2) → sigue trackeada en Deferred Items (abajo), no bloquea v1.3.
 
 ## Deferred Items
@@ -110,9 +117,9 @@ Items acknowledged and deferred at milestone closes (v1.0 2026-06-26, v1.2 2026-
 
 ## Session Continuity
 
-Last session: 2026-07-17T20:45:06.384Z
-Stopped at: Phase 8 context gathered
-Resume file: .planning/phases/08-deuda-v1-2-merge-a-main-re-verificaci-n-en-staging/08-CONTEXT.md
+Last session: 2026-07-17T21:31:09.726Z
+Stopped at: Completed 08-01-PLAN.md (DEBT-01: v1.2 merged to main + deployed+seeded on staging)
+Resume file: None
 
 ## Operator Next Steps
 
