@@ -79,31 +79,38 @@ Qué fases cubren qué requirements. Se actualiza al crear el roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DEBT-01 | — | Pending |
-| DEBT-02 | — | Pending |
-| PANEL-01 | — | Pending |
-| PANEL-02 | — | Pending |
-| GRID-01 | — | Pending |
-| GRID-02 | — | Pending |
-| GRID-03 | — | Pending |
-| GRID-04 | — | Pending |
-| GRID-05 | — | Pending |
-| GRID-06 | — | Pending |
-| GRID-07 | — | Pending |
-| LEADS-01 | — | Pending |
-| LEADS-02 | — | Pending |
-| LEADS-03 | — | Pending |
-| LEADS-04 | — | Pending |
-| HSPOT-01 | — | Pending |
-| HSPOT-02 | — | Pending |
-| HSPOT-03 | — | Pending |
-| HSPOT-04 | — | Pending |
+| DEBT-01 | Phase 8 | Pending |
+| DEBT-02 | Phase 8 | Pending |
+| PANEL-01 | Phase 9 | Pending |
+| PANEL-02 | Phase 9 | Pending |
+| GRID-01 | Phase 10 | Pending |
+| GRID-02 | Phase 10 | Pending |
+| GRID-03 | Phase 10 | Pending |
+| GRID-04 | Phase 10 | Pending |
+| GRID-05 | Phase 10 | Pending |
+| GRID-06 | Phase 10 | Pending |
+| GRID-07 | Phase 10 | Pending |
+| LEADS-01 | Phase 11 | Pending |
+| LEADS-02 | Phase 11 | Pending |
+| LEADS-03 | Phase 11 | Pending |
+| LEADS-04 | Phase 11 | Pending |
+| HSPOT-01 | Phase 12 | Pending |
+| HSPOT-02 | Phase 12 | Pending |
+| HSPOT-03 | Phase 12 | Pending |
+| HSPOT-04 | Phase 12 | Pending |
 
 **Coverage:**
 - v1.3 requirements: 19 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 19 ⚠️
+- Mapped to phases: 19 ✓
+- Unmapped: 0
+
+**Phase distribution:**
+- Phase 8 (Deuda v1.2 — merge + re-verificación staging): DEBT-01, DEBT-02
+- Phase 9 (Shell del panel scoped al proyecto + role gate): PANEL-01, PANEL-02
+- Phase 10 (D1 — Grilla de unidades + Excel): GRID-01..07
+- Phase 11 (D2 — Bandeja de leads + email): LEADS-01..04
+- Phase 12 (Editor de hotspots): HSPOT-01..04
 
 ---
 *Requirements defined: 2026-07-17*
-*Last updated: 2026-07-17 after initial definition*
+*Last updated: 2026-07-17 after roadmap creation (Phases 8-12 mapped, 19/19 coverage)*
