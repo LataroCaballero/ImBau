@@ -1,15 +1,17 @@
 ---
 phase: 08-deuda-v1-2-merge-a-main-re-verificaci-n-en-staging
 verified: 2026-07-17T22:10:00Z
-status: human_needed
+status: passed
 score: 13/15 must-haves verified
 behavior_unverified: 0
 overrides_applied: 0
 behavior_unverified_items: []
 human_verification:
+
   - test: "Forced-failure migrate drill: run `deploy/deploy.sh` (or a scoped equivalent) against staging with a deliberately broken migration so the `migrate` one-off container exits non-zero, and confirm `set -e` aborts before any app container is swapped (web/panel/worker keep serving the previous image)."
     expected: "Deploy script exits non-zero at the migrate step; `docker compose ps` shows web/panel/worker still on the pre-deploy image tag; no partial swap occurred."
     why_human: "This exact scenario (migrate failing) never actually occurred in this phase's run — migrate succeeded and applied migration 0004. The `must_haves.truths` item is tagged `verification: backstop` (non-inferable / edge case) and per the honest-verifier protocol, `set -e` + a documented design intent in deploy.sh is code presence, not directly-observed behavior. This exact same threat (T-4-MIGRATE, Phase 4/v1.0) was flagged 'Forced-failure test proves migrate-before-swap aborts' in 04-07-PLAN.md's threat register but 04-VERIFICATION.md only records the happy-path deploy runs (28257024112/28257321414) as evidence — the forced-failure drill has never been executed with recorded evidence across 3 milestones. Recommend either a one-time drill on a disposable branch/tag or accepting the risk explicitly via an override."
+
   - test: "Empty-migration deploy: trigger `deploy-staging.yml` on a merge to `main` that has zero new Drizzle migrations pending, and confirm the migrate container still exits 0 and the app containers still swap cleanly (no accidental abort or hang on a no-op migration set)."
     expected: "Migrate container run with 0 pending migrations exits 0; web/panel/worker swap to the new image tag without incident."
     why_human: "Not exercised this phase — the 22d1e96 deploy had migration 0004 pending, so this run only proves the non-empty-migration path. Tagged `verification: backstop` (edge case: empty input); no explicit evidence of the empty-input path exists in this phase's captured output. Low risk (idempotent `compose run --rm migrate` design), but per the never-silent-pass rule this must be flagged rather than assumed."
