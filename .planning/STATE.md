@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Panel de autogestión
-current_phase: 8
-current_phase_name: Deuda v1.2 — merge a main + re-verificación en staging
-status: executing
-stopped_at: "Phase 8 executed; verification human_needed (1 item: forced-migration-failure drill)"
-last_updated: "2026-07-17T22:01:22.018Z"
-last_activity: 2026-07-17
-last_activity_desc: "08-01 complete: PR #5 merged (22d1e96), deploy green, staging seeded publicado"
+current_phase: 9
+current_phase_name: Shell del panel scoped al proyecto + role gate
+status: planning
+stopped_at: "Phase 8 complete (UAT 5/5, verification passed, security 10/10); ready to plan Phase 9"
+last_updated: "2026-07-20T21:32:43.714Z"
+last_activity: 2026-07-20
+last_activity_desc: Phase 8 complete, transitioned to Phase 9
 progress:
   total_phases: 5
   completed_phases: 1
@@ -21,17 +21,17 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-07-17)
+See: .planning/PROJECT.md (updated 2026-07-20)
 
 **Core value:** La fundación técnica desplegada y operable: cada commit a main termina corriendo en staging con aislamiento multi-tenant verificable por RLS.
-**Current focus:** Phase 8 — Deuda v1.2 — merge a main + re-verificación en staging
+**Current focus:** Phase 9 — Shell del panel scoped al proyecto + role gate
 
 ## Current Position
 
-Phase: 8 (Deuda v1.2 — merge a main + re-verificación en staging) — EXECUTING
-Plan: 2 of 2 (08-01 complete — DEBT-01 done)
-Status: Ready to execute 08-02 (DEBT-02 live re-verification)
-Last activity: 2026-07-17 — 08-01 complete: PR #5 merged (22d1e96), deploy green, staging seeded publicado
+Phase: 9 — Shell del panel scoped al proyecto + role gate
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-07-20 — Phase 8 complete, transitioned to Phase 9
 
 ## Roadmap (v1.3 — Phases 8-12)
 
@@ -101,10 +101,11 @@ None yet.
 
 ### Blockers/Concerns
 
-Abiertos entrando a v1.3:
+Entrando a Phase 9:
 
-- ✅ RESUELTO (08-01, DEBT-01): staging ya corre las imágenes v1.2 tageadas por el merge SHA `22d1e96` (web/panel/worker), migraciones 0000–0004 aplicadas vía migrate-before-swap, seed 'Brigos Recoleta' publicado. Falta la re-verificación EN VIVO (rate-limit 429, PDF e2e, QR con URL de staging) → es 08-02 (DEBT-02).
+- ✅ RESUELTO (Phase 8, DEBT-01/02): v1.2 mergeado a `main` (`22d1e96`) y re-verificado EN VIVO en staging — burst 429/0×503, PDF e2e es-AR, deep-link a staging, smoke de superficies + worker/Loki/Sentry, deploy no-op, y drill migrate-before-swap (T-4-MIGRATE) demostrado sin downtime. Security 10/10 (08-SECURITY.md). UAT 5/5.
 - Pasada visual de fase 6 (v1.2) → sigue trackeada en Deferred Items (abajo), no bloquea v1.3.
+- ⚠️ [Phase 9] Las 3 superficies de escritura del panel (D1/D2/hotspots) necesitan `requireRole` explícito además de RLS — RLS prueba aislamiento de tenant, no autorización. El role-gate server-side arranca en el shell (Phase 9).
 
 ## Deferred Items
 
@@ -115,14 +116,14 @@ Items acknowledged and deferred at milestone closes (v1.0 2026-06-26, v1.2 2026-
 | verification | phase-03 (v1.0) live re-runs: Playwright auth e2e (login persistence, invite→accept) + worker Redis smoke | human_needed (4/4 must-haves verified by code) | 2026-06-26 |
 | uat_gap | phase-06 (v1.2) 06-UAT.md — pasada visual humana del layout mobile-first + tema de marca en viewport real | testing (1 pending scenario; criterios de fase verificados por código + e2e 4/4) | 2026-07-08 |
 
-**Detail:** Re-run `pnpm --filter @imbau/panel test:e2e` and `pnpm --filter @imbau/worker test -t "worker connects"` with the Compose stack up to clear. Para el item de v1.2: `/gsd-verify-work 6` con `pnpm dev` y abrir `/p/brigos-recoleta/cotizador` en viewport móvil. La re-verificación en staging de v1.2 se absorbe en Phase 8 (DEBT-02).
+**Detail:** Re-run `pnpm --filter @imbau/panel test:e2e` and `pnpm --filter @imbau/worker test -t "worker connects"` with the Compose stack up to clear. Para el item de v1.2: `/gsd-verify-work 6` con `pnpm dev` y abrir `/p/brigos-recoleta/cotizador` en viewport móvil. La re-verificación en staging de v1.2 ya se cerró en Phase 8 (DEBT-02, UAT 5/5 el 2026-07-20); lo único que sigue diferido es la pasada visual humana de marca.
 
 ## Session Continuity
 
-Last session: 2026-07-17T22:01:22.013Z
-Stopped at: Phase 8 executed; verification human_needed (1 item: forced-migration-failure drill)
-Resume file: .planning/phases/08-deuda-v1-2-merge-a-main-re-verificaci-n-en-staging/08-UAT.md
+Last session: 2026-07-20
+Stopped at: Phase 8 complete (UAT 5/5, verification passed, security 10/10), ready to plan Phase 9
+Resume file: None
 
 ## Operator Next Steps
 
-- Planificar la primera fase con `/gsd-plan-phase 8` (o `/gsd-discuss-phase 8` primero). Phase 8 es mecánica pero depende de infra del operador: merge de `fase-0/foundation` a `main` + deploy a staging + re-verificación en vivo.
+- Phase 8 cerrada (deuda v1.2 saldada, staging verificado en vivo). Seguir con `/gsd-discuss-phase 9` (o `/gsd-plan-phase 9` directo). Phase 9 es el shell del panel scoped a `proyectos/[id]` con tabs + role-gate server-side — primera superficie frontend del panel (candidata a `/gsd-ui-phase`).
