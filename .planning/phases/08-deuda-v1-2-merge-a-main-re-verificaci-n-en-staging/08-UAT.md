@@ -1,20 +1,14 @@
 ---
-status: testing
+status: complete
 phase: 08-deuda-v1-2-merge-a-main-re-verificaci-n-en-staging
 source: [08-01-SUMMARY.md, 08-02-SUMMARY.md, 08-VERIFICATION.md]
 started: 2026-07-17T21:34:00Z
-updated: 2026-07-17T22:05:00Z
+updated: 2026-07-20T21:30:00Z
 ---
 
 ## Current Test
 
-number: 5
-name: Drill de migración fallida — el gate migrate-before-swap aborta sin swap
-expected: |
-  Con una migración deliberadamente rota, `deploy/deploy.sh` falla en el paso migrate
-  (set -euo pipefail) ANTES del swap de contenedores: staging queda corriendo la imagen
-  anterior intacta, sin downtime. Nunca drilleado desde v1.0 (T-4-MIGRATE).
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -148,21 +142,52 @@ evidence: |
 
 ### 5. Drill de migración fallida — migrate-before-swap aborta sin swap (backstop 08-01 "interrupción", T-4-MIGRATE)
 expected: Con una migración deliberadamente rota, `deploy/deploy.sh` (set -euo pipefail, migrate como paso previo al swap) falla en migrate y NO swapea: staging sigue sirviendo la imagen anterior sin downtime. Flagueado desde v1.0 (T-4-MIGRATE) y nunca drilleado en 3 milestones.
-result: [pending]
-notes: |
-  No se corre autónomamente: requiere inyectar una migración rota en el path de deploy del VPS
-  compartido con prod — decisión humana. El código del gate está verificado por lectura
-  (deploy/deploy.sh: sops decrypt → migrate → role bootstrap → swap, bajo set -euo pipefail) y el
-  path feliz corrió 2 veces hoy (con y sin migraciones pendientes). Sugerencia para el drill:
-  branch descartable con una migración `SELECT 1/0;`, deploy manual vía workflow_dispatch sobre ese
-  ref, observar abort sin swap, y borrar el branch.
+result: pass
+evidence: |
+  Drilleado por Claude el 2026-07-20 con autorización explícita del usuario (acción destructiva a
+  propósito sobre el VPS compartido con prod). Branch descartable → deploy roto → verificación por
+  SSH → limpieza. Blast radius contenido a staging (D-04/D-08).
+
+  SETUP: branch `drill/migrate-abort` desde el merge SHA de main (22d1e96) con una migración
+    `0005_drill_break.sql` = `SELECT 1 / 0;` (falla en su única sentencia → rollback garantizado,
+    cero DDL) + entrada idx 5 en meta/_journal.json. Commit f5079c3, push, `gh workflow run
+    deploy-staging.yml --ref drill/migrate-abort` (run 29779675449).
+
+  BUILD: las 4 imágenes (web/panel/worker/migrate) buildearon verde desde el SHA roto; la imagen
+    `imbau-migrate:f5079c3` embebió la migración rota.
+
+  ABORT EN EL GATE (log del job deploy, deploy.sh sobre el VPS con IMAGE_TAG=f5079c3):
+    >> running migrations (migrate-before-swap gate)
+    DrizzleQueryError: Failed query: -- 0005_drill_break.sql ... SELECT 1 / 0;
+    cause: PostgresError: division by zero   (severity ERROR)
+    ##[error]Process completed with exit code 1
+    → NO aparecen las líneas posteriores `>> provisioning app/anon role passwords` ni
+      `>> swapping app containers`: `set -euo pipefail` abortó el script en el paso migrate,
+      ANTES del role-bootstrap y del swap. deploy job = failure; los 4 builds = success.
+
+  NO-SWAP / SIN DOWNTIME (SSH root@31.97.175.128, comparado contra el baseline tomado antes):
+                        | baseline (antes)      | post-drill (después)
+    web/panel/worker    | Up 2 days · 22d1e96   | Up 2 days · 22d1e96   (NO reiniciados)
+    postgres            | Up 3 days (healthy)   | Up 3 days (healthy)   (no reciclado)
+    __drizzle_migrations| 5 filas               | 5 filas               (0005 rolled back, no aplicó)
+    /opt/imbau HEAD     | 22d1e96               | 22d1e96               (limpio en main)
+    web / coti / panel  | 200 / 200 / 307       | 200 / 200 / 307       (sin downtime)
+
+  RECOVERY: `/opt/imbau` nunca salió del estado bueno (HEAD en main, contenedores sanos sobre las
+    imágenes de 22d1e96, DB en 5 migraciones) → el redeploy de recovery habría sido un segundo
+    no-op sobre el box compartido; se omitió deliberadamente para no meter churn en prod. Cleanup:
+    branch `drill/migrate-abort` borrado (local + remoto); working tree sin artefactos del drill.
+
+  CONCLUSIÓN: el invariante migrate-before-swap (T-4-MIGRATE, flagueado desde v1.0 y nunca drilleado
+    en 3 milestones) queda DEMOSTRADO en vivo: una migración fallida aborta el deploy sin tocar los
+    contenedores en producción-staging. Sin downtime.
 
 ## Summary
 
 total: 5
-passed: 4
+passed: 5
 issues: 0
-pending: 1
+pending: 0
 skipped: 0
 blocked: 0
 
