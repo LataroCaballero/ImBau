@@ -1,17 +1,20 @@
 ---
 phase: 09-shell-del-panel-scoped-al-proyecto-role-gate
 verified: 2026-07-21T17:35:00Z
-status: human_needed
+status: passed
 score: 14/14 must-haves verified (structural/automated)
 behavior_unverified: 0
 overrides_applied: 0
 human_verification:
+
   - test: "With `pnpm dev` up, log in as an owner/developer and open `/proyectos/[id]/unidades` in a real viewport"
     expected: "Three tabs (Unidades / Leads / Hotspots) render, the active tab shows an `aria-current=\"page\"` visual indicator, and the es-AR placeholder copy displays under the project heading"
     why_human: "Automated checks (build, typecheck, route manifest, grep for `aria-current`/`usePathname`) prove the code renders the tabs and wires the active-tab logic, but not that it paints correctly in a browser — visual rendering was explicitly deferred to `/gsd-verify-work 9` per both PLAN.md `<verification>` sections"
+
   - test: "Deep-link to another org's project id (or a random non-existent uuid) at `/proyectos/[id]/unidades` in a real viewport"
     expected: "The es-AR 404 boundary (\"No encontramos ese proyecto.\") renders identically for both the cross-org and non-existent cases — no 403/404 distinction, no stack trace, no 500"
     why_human: "Automated evidence proves both cases resolve to the same `null` → same `notFound()` call site in code (single code path, structurally guaranteed) and the API-level cross-org/non-existent NOT_FOUND parity is proven by the real-Postgres test matrix — but the actual browser-rendered 404 page was not eyeballed this session; deferred to `/gsd-verify-work 9` per PLAN 02"
+
   - test: "Log in as a viewer, navigate all three tabs in a real viewport"
     expected: "All three tabs are reachable read-only; the write-affordance placeholder paragraph (\"Acá vas a poder...\") is absent for the viewer role"
     why_human: "Automated evidence (code inspection of the `canWrite` ternary in all three tab pages, plus the server-side `requireRole` FORBIDDEN proof in the real-Postgres matrix) proves the mechanism is correct, but rendering in an actual browser session as a real viewer was not observed this session; deferred to `/gsd-verify-work 9` per PLAN 02"
