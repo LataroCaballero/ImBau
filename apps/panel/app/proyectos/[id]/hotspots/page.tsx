@@ -4,11 +4,9 @@
 // notFound() → canWrite from org.activeMemberRole. Only the heading and placeholder copy differ.
 // The write affordance is cosmetic (D-08); the server requireRole is the authority. Phase-12 fills
 // the real SVG editor. es-AR voseo, no design system (D-13).
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { z } from "zod";
-import { createCaller } from "@imbau/api";
-import { resolveProject } from "../../../../lib/project-caller";
+import { resolveProject, resolveActiveRole } from "../../../../lib/project-caller";
 
 export default async function HotspotsPage({
   params,
@@ -26,8 +24,7 @@ export default async function HotspotsPage({
     notFound();
   }
 
-  const caller = await createCaller({ headers: await headers() });
-  const role = await caller.org.activeMemberRole();
+  const role = await resolveActiveRole();
   const canWrite = role === "owner" || role === "developer";
 
   return (

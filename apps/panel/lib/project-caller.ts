@@ -34,3 +34,23 @@ export const resolveProject = cache(async (id: string) => {
     throw err;
   }
 });
+
+// Active-org role read for the tab pages' cosmetic canWrite gate (D-08). Routed through the SAME
+// narrowed catch as resolveProject (WR-02) so an auth failure (UNAUTHORIZED/FORBIDDEN) redirects to
+// /login consistently instead of surfacing as a 500 — the bare createCaller().org.activeMemberRole()
+// the tabs used before was outside that seam. cache()-wrapped so the three tabs share ONE query per
+// request (App Router cannot prop-drill layout→page).
+export const resolveActiveRole = cache(async () => {
+  const caller = await createCaller({ headers: await headers() });
+  try {
+    return await caller.org.activeMemberRole();
+  } catch (err) {
+    if (
+      err instanceof TRPCError &&
+      (err.code === "UNAUTHORIZED" || err.code === "FORBIDDEN")
+    ) {
+      redirect("/login");
+    }
+    throw err;
+  }
+});

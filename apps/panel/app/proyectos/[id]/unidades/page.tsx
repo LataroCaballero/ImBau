@@ -11,11 +11,9 @@
 // requireRole (Plan 01) is the real authority. The functional write UI is deferred to phase 10 —
 // this only renders an es-AR seam so a viewer sees no write affordance. es-AR voseo, no design
 // system (D-13).
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { z } from "zod";
-import { createCaller } from "@imbau/api";
-import { resolveProject } from "../../../../lib/project-caller";
+import { resolveProject, resolveActiveRole } from "../../../../lib/project-caller";
 
 export default async function UnidadesPage({
   params,
@@ -33,8 +31,7 @@ export default async function UnidadesPage({
     notFound();
   }
 
-  const caller = await createCaller({ headers: await headers() });
-  const role = await caller.org.activeMemberRole();
+  const role = await resolveActiveRole();
   const canWrite = role === "owner" || role === "developer";
 
   return (
