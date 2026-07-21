@@ -101,12 +101,12 @@ Deuda v1.2 primero (merge + re-verificación en staging) → shell del panel sco
   3. Toda mutación scoped al proyecto exige rol owner/developer; un viewer recibe `403` al intentar escribir — probado por una matriz de tests cross-rol contra Postgres real, no solo por UI oculta.
   4. El middleware `requireRole("owner","developer")` queda establecido como patrón reutilizable de escritura del panel, listo para que D1/D2/hotspots lo clonen.
 
-**Plans**: 2 plans
+**Plans**: 1/2 plans executed
 **UI hint**: yes
 
 **Wave 1**
 
-- [ ] 09-01-PLAN.md — Canary write mold (`projects.updateSettings` + `getForOrg` + `org.activeMemberRole`) + cross-role matrix vs real Postgres (PANEL-01, PANEL-02, Wave 1)
+- [x] 09-01-PLAN.md — Canary write mold (`projects.updateSettings` + `getForOrg` + `org.activeMemberRole`) + cross-role matrix vs real Postgres (PANEL-01, PANEL-02, Wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -179,7 +179,7 @@ Phases execute in numeric order: 8 → 9 → 10 → 11 → 12 (v1.3). D2 (11) y 
 | 6. UI pública del cotizador + WhatsApp | v1.2 | 6/6 | Complete | 2026-07-05 |
 | 7. PDF asíncrono en el worker | v1.2 | 4/4 | Complete | 2026-07-08 |
 | 8. Deuda v1.2 — merge + re-verificación staging | v1.3 | 2/2 | Complete    | 2026-07-20 |
-| 9. Shell del panel scoped al proyecto + role gate | v1.3 | 0/2 | Not started | - |
+| 9. Shell del panel scoped al proyecto + role gate | v1.3 | 1/2 | In Progress|  |
 | 10. D1 — Grilla de unidades + Excel | v1.3 | 0/TBD | Not started | - |
 | 11. D2 — Bandeja de leads + email | v1.3 | 0/TBD | Not started | - |
 | 12. Editor de hotspots | v1.3 | 0/TBD | Not started | - |

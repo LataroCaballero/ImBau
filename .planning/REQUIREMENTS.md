@@ -14,8 +14,8 @@ Requirements de este milestone (fase 4 del plan maestro). Cada uno mapea a una f
 
 ### Shell del panel
 
-- [ ] **PANEL-01**: Developer navega a `proyectos/[id]` y ve un layout con tabs (unidades, leads, hotspots) scoped al proyecto de su org
-- [ ] **PANEL-02**: Toda mutación del panel exige rol owner/developer (viewer solo lectura) — verificado por matriz de tests cross-rol, no solo UI
+- [x] **PANEL-01**: Developer navega a `proyectos/[id]` y ve un layout con tabs (unidades, leads, hotspots) scoped al proyecto de su org
+- [x] **PANEL-02**: Toda mutación del panel exige rol owner/developer (viewer solo lectura) — verificado por matriz de tests cross-rol, no solo UI
 
 ### D1 — Grilla de unidades
 
@@ -81,8 +81,8 @@ Qué fases cubren qué requirements. Se actualiza al crear el roadmap.
 |-------------|-------|--------|
 | DEBT-01 | Phase 8 | Complete |
 | DEBT-02 | Phase 8 | Complete |
-| PANEL-01 | Phase 9 | Pending |
-| PANEL-02 | Phase 9 | Pending |
+| PANEL-01 | Phase 9 | Complete |
+| PANEL-02 | Phase 9 | Complete |
 | GRID-01 | Phase 10 | Pending |
 | GRID-02 | Phase 10 | Pending |
 | GRID-03 | Phase 10 | Pending |

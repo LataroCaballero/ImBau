@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Panel de autogestión
-current_phase: 9
-current_phase_name: Shell del panel scoped al proyecto + role gate
+current_phase: 09
+current_phase_name: shell-del-panel-scoped-al-proyecto-role-gate
 status: executing
-stopped_at: Phase 9 context gathered
-last_updated: "2026-07-21T17:34:59.532Z"
-last_activity: 2026-07-20
-last_activity_desc: Phase 8 complete, transitioned to Phase 9
+stopped_at: Completed 09-01-PLAN.md
+last_updated: "2026-07-21T20:15:53.396Z"
+last_activity: 2026-07-21
+last_activity_desc: Phase 09 execution started
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
   percent: 20
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-20)
 
 **Core value:** La fundación técnica desplegada y operable: cada commit a main termina corriendo en staging con aislamiento multi-tenant verificable por RLS.
-**Current focus:** Phase 9 — Shell del panel scoped al proyecto + role gate
+**Current focus:** Phase 09 — shell-del-panel-scoped-al-proyecto-role-gate
 
 ## Current Position
 
-Phase: 9 — Shell del panel scoped al proyecto + role gate
-Plan: Not started
+Phase: 09 (shell-del-panel-scoped-al-proyecto-role-gate) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-07-20 — Phase 8 complete, transitioned to Phase 9
+Last activity: 2026-07-21 — Phase 09 execution started
 
 ## Roadmap (v1.3 — Phases 8-12)
 
@@ -78,6 +78,7 @@ Numeración GSD continúa desde v1.2 (última fase = 7).
 |------|----------|-------|-------|
 | Phase 8 P01 | 27min | 3 tasks | 3 files |
 | Phase 08 P02 | 8min | 3 tasks | 1 files |
+| Phase 09 P01 | 4min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -94,6 +95,8 @@ Decisions are logged in PROJECT.md Key Decisions table (full log). Decisiones vi
 - [Phase ?]: Phase 8-01: merged PR #5 to main via merge commit (22d1e96, not squash) preserving 397-commit history + v1.2 tag; kept fase-0/foundation (D-01/D-03)
 - [Phase ?]: Phase 8-01: fixed two shared-_test-DB Vitest flakes (db fileParallelism:false for concurrent partition-DDL race; worker testTimeout 30s for real sharp/PG suites) to green the required quality gate
 - [Phase ?]: Phase 8-02: DEBT-02 live-verified on staging — quotes burst 77x429/0x503 (fase-5 live, not 404), nginx box==repo vhost (D-12, no sync-back), PDF e2e (quoteId 5d67277a) Roboto+es-AR accents with staging deep-link, worker+Loki+Sentry green
+- [Phase ?]: Phase 9-01: panel write mold = requireRole(owner,developer)+withTenant+.returning() 0-row NOT_FOUND; the verbatim template D1/D2/hotspots clone
+- [Phase ?]: Phase 9-01: canary = projects.updateSettings estado borrador<->publicado (D-05), observable via anon listPublished; PANEL-01/02 proven by projects-role-gate.test.ts (41/41 green vs real Postgres)
 
 ### Pending Todos
 
@@ -120,9 +123,9 @@ Items acknowledged and deferred at milestone closes (v1.0 2026-06-26, v1.2 2026-
 
 ## Session Continuity
 
-Last session: 2026-07-21T17:01:35.129Z
-Stopped at: Phase 9 context gathered
-Resume file: .planning/phases/09-shell-del-panel-scoped-al-proyecto-role-gate/09-CONTEXT.md
+Last session: 2026-07-21T20:15:43.628Z
+Stopped at: Completed 09-01-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 
