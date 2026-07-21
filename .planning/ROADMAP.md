@@ -59,7 +59,7 @@ Directorios archivados en `milestones/v1.2-phases/`. Full detail: [milestones/v1
 Deuda v1.2 primero (merge + re-verificación en staging) → shell del panel scoped al proyecto con role gate → D1 grilla de unidades editable + Excel → D2 bandeja de leads + email → editor de hotspots. Las tres superficies de escritura (D1/D2/hotspots) cuelgan del shell (Phase 9); D1 se hace antes de D2/hotspots porque fuerza la decisión de unicidad de `unit_prices` que protege el motor de cotización de v1.2 y establece el patrón `withTenant` + `requireRole` que D2 y hotspots clonan.
 
 - [x] **Phase 8: Deuda v1.2 — merge a main + re-verificación en staging** (0/2 plans) — not started (completed 2026-07-20)
-- [ ] **Phase 9: Shell del panel scoped al proyecto + role gate** (0/TBD plans) — not started
+- [ ] **Phase 9: Shell del panel scoped al proyecto + role gate** (0/2 plans) — not started
 - [ ] **Phase 10: D1 — Grilla de unidades editable + import/export Excel** (0/TBD plans) — not started
 - [ ] **Phase 11: D2 — Bandeja de leads + notificación por email** (0/TBD plans) — not started
 - [ ] **Phase 12: Editor de hotspots** (0/TBD plans) — not started
@@ -101,8 +101,16 @@ Deuda v1.2 primero (merge + re-verificación en staging) → shell del panel sco
   3. Toda mutación scoped al proyecto exige rol owner/developer; un viewer recibe `403` al intentar escribir — probado por una matriz de tests cross-rol contra Postgres real, no solo por UI oculta.
   4. El middleware `requireRole("owner","developer")` queda establecido como patrón reutilizable de escritura del panel, listo para que D1/D2/hotspots lo clonen.
 
-**Plans**: TBD
+**Plans**: 2 plans
 **UI hint**: yes
+
+**Wave 1**
+
+- [ ] 09-01-PLAN.md — Canary write mold (`projects.updateSettings` + `getForOrg` + `org.activeMemberRole`) + cross-role matrix vs real Postgres (PANEL-01, PANEL-02, Wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 09-02-PLAN.md — Panel shell `proyectos/[id]` route tree: layout + tabs + placeholders + notFound + selector wiring (PANEL-01, Wave 2)
 
 ### Phase 10: D1 — Grilla de unidades editable + import/export Excel
 
@@ -171,7 +179,7 @@ Phases execute in numeric order: 8 → 9 → 10 → 11 → 12 (v1.3). D2 (11) y 
 | 6. UI pública del cotizador + WhatsApp | v1.2 | 6/6 | Complete | 2026-07-05 |
 | 7. PDF asíncrono en el worker | v1.2 | 4/4 | Complete | 2026-07-08 |
 | 8. Deuda v1.2 — merge + re-verificación staging | v1.3 | 2/2 | Complete    | 2026-07-20 |
-| 9. Shell del panel scoped al proyecto + role gate | v1.3 | 0/TBD | Not started | - |
+| 9. Shell del panel scoped al proyecto + role gate | v1.3 | 0/2 | Not started | - |
 | 10. D1 — Grilla de unidades + Excel | v1.3 | 0/TBD | Not started | - |
 | 11. D2 — Bandeja de leads + email | v1.3 | 0/TBD | Not started | - |
 | 12. Editor de hotspots | v1.3 | 0/TBD | Not started | - |
