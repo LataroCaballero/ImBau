@@ -16,17 +16,12 @@ import { createCaller } from "@imbau/api";
 import { TRPCReactProvider } from "../../lib/trpc-client";
 import { InviteForm } from "./invite-form";
 
-interface ProjectRow {
-  id: string;
-  nombre: string;
-  slug: string;
-  estado: string;
-}
-
 export default async function DashboardPage(): Promise<React.JSX.Element> {
   const caller = await createCaller({ headers: await headers() });
 
-  let projects: ProjectRow[];
+  // Let the tRPC-inferred row type from listForOrg() drive — no hand-written interface to
+  // drift from the schema (IN-02).
+  let projects: Awaited<ReturnType<typeof caller.projects.listForOrg>>;
   try {
     projects = await caller.projects.listForOrg();
   } catch (err) {
