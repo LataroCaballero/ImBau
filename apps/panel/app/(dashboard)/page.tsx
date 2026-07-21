@@ -8,6 +8,7 @@
 // functional UI, es-AR voseo (D-13) — no design system this phase.
 //
 // This route lives in the (dashboard) route group, which does not affect the URL: it IS `/`.
+import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { TRPCError } from "@trpc/server";
@@ -54,7 +55,8 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
         <ul>
           {projects.map((p) => (
             <li key={p.id}>
-              {p.nombre} · {p.slug} · {p.estado}
+              <Link href={`/proyectos/${p.id}/unidades`}>{p.nombre}</Link> ·{" "}
+              {p.slug} · {p.estado}
             </li>
           ))}
         </ul>
