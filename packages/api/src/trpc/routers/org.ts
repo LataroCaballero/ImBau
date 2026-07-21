@@ -83,10 +83,12 @@ export const orgRouter = router({
         .from(schema.member)
         .where(eq(schema.member.userId, ctx.session.user.id)),
     );
-    return (rows[0]?.role ?? null) as
-      | "owner"
-      | "developer"
-      | "viewer"
-      | null;
+    // Narrow member.role (a `text` column that could hold Better Auth's built-in
+    // "admin"/"member") at runtime instead of asserting the union — an unexpected value
+    // collapses to null, which downstream canWrite/requireRole already reject (IN-01).
+    const role = rows[0]?.role;
+    return role === "owner" || role === "developer" || role === "viewer"
+      ? role
+      : null;
   }),
 });
