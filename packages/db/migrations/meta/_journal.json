@@ -36,6 +36,13 @@
       "when": 1783218780529,
       "tag": "0004_project_whatsapp",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1784737187554,
+      "tag": "0005_unit_prices_unit_list_uq",
+      "breakpoints": true
     }
   ]
 }
