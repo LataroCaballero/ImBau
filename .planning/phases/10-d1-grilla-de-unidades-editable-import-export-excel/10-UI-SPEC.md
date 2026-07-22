@@ -208,21 +208,62 @@ Diff and error lists must scroll within the modal (overflow) without pushing the
 
 ## UI Considerations
 
-Shape-rooted UI-state coverage for this phase. Empty/error COPY lives in the Copywriting Contract above; this table covers state coverage and references it.
+Shape-rooted UI-state coverage for this phase, computed by the ui-consideration-probe over the described surfaces (8 elements → 44 applicable state considerations). Empty/error COPY lives in the Copywriting Contract above; this section covers STATE coverage and references those rows (de-dup). The planner must lift the `backstop` and `unresolved` rows.
 
-Applicable state considerations resolved: 8 covered, 1 backstop, 0 unresolved.
+**Resolution:** 26 covered · 3 backstop · 14 dismissed (not applicable) · 1 unresolved. Applicable: 44.
 
-| Category | Element(s) | Status | Resolution / Reason |
-|----------|------------|--------|---------------------|
-| empty | units grid (fresh project, 0 units) | ✅ covered | Renders the documented empty-state heading + body + `Importar Excel` CTA |
-| loading | grid initial load, cell saving, import parsing, bulk/import apply | ✅ covered | Skeleton rows for grid; per-cell spinner; `parsing`/`applying` states specified |
-| error | cell save failure, import parse error, per-row validation errors, all-or-nothing apply failure | ✅ covered | Error copy in contract; failed apply writes nothing (D-08) and restates all-or-nothing |
-| populated | 38 units × 2 price lists (Brigos Recoleta seed) | ✅ covered | Grid, mono tabular money columns, estado dots |
-| partial | price cell with no `unit_price` row yet | ✅ covered | Renders `—` (em dash), never `0`/`USD 0` |
-| overflow (horizontal) | 8 columns on narrow laptop | ✅ covered | Horizontal scroll; sticky checkbox + identificador columns hold; desktop-first, degrade gracefully |
-| overflow (vertical) | long invalid-row list / long diff in import modal | ✅ covered | Scroll region inside modal; summary bar + actions stay pinned |
-| zero-one-many | selection count bar; import diff groups | ✅ covered | 0 → hidden · 1 → `1 unidad seleccionada` · N → `{N} unidades seleccionadas` |
-| long-text | long tipología / identificador in a cell | 🧪 backstop | Truncate + `title` tooltip; held-out visual UI-state test at verify time |
+### Covered (concrete truth in this contract)
+
+| Element | Category | Truth |
+|---------|----------|-------|
+| units grid | empty | Fresh project (0 units) → empty-state heading `Todavía no hay unidades` + body + `Importar Excel` CTA (Copywriting) |
+| units grid | loading | Skeleton rows on initial load (Component Inventory) |
+| units grid | populated | 38 units × columns; mono `tabular-nums` money columns; estado dots |
+| units grid | partial | Cell with no `unit_price` row yet renders `—` (em dash), never `0`/`USD 0` |
+| units grid | overflow | Horizontal scroll on narrow laptop; sticky checkbox + identificador columns hold (desktop-first) |
+| units grid | zero-one-many | 0 → empty state · 1..N → rows (grid cardinality maps to empty vs populated) |
+| price cell | empty | `—` em dash in `--gris-500` when no price |
+| price cell | loading | `saving` state — input disabled + spinner |
+| price cell | error | Vendido-red border + `No se pudo guardar. Reintentá.`; value reverts (Interaction Contracts) |
+| price cell | populated | Idle JetBrains Mono `tabular-nums` integer USD, es-AR thousands |
+| selection | empty | 0 selected → selection bar hidden |
+| selection | populated | ≥1 selected → count + `Editar precios en lote` + `Limpiar selección` |
+| selection | partial | Header checkbox `indeterminate` when a subset of visible rows is selected |
+| selection | zero-one-many | 0 hidden · 1 `1 unidad seleccionada` · N `{N} unidades seleccionadas` (Copywriting) |
+| bulk edit | loading | Preview modal `applying` — disabled + spinner |
+| bulk edit | error | Preview modal `error` — all-or-nothing restated; nothing written |
+| bulk edit | populated | Preview modal affected-units table, viejo → nuevo per unit, mono |
+| bulk edit | overflow | Affected-units list scrolls inside modal; `Confirmar`/`Cancelar` stay pinned |
+| bulk edit | zero-one-many | Count summary `{N} unidades` in confirmation copy |
+| import wizard | empty | Step 1 idle dropzone (no file selected) |
+| import wizard | loading | `parsing` (Step 1) and `applying` (Step 4) states |
+| import wizard | error | Parse-error copy · per-row validation reasons · all-or-nothing apply failure (writes nothing, D-08) |
+| import wizard | populated | Step 3 diff preview — Nuevas / Con cambios / Sin cambios groups |
+| import wizard | partial | Validation report classifies rows; errors > 0 disables `Aplicar cambios` (partial-validity blocked) |
+| import wizard | overflow | Invalid-rows list + diff scroll inside modal; summary bar + actions pinned |
+| import wizard | zero-one-many | Summary bar `{N} nuevas · {N} con cambios · {N} sin cambios · {N} con errores`; errors=0 vs >0 branch |
+
+### Backstop (held-out visual UI-state test at verify time)
+
+| Element | Category | Statement | Verification |
+|---------|----------|-----------|--------------|
+| units grid | long-text | Long tipología / identificador in a cell → truncate + `title` tooltip; must not break row height or sticky columns | backstop |
+| units grid | error | Grid-level data-fetch/render failure affordance is **not explicitly specified** in this contract — planner must define a load-error state (message + retry), distinct from the per-cell save error | backstop |
+| import wizard | long-text | Long identificador / tipología inside a diff row → truncate/tooltip without pushing the summary bar or action buttons out of view | backstop |
+
+### Unresolved (planner must treat as assumption)
+
+| Element | Category | Note |
+|---------|----------|------|
+| toast / inline feedback | unclassified | ⚠ unresolved — probe could not classify the "toast/inline feedback" surface. Success copy exists in Copywriting (`import-applied`, bulk-applied, revalidation), but the **error-toast** shape (dismiss behavior, stacking, duration) is under-specified. Planner must confirm the toast success/error contract, or fold feedback into per-surface inline states. |
+
+### Dismissed (not applicable to the element kind)
+
+- **price cell** — partial (scalar ≡ empty, already covered), overflow (bounded integer), zero-one-many (single scalar), long-text (integer USD only).
+- **estado cell** — overflow & long-text (closed 3-value enum with fixed short labels: disponible/reservado/vendido).
+- **selection** — loading & error (pure client-side state, nothing to fetch or fail), overflow (fixed single-line bar), long-text (bounded count copy).
+- **bulk edit** — empty (panel only appears behind a ≥1 selection), partial (transactional all-or-nothing, D-08/D-13), long-text (identificadores are short codes).
+- **export** — long-text (fixed button label `Exportar a Excel`).
 
 ---
 
