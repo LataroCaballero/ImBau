@@ -46,17 +46,18 @@ This grid needs the neutrals, radii, and type-scale tokens that **only exist in 
 
 ## Spacing Scale
 
-Declared values (multiples of 4; matches brand `docs/marca/tokens.css` base-4 rule):
+Declared values (standard 8-point set `{4, 8, 16, 24, 32, 48, 64}` — matches brand `docs/marca/tokens.css` base-4 rule):
 
 | Token | Value | Usage |
 |-------|-------|-------|
 | xs | 4px | Icon gap, inline badge padding, dot-to-label gap |
-| sm | 8px | Cell horizontal padding, compact control gaps |
-| md | 12px | Cell content padding, form-field gaps inside modals |
-| lg | 16px | Default element spacing, toolbar padding |
+| sm | 8px | Cell horizontal padding, compact control gaps, **cell content padding** |
+| lg | 16px | Default element spacing, toolbar padding, **form-field gaps inside modals** |
 | xl | 24px | Section padding, modal body padding |
 | 2xl | 32px | Page gutter, major block separation |
 | 3xl | 48px | Page-level top spacing |
+
+The former `md = 12px` token is removed (not in the standard set). Its two usages are remapped: **cell content padding → `sm` (8px)** (horizontal cell padding, keeps dense rows tight against the 40px row height) and **modal form-field gaps → `lg` (16px)** (comfortable field separation inside modal bodies).
 
 Grid-specific fixed dimensions (multiples of 4):
 
@@ -75,29 +76,22 @@ Exceptions: none.
 
 ## Typography
 
-All sizes drawn from the brand type scale (`docs/marca/tokens.css`) — no invented sizes. The **body/UI text face (Inter) uses two weights only** (400 + 600). The display face carries a third, distinct weight — see the bounded exception declared below.
+All sizes drawn from the brand type scale (`docs/marca/tokens.css`) — no invented sizes. This is a **plain two-weight system**: **400** for all text/UI/body/grid/labels/headings and for the mono money face, and **500** for the H1 display face only. Emphasis on labels and section/modal headings is achieved through **size and color hierarchy** (larger size, Grafito vs Gris-500), never through weight.
 
 | Role | Size | Weight | Line Height | Family |
 |------|------|--------|-------------|--------|
 | Grid cell / dense data | 14px (0.875rem) | 400 | 1.2 (single-line, governed by 40px row) | Inter |
 | **Money / figures** (price cells, diffs, m²) | 14px (0.875rem) | 400 | 1.2 | **JetBrains Mono, `tabular-nums`** |
-| Body / labels / controls | 16px (1rem) | 400 body · 600 label | 1.5 | Inter |
-| Section / modal heading | 20px (1.25rem) | 600 | 1.25 | Inter |
-| Page title (H1: "{Proyecto} · Unidades") | 28px (1.75rem) | 500 | 1.2 | **Space Grotesk (display exception)** |
+| Body / labels / controls | 16px (1rem) | 400 | 1.5 | Inter (label emphasis via color: Grafito on darker, Gris-500 on secondary) |
+| Section / modal heading | 20px (1.25rem) | 400 | 1.25 | Inter (heading emphasis via size + Grafito color, not weight) |
+| Page title (H1: "{Proyecto} · Unidades") | 28px (1.75rem) | 500 | 1.2 | **Space Grotesk (brand-sanctioned display weight)** |
 
-**Exceptions — INTENTIONAL BOUNDED EXCEPTION (3 weights across 2 typefaces, declared and closed):**
+**Weight system — exactly two distinct weight values:**
 
-This spec uses **3 distinct font weights**, deliberately, mapped 1:1 to the brand's two-typeface system. This is not scale creep — it is the minimum required to render the brand book faithfully:
+- **400** — every Inter role (grid, body, labels, controls, section/modal headings) and JetBrains Mono money figures. JetBrains Mono is a new *family* at the same 400 weight — it adds no new weight value.
+- **500** — the H1 page title only, in Space Grotesk. This is the display face's brand-sanctioned display weight (brand-book §Tipografía: *"Space Grotesk (700/500) para titulares"*); 500 (not 700) because this is an in-panel data screen, not a marketing hero.
 
-| Role(s) | Family | Weight | Why this weight (brand basis) |
-|---------|--------|--------|-------------------------------|
-| Body, grid cell, controls, money figures | Inter / JetBrains Mono | **400** | Brand book §Tipografía: Inter (400/500/600) for text/UI; JetBrains Mono for figures. 400 is the reading weight. |
-| Labels, section/modal headings | Inter | **600** | Brand book §Tipografía: Inter 600 for emphasis/heading weight in UI. |
-| Page title (H1: "{Proyecto} · Unidades") | **Space Grotesk** | **500** | Brand book §Tipografía (line 47): *"Space Grotesk (700/500) para titulares"* — 500 is a **hard brand requirement** for the display face at heading scale. The display face's only sanctioned weights are 700/500; using Inter's 400/600 on the H1 would put an off-brand weight on the display face. 500 (not 700) is chosen because this is an in-panel data screen, not a marketing hero. |
-
-**Reasoning for keeping 500 (option b, not remapping to 400/600):** The brand book defines Space Grotesk's weights as **700/500 only**. Remapping the H1 to 400 or 600 would violate the brand book by rendering the display face at a weight the brand does not sanction. The correct closure is to bound the exception: exactly one role (H1) uses exactly one extra weight (Space Grotesk 500), and no other weight/family appears anywhere. JetBrains Mono reuses 400, so it adds a family but no new weight.
-
-No other weights or families are permitted in this phase.
+Two weight values total (400 and 500). No other weights or families are permitted in this phase.
 
 **Money rendering rule (non-negotiable):** integer USD, es-AR thousands separator `.` → `USD 185.000`. Always JetBrains Mono + `tabular-nums` so columns align. Empty price (no `unit_price` row yet) renders `—` (em dash, `--gris-500`), never `0` and never `USD 0`. Never a decimal/float anywhere.
 
