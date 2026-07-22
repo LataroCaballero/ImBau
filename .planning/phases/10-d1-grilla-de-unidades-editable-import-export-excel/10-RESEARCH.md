@@ -463,9 +463,11 @@ test("build→parse round-trips valid integer USD prices", async () => {
 | A4 | The base64-in-tRPC file transport for import is acceptable for ~38-row files | Pattern 5 | For very large files a multipart/upload route would be better; fine at this scale |
 | A5 | `lucide-react` (if used for glyphs) is legitimate — not verified this session | Supporting stack | Planner must run the legitimacy gate before adding it; inline SVG avoids the dependency entirely |
 
-## Open Questions
+## Open Questions (ALL RESOLVED)
 
-1. **GRID-07 mechanism: Path A (keep force-dynamic) vs Path B (real ISR + cross-app revalidation)?**
+> Resolution recorded 2026-07-21: Q1 → **Path A** (user-confirmed; locked in 10-CONTEXT.md D-14); Q2 → reject negative previewed bulk results (locked in D-12, implemented 10-02/10-03); Q3 → `events.tipo` constants `unit_price_changed` / `unit_estado_changed` (10-03). None remain open for planning.
+
+1. **(RESOLVED — Path A) GRID-07 mechanism: Path A (keep force-dynamic) vs Path B (real ISR + cross-app revalidation)?**
    - What we know: `apps/web` is `force-dynamic` today → public reads are already live; `revalidateTag` cannot cross the panel→web process boundary.
    - What's unclear: whether the team wants CDN/ISR caching adopted *in this phase* (Path B) or deferred (Path A). CLAUDE.md states "ISR en la web pública" as intent, but the shipped v1.2 web is dynamic.
    - Recommendation: **Path A + a cross-surface integration test**; record Path B as the forward plan. Get one-line user confirmation before planning.
