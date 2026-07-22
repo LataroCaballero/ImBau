@@ -9,6 +9,7 @@
 // AppRouter is the type the panel/web clients import for end-to-end type safety (no codegen).
 import { router } from "../init";
 import { projectsRouter } from "./projects";
+import { unitsRouter } from "./units";
 import { orgRouter } from "./org";
 import { memberRouter } from "./member";
 import { invitationRouter } from "./invitation";
@@ -18,6 +19,7 @@ import { pickerRouter } from "./picker";
 
 export const appRouter = router({
   projects: projectsRouter,
+  units: unitsRouter,
   org: orgRouter,
   member: memberRouter,
   invitation: invitationRouter,
