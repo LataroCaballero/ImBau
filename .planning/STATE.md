@@ -5,15 +5,15 @@ milestone_name: Panel de autogestión
 current_phase: 10
 current_phase_name: d1-grilla-de-unidades-editable-import-export-excel
 status: executing
-stopped_at: Completed 10-02-PLAN.md
-last_updated: "2026-07-22T17:02:09.423Z"
+stopped_at: Completed 10-03-PLAN.md
+last_updated: "2026-07-22T17:16:57.154Z"
 last_activity: 2026-07-21
 last_activity_desc: Phase 10 execution started
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 8
-  completed_plans: 6
+  completed_plans: 7
   percent: 40
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 ## Current Position
 
 Phase: 10 (d1-grilla-de-unidades-editable-import-export-excel) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-07-21 — Phase 10 execution started
 
@@ -82,6 +82,7 @@ Numeración GSD continúa desde v1.2 (última fase = 7).
 | Phase 09 P02 | 3min | 3 tasks | 9 files |
 | Phase 10 P01 | 2min | 2 tasks | 5 files |
 | Phase 10 P02 | 20min | 2 tasks | 15 files |
+| Phase 10 P03 | 14min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -103,6 +104,8 @@ Decisions are logged in PROJECT.md Key Decisions table (full log). Decisiones vi
 - [Phase ?]: unit_prices UNIQUE(unit_id, price_list_id) enforced at DB via versioned migration 0005 (GRID-05)
 - [Phase ?]: Phase 10-02: pure packages/api/src/excel module (build/parse/money/dry-run/bulk), I/O-free, exceljs@4.4.0; parseMoneyEsAr property-proven never non-integer (D-08); 62 excel tests green
 - [Phase ?]: Phase 10-02: unknown identificador on import = error 'no existe en el proyecto' (units not created via Excel); 'nueva' = previously-unpriced unit gains a price; blank price cell = null for GRID-05 idempotency
+- [Phase ?]: Phase 10-03: unitsRouter wires grid read + 4 money mutations (updatePrice/updateEstado/importExcel/bulkUpdatePrice) + export/dry-run/bulk-preview as thin requireRole(owner,developer)+withTenant clones over the pure excel module; events audit (unit_price_changed/unit_estado_changed) co-transactional with each write (D-02)
+- [Phase ?]: Phase 10-03: updatePrice (INSERT ... ON CONFLICT) can't rely on the UPDATE 0-row mold — a cross-org parent trips a composite-FK 23503; added an RLS-scoped unit+price_list existence pre-check → NOT_FOUND (no-enumeration). blank import price = DELETE the unit_prices row (precio NOT NULL). GRID-07 = Path A (force-dynamic cross-surface test, no revalidation plumbing). @imbau/api 124/124 green
 
 ### Pending Todos
 
@@ -129,8 +132,8 @@ Items acknowledged and deferred at milestone closes (v1.0 2026-06-26, v1.2 2026-
 
 ## Session Continuity
 
-Last session: 2026-07-22T17:02:09.418Z
-Stopped at: Completed 10-02-PLAN.md
+Last session: 2026-07-22T17:16:57.149Z
+Stopped at: Completed 10-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

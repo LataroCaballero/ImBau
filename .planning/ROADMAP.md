@@ -125,13 +125,13 @@ Deuda v1.2 primero (merge + re-verificación en staging) → shell del panel sco
   4. El import se aplica all-or-nothing (una sola transacción `withTenant`) e idempotente por clave natural (`UNIQUE(unit_id, price_list_id)`); una fila inválida aborta todo sin escrituras parciales, y el dinero nunca se contamina con floats (parse es-AR con `Number.isInteger` post-parse).
   5. El developer aplica bulk edit de precios (% o monto fijo) sobre una selección de unidades, y todo cambio de precio/estado se refleja al instante en el picker/cotizador público (revalidación ISR on-demand).
 
-**Plans**: 2/4 plans executed
+**Plans**: 3/4 plans executed
 **UI hint**: yes
 **Research flag**: RESUELTO en planning — parse de dinero es-AR se disuelve por la regla de dominio (USD entero, sin centavos → cualquier fraccional es inválido, elimina la ambigüedad `.`/`,`); `vigencia` es server-set `now()` (no se importa fecha, DD/MM/YYYY fuera de scope); UX de validación/error especificada en 10-UI-SPEC.md (Copywriting Contract es-AR + Import Flow). GRID-07 resuelto a Path A (web `force-dynamic`, sin plumbing de revalidación; se valida con test cross-surface).
 
 - [x] 10-01-PLAN.md — Migración versionada `UNIQUE(unit_id, price_list_id)` [BLOCKING] + prueba de enforcement (GRID-05, Wave 1)
 - [x] 10-02-PLAN.md — Módulo puro `packages/api/src/excel/` (build/parse/money/dry-run/bulk) + property tests + exceljs/fast-check (GRID-03/04/06, Wave 1)
-- [ ] 10-03-PLAN.md — Router `units` (4 mutaciones + read + export/dry-run) clonando el molde de Phase 9 + matriz cross-rol/transaccional/idempotencia/GRID-07 vs Postgres real (GRID-01..07, Wave 2)
+- [x] 10-03-PLAN.md — Router `units` (4 mutaciones + read + export/dry-run) clonando el molde de Phase 9 + matriz cross-rol/transaccional/idempotencia/GRID-07 vs Postgres real (GRID-01..07, Wave 2)
 - [ ] 10-04-PLAN.md — UI del panel: grilla + edición inline + dropdown estado + selección/bulk-con-preview + wizard de import (4 pasos) + wiring de tokens de marca (GRID-01/02/03/04/06/07, Wave 3)
 
 ### Phase 11: D2 — Bandeja de leads + notificación por email
@@ -185,6 +185,6 @@ Phases execute in numeric order: 8 → 9 → 10 → 11 → 12 (v1.3). D2 (11) y 
 | 7. PDF asíncrono en el worker | v1.2 | 4/4 | Complete | 2026-07-08 |
 | 8. Deuda v1.2 — merge + re-verificación staging | v1.3 | 2/2 | Complete    | 2026-07-20 |
 | 9. Shell del panel scoped al proyecto + role gate | v1.3 | 2/2 | Complete    | 2026-07-21 |
-| 10. D1 — Grilla de unidades + Excel | v1.3 | 2/4 | In Progress|  |
+| 10. D1 — Grilla de unidades + Excel | v1.3 | 3/4 | In Progress|  |
 | 11. D2 — Bandeja de leads + email | v1.3 | 0/TBD | Not started | - |
 | 12. Editor de hotspots | v1.3 | 0/TBD | Not started | - |
