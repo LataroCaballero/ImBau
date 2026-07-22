@@ -5,15 +5,15 @@ milestone_name: Panel de autogestión
 current_phase: 10
 current_phase_name: d1-grilla-de-unidades-editable-import-export-excel
 status: executing
-stopped_at: Completed 10-01-PLAN.md
-last_updated: "2026-07-22T16:22:30.222Z"
+stopped_at: Completed 10-02-PLAN.md
+last_updated: "2026-07-22T17:02:09.423Z"
 last_activity: 2026-07-21
 last_activity_desc: Phase 10 execution started
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 8
-  completed_plans: 5
+  completed_plans: 6
   percent: 40
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 ## Current Position
 
 Phase: 10 (d1-grilla-de-unidades-editable-import-export-excel) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-07-21 — Phase 10 execution started
 
@@ -81,6 +81,7 @@ Numeración GSD continúa desde v1.2 (última fase = 7).
 | Phase 09 P01 | 4min | 3 tasks | 4 files |
 | Phase 09 P02 | 3min | 3 tasks | 9 files |
 | Phase 10 P01 | 2min | 2 tasks | 5 files |
+| Phase 10 P02 | 20min | 2 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -100,6 +101,8 @@ Decisions are logged in PROJECT.md Key Decisions table (full log). Decisiones vi
 - [Phase ?]: Phase 9-01: panel write mold = requireRole(owner,developer)+withTenant+.returning() 0-row NOT_FOUND; the verbatim template D1/D2/hotspots clone
 - [Phase ?]: Phase 9-01: canary = projects.updateSettings estado borrador<->publicado (D-05), observable via anon listPublished; PANEL-01/02 proven by projects-role-gate.test.ts (41/41 green vs real Postgres)
 - [Phase ?]: unit_prices UNIQUE(unit_id, price_list_id) enforced at DB via versioned migration 0005 (GRID-05)
+- [Phase ?]: Phase 10-02: pure packages/api/src/excel module (build/parse/money/dry-run/bulk), I/O-free, exceljs@4.4.0; parseMoneyEsAr property-proven never non-integer (D-08); 62 excel tests green
+- [Phase ?]: Phase 10-02: unknown identificador on import = error 'no existe en el proyecto' (units not created via Excel); 'nueva' = previously-unpriced unit gains a price; blank price cell = null for GRID-05 idempotency
 
 ### Pending Todos
 
@@ -126,8 +129,8 @@ Items acknowledged and deferred at milestone closes (v1.0 2026-06-26, v1.2 2026-
 
 ## Session Continuity
 
-Last session: 2026-07-22T16:22:30.217Z
-Stopped at: Completed 10-01-PLAN.md
+Last session: 2026-07-22T17:02:09.418Z
+Stopped at: Completed 10-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
