@@ -28,8 +28,32 @@
   --reservado: #e3a63c;
   --vendido: #d65454;
 
+  /* Blanco puro (filas de grilla, modales, tarjetas del panel claro) */
+  --blanco: #ffffff;
+
+  /* Neutros (del brand book docs/marca/tokens.css — valores idénticos, naming un-prefixed
+     para no forkear: bordes, texto de referencia y estructura del panel de datos). */
+  --gris-700: #3a424d;
+  --gris-500: #6b7480;
+  --gris-300: #a8afb8;
+  --gris-100: #e5e2db;
+
   /* Familias tipográficas (self-hosted vía next/font en el consumidor) */
   --font-display: var(--font-space-grotesk), system-ui, sans-serif;
   --font-text: var(--font-inter), system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+
+  /* Escala tipográfica (rem) — del brand book, un-prefixed */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.75rem;
+  --text-2xl: 2.5rem;
+
+  /* Radios y sombra de tarjeta — del brand book, un-prefixed */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --shadow-card: 0 8px 32px rgba(10, 13, 18, 0.35);
 }
