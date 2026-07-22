@@ -23,7 +23,7 @@ Requirements de este milestone (fase 4 del plan maestro). Cada uno mapea a una f
 - [ ] **GRID-02**: Developer cambia el estado de una unidad (disponible/reservado/vendido) desde la grilla
 - [ ] **GRID-03**: Developer exporta la grilla a Excel con template canónico (sanitizado contra formula injection)
 - [ ] **GRID-04**: Developer importa Excel con validación completa y preview dry-run con diff campo por campo antes de aplicar
-- [ ] **GRID-05**: El import se aplica transaccional e idempotente (all-or-nothing, upsert por clave natural; migración `UNIQUE(unit_id, price_list_id)`)
+- [x] **GRID-05**: El import se aplica transaccional e idempotente (all-or-nothing, upsert por clave natural; migración `UNIQUE(unit_id, price_list_id)`)
 - [ ] **GRID-06**: Developer aplica bulk edit de precios (% o monto fijo) sobre una selección de unidades
 - [ ] **GRID-07**: Cambios de precio/estado se reflejan en la web pública al instante (revalidación ISR on-demand del picker/cotizador)
 
@@ -87,7 +87,7 @@ Qué fases cubren qué requirements. Se actualiza al crear el roadmap.
 | GRID-02 | Phase 10 | Pending |
 | GRID-03 | Phase 10 | Pending |
 | GRID-04 | Phase 10 | Pending |
-| GRID-05 | Phase 10 | Pending |
+| GRID-05 | Phase 10 | Complete |
 | GRID-06 | Phase 10 | Pending |
 | GRID-07 | Phase 10 | Pending |
 | LEADS-01 | Phase 11 | Pending |

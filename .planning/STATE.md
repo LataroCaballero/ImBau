@@ -3,17 +3,17 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Panel de autogestión
 current_phase: 10
-current_phase_name: D1 — Grilla de unidades editable + import/export Excel
+current_phase_name: d1-grilla-de-unidades-editable-import-export-excel
 status: executing
-stopped_at: Phase 10 UI-SPEC approved (6/6 dimensions, UI-consideration probe resolved)
-last_updated: "2026-07-22T01:50:37.933Z"
+stopped_at: Completed 10-01-PLAN.md
+last_updated: "2026-07-22T16:22:30.222Z"
 last_activity: 2026-07-21
-last_activity_desc: Phase 09 complete, transitioned to Phase 10
+last_activity_desc: Phase 10 execution started
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 8
+  completed_plans: 5
   percent: 40
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-20)
 
 **Core value:** La fundación técnica desplegada y operable: cada commit a main termina corriendo en staging con aislamiento multi-tenant verificable por RLS.
-**Current focus:** Phase 09 — shell-del-panel-scoped-al-proyecto-role-gate
+**Current focus:** Phase 10 — d1-grilla-de-unidades-editable-import-export-excel
 
 ## Current Position
 
-Phase: 10 — D1 — Grilla de unidades editable + import/export Excel
-Plan: Not started
+Phase: 10 (d1-grilla-de-unidades-editable-import-export-excel) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-07-21 — Phase 09 complete, transitioned to Phase 10
+Last activity: 2026-07-21 — Phase 10 execution started
 
 ## Roadmap (v1.3 — Phases 8-12)
 
@@ -80,6 +80,7 @@ Numeración GSD continúa desde v1.2 (última fase = 7).
 | Phase 08 P02 | 8min | 3 tasks | 1 files |
 | Phase 09 P01 | 4min | 3 tasks | 4 files |
 | Phase 09 P02 | 3min | 3 tasks | 9 files |
+| Phase 10 P01 | 2min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -98,6 +99,7 @@ Decisions are logged in PROJECT.md Key Decisions table (full log). Decisiones vi
 - [Phase ?]: Phase 8-02: DEBT-02 live-verified on staging — quotes burst 77x429/0x503 (fase-5 live, not 404), nginx box==repo vhost (D-12, no sync-back), PDF e2e (quoteId 5d67277a) Roboto+es-AR accents with staging deep-link, worker+Loki+Sentry green
 - [Phase ?]: Phase 9-01: panel write mold = requireRole(owner,developer)+withTenant+.returning() 0-row NOT_FOUND; the verbatim template D1/D2/hotspots clone
 - [Phase ?]: Phase 9-01: canary = projects.updateSettings estado borrador<->publicado (D-05), observable via anon listPublished; PANEL-01/02 proven by projects-role-gate.test.ts (41/41 green vs real Postgres)
+- [Phase ?]: unit_prices UNIQUE(unit_id, price_list_id) enforced at DB via versioned migration 0005 (GRID-05)
 
 ### Pending Todos
 
@@ -124,9 +126,9 @@ Items acknowledged and deferred at milestone closes (v1.0 2026-06-26, v1.2 2026-
 
 ## Session Continuity
 
-Last session: 2026-07-22T01:03:45.213Z
-Stopped at: Phase 10 UI-SPEC approved (6/6 dimensions, UI-consideration probe resolved)
-Resume file: .planning/phases/10-d1-grilla-de-unidades-editable-import-export-excel/10-UI-SPEC.md
+Last session: 2026-07-22T16:22:30.217Z
+Stopped at: Completed 10-01-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 
