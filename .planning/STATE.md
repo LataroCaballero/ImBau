@@ -5,15 +5,15 @@ milestone_name: Panel de autogestión
 current_phase: 11
 current_phase_name: d2-bandeja-de-leads-notificaci-n-por-email
 status: executing
-stopped_at: Completed 11-01-PLAN.md
-last_updated: "2026-07-24T19:21:26.292Z"
+stopped_at: Completed 11-02-PLAN.md
+last_updated: "2026-07-24T19:31:40.978Z"
 last_activity: 2026-07-24
 last_activity_desc: Phase 11 execution started
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 13
-  completed_plans: 9
+  completed_plans: 10
   percent: 60
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 ## Current Position
 
 Phase: 11 (d2-bandeja-de-leads-notificaci-n-por-email) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-07-24 — Phase 11 execution started
 
@@ -85,6 +85,7 @@ Numeración GSD continúa desde v1.2 (última fase = 7).
 | Phase 10 P03 | 14min | 3 tasks | 5 files |
 | Phase 10 P04 | 35min | 3 tasks | 10 files |
 | Phase 11 P01 | 30min | 3 tasks | 5 files |
+| Phase 11 P02 | 6min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -112,6 +113,8 @@ Decisions are logged in PROJECT.md Key Decisions table (full log). Decisiones vi
 - [Phase ?]: Phase 10-04: money renders via canonical formatUsd as 'US$ 185.000' (not UI-SPEC illustrative 'USD 185.000') — user-accepted; single-source formatter guarantees UI == PDF == WhatsApp. packages/ui/src/tokens.css EXTENDED (un-prefixed), not forked to --imbau-*
 - [Phase ?]: desenlace as nullable text (Zod-validated), not a PG enum — leadEstadoEnum untouched (D-03)
 - [Phase ?]: leads_notify_email needs no new pgPolicy — projects_tenant covers it, anon policy is SELECT-only public fields (D-05)
+- [Phase ?]: Lead-email queue contract uses jobId = lead:{id}:created (namespaced dedup, LEADS-04/T-11-08)
+- [Phase ?]: Lead-notification dispatch reads a dedicated minimal env (never the auth runtime env) so the worker import carries no BETTER_AUTH_SECRET/DATABASE_URL; imported via @imbau/api/email
 
 ### Pending Todos
 
@@ -138,8 +141,8 @@ Items acknowledged and deferred at milestone closes (v1.0 2026-06-26, v1.2 2026-
 
 ## Session Continuity
 
-Last session: 2026-07-24T19:21:26.287Z
-Stopped at: Completed 11-01-PLAN.md
+Last session: 2026-07-24T19:31:31.805Z
+Stopped at: Completed 11-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
