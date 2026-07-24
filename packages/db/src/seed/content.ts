@@ -346,6 +346,12 @@ export interface LeadDef {
   readonly contacto: string;
   readonly origen: string;
   readonly estado: LeadEstado;
+  /**
+   * Closed-outcome flag (D-03). Set ONLY on `cerrado` leads — the sidecar `leads.desenlace`
+   * column, never the `lead_estado` enum. Left undefined for non-cerrado leads (→ null column),
+   * so the bandeja renders Ganado/Perdido badges from real seed data.
+   */
+  readonly desenlace?: "ganado" | "perdido";
   /** When present, the lead came through this broker (BrokerDef.key). */
   readonly brokerKey?: string;
   /** When true, content-rows pins a deterministic seeded unit (interés puntual). */
@@ -534,6 +540,7 @@ export const LEADS: readonly LeadDef[] = [
     contacto: "+5491166660066",
     origen: "broker",
     estado: "cerrado",
+    desenlace: "ganado",
     brokerKey: "valentina-paz",
     attachUnit: true,
     timeline: [
@@ -555,6 +562,7 @@ export const LEADS: readonly LeadDef[] = [
     contacto: "camila.vega@gmail.com",
     origen: "referido",
     estado: "cerrado",
+    desenlace: "perdido",
     attachUnit: true,
     timeline: [
       { dayOffset: 58, nota: "Referida por Tomás Acosta. Busca 2 ambientes para vivienda." },
@@ -568,11 +576,11 @@ export const LEADS: readonly LeadDef[] = [
       {
         dayOffset: 47,
         autor: EQUIPO,
-        nota: "Cerró la operación; abonó la reserva.",
+        nota: "Nos avisó que finalmente compró en otra torre de la zona; cerramos el lead como perdido.",
         estadoPrev: "negociacion",
         estadoNuevo: "cerrado",
       },
-      { dayOffset: 45, autor: EQUIPO, nota: "Boleto firmado. Plan financiado a 36 cuotas CAC." },
+      { dayOffset: 45, autor: EQUIPO, nota: "Queda en la base para futuros lanzamientos." },
     ],
   },
 ];
