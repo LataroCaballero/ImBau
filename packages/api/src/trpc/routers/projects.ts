@@ -44,14 +44,43 @@ export const projectsRouter = router({
   // FORBIDDEN by requireRole before the UPDATE ever runs. A cross-org/non-existent id is invisible
   // under RLS → 0 rows updated → NOT_FOUND via the .returning() guard (never a silent success).
   updateSettings: requireRole("owner", "developer")
-    .input(z.object({ id: z.uuid(), estado: z.enum(["borrador", "publicado"]) }))
+    .input(
+      z.object({
+        id: z.uuid(),
+        // estado is now optional so the mutation can also patch leadsNotifyEmail alone (D-05);
+        // the Phase 9 canary always sends estado, so its path is unchanged.
+        estado: z.enum(["borrador", "publicado"]).optional(),
+        // Lead-notification recipient (D-05, phase 11). Zod .email() at the boundary (malformed →
+        // 400); nullable so an owner can clear it back to the org-owners fallback. The actual send
+        // recipient is resolved server-side in the worker — never client-controlled at send time.
+        leadsNotifyEmail: z.email().nullable().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
+      // Write ONLY the provided keys so a partial patch never nulls a sibling column.
+      const values: {
+        estado?: "borrador" | "publicado";
+        leadsNotifyEmail?: string | null;
+      } = {};
+      if (input.estado !== undefined) values.estado = input.estado;
+      if (input.leadsNotifyEmail !== undefined)
+        values.leadsNotifyEmail = input.leadsNotifyEmail;
+      if (Object.keys(values).length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "No hay cambios para aplicar.",
+        });
+      }
       const rows = await withTenant(ctx.activeOrgId, (tx) =>
         tx
           .update(schema.projects)
-          .set({ estado: input.estado })
+          .set(values)
           .where(eq(schema.projects.id, input.id))
-          .returning({ id: schema.projects.id, estado: schema.projects.estado }),
+          .returning({
+            id: schema.projects.id,
+            estado: schema.projects.estado,
+            leadsNotifyEmail: schema.projects.leadsNotifyEmail,
+          }),
       );
       if (rows.length === 0) {
         throw new TRPCError({ code: "NOT_FOUND" });
