@@ -56,10 +56,15 @@ export function ImportWizard({
   const [report, setReport] = useState<DryRunResult | null>(null);
   const [applied, setApplied] = useState<number | null>(null);
   const [dragover, setDragover] = useState(false);
+  // CR-02: hold the File that produced the dry-run in state. `confirmApply` MUST reuse THIS exact File
+  // rather than re-reading `fileInputRef.current.files` — a drag-dropped file never populates the
+  // input's FileList, so the old re-read silently no-op'd the whole import through the drop path.
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleFile(file: File): Promise<void> {
     setReport(null);
+    setSelectedFile(file);
     const base64 = await fileToBase64(file);
     dryRunMut.mutate(
       { projectId, file: base64 },
@@ -68,9 +73,8 @@ export function ImportWizard({
   }
 
   function confirmApply(): void {
-    const input = fileInputRef.current?.files?.[0];
-    if (!input) return;
-    void fileToBase64(input).then((base64) => {
+    if (!selectedFile) return;
+    void fileToBase64(selectedFile).then((base64) => {
       applyMut.mutate(
         { projectId, file: base64 },
         {
