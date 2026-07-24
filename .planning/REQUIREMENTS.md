@@ -29,9 +29,9 @@ Requirements de este milestone (fase 4 del plan maestro). Cada uno mapea a una f
 
 ### D2 — Bandeja de leads
 
-- [ ] **LEADS-01**: Developer ve la bandeja de leads con origen (broker / unidad / cotización)
+- [x] **LEADS-01**: Developer ve la bandeja de leads con origen (broker / unidad / cotización)
 - [x] **LEADS-02**: Developer mueve un lead por el pipeline fijo nuevo → contactado → negociación → cerrado
-- [ ] **LEADS-03**: Developer agrega notas al timeline del lead
+- [x] **LEADS-03**: Developer agrega notas al timeline del lead
 - [x] **LEADS-04**: Developer recibe aviso por email ante lead nuevo (queued e idempotente — nunca bloquea la mutación)
 
 ### Editor de hotspots
@@ -90,9 +90,9 @@ Qué fases cubren qué requirements. Se actualiza al crear el roadmap.
 | GRID-05 | Phase 10 | Complete |
 | GRID-06 | Phase 10 | Complete |
 | GRID-07 | Phase 10 | Complete |
-| LEADS-01 | Phase 11 | Pending |
+| LEADS-01 | Phase 11 | Complete |
 | LEADS-02 | Phase 11 | Complete |
-| LEADS-03 | Phase 11 | Pending |
+| LEADS-03 | Phase 11 | Complete |
 | LEADS-04 | Phase 11 | Complete |
 | HSPOT-01 | Phase 12 | Pending |
 | HSPOT-02 | Phase 12 | Pending |
