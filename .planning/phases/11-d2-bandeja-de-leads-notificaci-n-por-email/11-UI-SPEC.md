@@ -1,7 +1,7 @@
 ---
 phase: 11
 slug: d2-bandeja-de-leads-notificaci-n-por-email
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-07-24
@@ -112,8 +112,8 @@ Palette inherited verbatim from Phase 10 / `tokens.css`.
 | Destructive / error | Vendido `#D65454` | Save/load error affordances + the `cerrado / perdido` desenlace badge (see below) |
 
 **Accent (cobre) reserved for — explicit list (this phase):**
-- Primary action buttons: `Registrar lead` (alta manual), `Agregar nota` (drawer submit), `Guardar`
-  (desenlace prompt confirm), `Guardar email` (settings field).
+- Primary action buttons: `Registrar lead` (alta manual), `Agregar nota` (drawer submit),
+  `Guardar desenlace` (desenlace prompt confirm), `Guardar email` (settings field).
 - The **active drop-target column ring** (2px cobre) while a card is being dragged over a valid column.
 - The focused-input ring inside the alta-manual form and the note textarea (2px cobre outline).
 
@@ -168,10 +168,12 @@ recent — "hace 2 h" — absolute date for older).
 | Drawer — change-estado control label | `Estado` (accessible `<select>` mirroring the 4 stages — the keyboard-complete path) |
 | Timeline — auto transition entry | `{autor} movió el lead de {EstadoPrev} a {EstadoNuevo}` |
 | Timeline — note entry | `{autor} · {nota}` (with timestamp) |
+| Timeline — creation entry (seeded on lead creation) | `{autor} registró el lead` (alta manual) · `Lead recibido desde el showroom` (showroom origin) — the **first** timeline entry, written at creation so the origen is traced from t=0 (D-04 extended, resolved by user) |
 | Desenlace prompt heading (on entering `cerrado`) | `¿Cómo cerró este lead?` |
 | Desenlace prompt options | `Ganado` / `Perdido` |
 | Desenlace prompt body | `Elegí el desenlace para cerrar el lead. Lo vas a poder cambiar reabriéndolo.` |
-| Desenlace prompt confirm / cancel | `Guardar` / `Cancelar` |
+| Desenlace prompt confirm / cancel | `Guardar desenlace` / `Cancelar cierre` |
+| Icon-only control labels (accessible names) | Drawer close `x` → `aria-label="Cerrar"` · card drag handle `grip` → `aria-label="Arrastrar para mover"` (or `aria-roledescription="tarjeta arrastrable"` on the draggable card). Never ship these glyphs label-less. |
 | Alta-manual form — fields | `Nombre` (req) · `Contacto` (req, teléfono o email) · `Origen` (Directo / Broker / Unidad / Cotización) |
 | Alta-manual — validation (empty required) | `Ingresá el nombre` · `Ingresá un contacto (teléfono o email)` |
 | Alta-manual — success feedback | `Listo. El lead quedó en Nuevo y avisamos por email.` (inline `role="status"`) |
@@ -198,7 +200,7 @@ recent — "hace 2 h" — absolute date for older).
 one **required-decision gate** is the desenlace prompt when a lead enters `cerrado` (ganado/perdido) —
 it is a *required choice*, not a destructive confirmation, and is reversible by reopening the lead
 (free transitions, D-02). It must not be styled as a red/danger confirmation; it is a neutral prompt
-with a cobre `Guardar`.
+with a cobre `Guardar desenlace`.
 
 ---
 
@@ -215,8 +217,8 @@ anchor, actions (cobre) are the only high-saturation accent.
 |-----------|---------|-----------------|
 | **Kanban board** | 4 fixed columns (`nuevo`→`contactado`→`negociacion`→`cerrado`), one per stage. | loading (skeleton cards) · populated (14 seed leads distributed) · empty (0 leads → board empty state) · horizontal-overflow (narrow width → scroll) · load-error |
 | **Column** | Header (title + stage dot + count) over a scrollable card list; a drop target. | populated · empty (`Sin leads en esta etapa`, still droppable) · overflow (vertical scroll when many cards) · drag-over (cobre 2px ring) |
-| **Lead card** | nombre (primary line), contacto (muted), origen chip, stage/desenlace dot. Draggable; click opens drawer. | idle · hover (subtle `--gris-100` lift) · dragging (raised/ghost) · long-text (truncate + `title`) |
-| **Lead drawer** (right panel) | Opens on card click: header (nombre + estado select + close), `Actividad` timeline, `Agregar nota` form. No navigation away (D-09). | loading · populated · saving (transition/note) · error · closed |
+| **Lead card** | nombre (primary line), contacto (muted), origen chip, stage/desenlace dot. Draggable; click opens drawer. The icon-only drag handle (`grip`) carries `aria-label="Arrastrar para mover"` (or `aria-roledescription` on the card). | idle · hover (subtle `--gris-100` lift) · dragging (raised/ghost) · long-text (truncate + `title`) |
+| **Lead drawer** (right panel) | Opens on card click: header (nombre + estado select + close), `Actividad` timeline, `Agregar nota` form. The icon-only close (`x`) carries `aria-label="Cerrar"`. No navigation away (D-09). | loading · populated · saving (transition/note) · error · closed |
 | **Timeline** (`Actividad`) | Chronological (`ts` asc/desc consistent) merge of auto-transition entries + free notes, autor visible (D-04). Source of truth = `leads.timeline` JSONB. | empty (`Sin actividad todavía`) · populated · overflow (scroll within drawer) · long-text (note wraps/clamps) |
 | **Add-note form** | Textarea + `Agregar nota`; appends a `LeadNote` (autor from `ctx.session`). | idle · empty (submit disabled) · submitting · error |
 | **Estado select** (in drawer) | Accessible `<select>` / ARIA listbox over the 4 stages — the **keyboard-complete transition path** (parity with drag). Moving to `cerrado` triggers the desenlace prompt. | idle · open · saving · saved · error |
@@ -250,6 +252,12 @@ estado=`cerrado` + `desenlace`. Transitioning **out of** `cerrado` clears/ignore
 ordered by `ts`) **and** (b) emits an `events` row for the uniform audit trail (Phase 10 D-02 pattern).
 Notes and transitions persist append-only in order (LEADS-03 / SC-3).
 
+**Lead creation seeds the timeline (D-04 extended — resolved by user).** Creating a lead (showroom
+capture *or* alta manual) writes a **first** `LeadNote` to `leads.timeline` (`{autor} registró el lead`
+/ `Lead recibido desde el showroom`) as part of the same insert. A brand-new lead's drawer therefore
+shows this creation entry — never the empty `Sin actividad todavía` state on first open; the origen is
+traced from t=0. The `Sin actividad todavía` empty copy remains as a defensive state only.
+
 **Email fires only on lead creation (D-06).** Transitions and notes do **not** notify. The alta-manual
 success message asserts the email was queued (`…avisamos por email`). The enqueue is a side-effect
 after a successful persist (never `await` inline in the mutation), idempotent by `jobId =
@@ -266,7 +274,7 @@ Shape-rooted UI-state coverage computed by the ui-consideration-probe over the d
 Empty/error COPY lives in the Copywriting Contract above; this section covers **state** coverage and
 references those rows (de-dup). The planner must lift the `backstop` and `unresolved` rows.
 
-Applicable state considerations resolved: **24 covered · 3 backstop · 1 unresolved** (dismissed rows
+Applicable state considerations resolved: **25 covered · 3 backstop · 0 unresolved** (dismissed rows
 omitted as not applicable to the element kind).
 
 ### Covered (concrete truth in this contract)
@@ -275,7 +283,8 @@ omitted as not applicable to the element kind).
 |----------|------------|--------|---------------------|
 | empty | kanban board | ✅ covered | 0 leads → board empty-state heading `Todavía no hay leads` + body + `Registrar lead` CTA (Copywriting) |
 | empty | column | ✅ covered | Stage with 0 cards → `Sin leads en esta etapa`, still a valid drop target |
-| empty | timeline | ✅ covered | Lead with no activity → `Sin actividad todavía` |
+| empty | timeline | ✅ covered | `Sin actividad todavía` — defensive only; in practice every lead is seeded with a creation entry so a fresh drawer is never empty (see below) |
+| seeded | timeline (fresh lead) | ✅ covered | Lead creation writes a first `LeadNote` (`{autor} registró el lead` / `Lead recibido desde el showroom`) → origen traced from t=0; drawer never shows the empty state on first open (resolved by user) |
 | empty | add-note form | ✅ covered | Empty textarea → `Agregar nota` submit disabled |
 | loading | kanban board | ✅ covered | Skeleton cards in each column on initial fetch (Component Inventory) |
 | loading | lead drawer | ✅ covered | Drawer `loading` state before timeline resolves |
@@ -308,9 +317,10 @@ omitted as not applicable to the element kind).
 
 ### Unresolved (planner must treat as assumption)
 
-| Category | Element(s) | Status | Note |
-|----------|------------|--------|------|
-| empty | timeline (fresh lead) | ⚠ unresolved | Whether **lead creation itself writes a first `LeadNote`** (e.g. "lead registrado por {autor}") is not specified — CONTEXT D-04 auto-adds entries on *transitions*, and creation is not a transition. If creation writes no entry, a brand-new lead's drawer shows `Sin actividad todavía` until the first move/note. Planner must confirm: seed a creation entry, or accept the empty-until-first-action timeline. Either is acceptable; make it explicit. |
+_None._ The fresh-lead timeline question (does creation write a first `LeadNote`?) was resolved by the
+user during the UI-consideration probe: **yes — creation seeds a first entry** (`{autor} registró el
+lead` / `Lead recibido desde el showroom`). See the `seeded` covered row above and the Interaction
+Contracts "Lead creation seeds the timeline" rule.
 
 ### Dismissed (not applicable to the element kind)
 
@@ -337,11 +347,11 @@ scope for this gate.
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: PASS
+- [x] Dimension 2 Visuals: PASS
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
 
-**Approval:** pending
+**Approval:** VERIFIED (gsd-ui-checker, 6/6 dimensions) · UI-consideration probe resolved (25 covered · 3 backstop · 0 unresolved)
