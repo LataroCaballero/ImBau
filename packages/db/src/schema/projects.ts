@@ -32,6 +32,12 @@ export const projects = pgTable(
     // projects_anon_published SELECT policy — NO new pgPolicy needed (only publicado projects
     // reach anon, and the number is intended to be public — it is the CTA target).
     whatsapp: text("whatsapp"),
+    // leadsNotifyEmail — per-project recipient for the "nuevo lead" notification (D-05,
+    // phase 11). Nullable: null is the valid "fall back to org owners" sentinel resolved by
+    // the worker (plan 04); written by projects.updateSettings (plan 03), validated as
+    // `.email()` at the Zod boundary. Panel-private: no new pgPolicy — projects_tenant covers
+    // reads/writes and projects_anon_published is SELECT-only over public-facing fields.
+    leadsNotifyEmail: text("leads_notify_email"),
   },
   (t) => [
     // Parent UNIQUE for composite FKs (D-02 / Pitfall 7): every child table org-pins its
