@@ -50,6 +50,13 @@
       "when": 1784920600214,
       "tag": "0006_leads_desenlace_projects_notify_email",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785000000000,
+      "tag": "0007_org_owner_emails_security_definer",
+      "breakpoints": true
     }
   ]
 }
