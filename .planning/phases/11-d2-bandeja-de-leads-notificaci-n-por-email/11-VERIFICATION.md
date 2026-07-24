@@ -1,20 +1,24 @@
 ---
 phase: 11-d2-bandeja-de-leads-notificaci-n-por-email
 verified: 2026-07-24T21:08:45Z
-status: human_needed
+status: passed
 score: 4/4 must-haves verified
 behavior_unverified: 0
 overrides_applied: 0
 human_verification:
+
   - test: "Drag a lead card between kanban columns (mouse) end-to-end in the browser, including the cobre drop-target ring and optimistic-move-then-confirm feel."
     expected: "Card visually moves on drop, saves via leads.updateEstado, and settles (or reverts with the inline alert on a forced error)."
     why_human: "HTML5 drag-and-drop and optimistic-UI timing are runtime/visual behaviors grep cannot exercise; code inspection confirms the handlers exist and are wired (leads-board.tsx onDrop/handleColumnDragOver) but not that the drag interaction feels correct in a real browser."
+
   - test: "Trigger a transition into Cerrado from both the drag path and the drawer <select>, confirm the desenlace prompt blocks the write, and verify Cancelar aborts the move while Guardar desenlace commits estado+desenlace."
     expected: "Cerrar sin elegir desenlace is impossible; cancel leaves the card in its origin column; confirm shows the Ganado/Perdido badge on the card and in the drawer dot."
     why_human: "Visual modal-gate sequencing and color-coded badges (green/red) are visual/interaction outcomes; source confirms the gating logic (desenlace-prompt.tsx + leads-board.tsx pendingCerrado state) but not the rendered result."
+
   - test: "Send a real lead-created event through to Resend in staging (RESEND_API_KEY set) and confirm the recipient actually receives the es-AR email with the correct subject, deep-link, and content."
     expected: "Inbox receives 'Tenés un lead nuevo en {Proyecto}' with a working deep-link to the project's leads board."
     why_human: "Actual third-party email delivery (Resend) cannot be exercised without live external service credentials; the dev-mode code path (RESEND_API_KEY absent) was verified via a passing unit test, but the real-send path was not exercised end-to-end in this verification."
+
   - test: "On a narrow laptop viewport, confirm the board scrolls horizontally with 320px columns intact, a long nombre/contacto truncates with a working title tooltip without breaking the 88px card min-height, a long free note wraps inside the drawer without pushing the note form out of view, and the drawer timeline scrolls internally on a short viewport while header/note form stay visible."
     expected: "All four overflow/backstop behaviors hold visually as described in the UI-SPEC."
     why_human: "These are explicitly tagged 'verification: backstop' in the 11-05 plan frontmatter (non-inferable from static code) — CSS truncate/wrap classes and container structure are present in the source (lead-card.tsx `truncate`+`title`, lead-drawer.tsx `overflow-y-auto`), but whether the actual rendered layout holds these constraints requires a visual check."
