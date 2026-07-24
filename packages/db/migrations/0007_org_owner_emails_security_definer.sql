@@ -35,5 +35,10 @@ AS $$
 		AND m.role = 'owner'
 $$;--> statement-breakpoint
 
--- 2. The ONLY grant: EXECUTE to app_authenticated (never anon). No broad grant on "user".
+-- 2. Lock the door to app_authenticated ONLY. Postgres grants EXECUTE to PUBLIC by DEFAULT on every
+-- new function, so without this REVOKE the `anon` public-web role (a real LOGIN role) could call this
+-- SECURITY DEFINER function and enumerate any org's owner emails by org id — the exact cross-tenant PII
+-- disclosure (T-11-09/T-11-10) this plan exists to prevent. REVOKE FROM PUBLIC first, then GRANT to
+-- app_authenticated only. Both are idempotent/re-runnable (a second apply is a clean no-op).
+REVOKE EXECUTE ON FUNCTION public.org_owner_emails(text) FROM PUBLIC;--> statement-breakpoint
 GRANT EXECUTE ON FUNCTION public.org_owner_emails(text) TO app_authenticated;
