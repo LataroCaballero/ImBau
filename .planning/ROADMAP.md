@@ -60,7 +60,7 @@ Deuda v1.2 primero (merge + re-verificación en staging) → shell del panel sco
 
 - [x] **Phase 8: Deuda v1.2 — merge a main + re-verificación en staging** (0/2 plans) — not started (completed 2026-07-20)
 - [x] **Phase 9: Shell del panel scoped al proyecto + role gate** (0/2 plans) — not started (completed 2026-07-21)
-- [ ] **Phase 10: D1 — Grilla de unidades editable + import/export Excel** (0/4 plans) — not started
+- [x] **Phase 10: D1 — Grilla de unidades editable + import/export Excel** (0/4 plans) — not started (completed 2026-07-24)
 - [ ] **Phase 11: D2 — Bandeja de leads + notificación por email** (0/TBD plans) — not started
 - [ ] **Phase 12: Editor de hotspots** (0/TBD plans) — not started
 
@@ -185,6 +185,6 @@ Phases execute in numeric order: 8 → 9 → 10 → 11 → 12 (v1.3). D2 (11) y 
 | 7. PDF asíncrono en el worker | v1.2 | 4/4 | Complete | 2026-07-08 |
 | 8. Deuda v1.2 — merge + re-verificación staging | v1.3 | 2/2 | Complete    | 2026-07-20 |
 | 9. Shell del panel scoped al proyecto + role gate | v1.3 | 2/2 | Complete    | 2026-07-21 |
-| 10. D1 — Grilla de unidades + Excel | v1.3 | 4/4 | In Progress|  |
+| 10. D1 — Grilla de unidades + Excel | v1.3 | 4/4 | Complete    | 2026-07-24 |
 | 11. D2 — Bandeja de leads + email | v1.3 | 0/TBD | Not started | - |
 | 12. Editor de hotspots | v1.3 | 0/TBD | Not started | - |
