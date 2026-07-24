@@ -146,7 +146,7 @@ Deuda v1.2 primero (merge + re-verificación en staging) → shell del panel sco
   3. El developer agrega notas al timeline de un lead y quedan persistidas en orden.
   4. Ante un lead nuevo, el developer recibe un aviso por email encolado (BullMQ) e idempotente por evento (`lead:{id}:{event}`) — nunca `await` inline en la mutación, nunca duplica en reintentos ni bulk.
 
-**Plans**: 5/6 plans executed
+**Plans**: 6/6 plans executed
 
 - [x] 11-04a-PLAN.md
 
@@ -164,7 +164,7 @@ Deuda v1.2 primero (merge + re-verificación en staging) → shell del panel sco
 
 **Wave 3** *(blocked on Wave 2)*
 
-- [ ] 11-05-PLAN.md — Panel: kanban 4 estados (drag + `<select>` a11y) + drawer/timeline + prompt desenlace + alta manual + campo notify-email (LEADS-01..04, Wave 3)
+- [x] 11-05-PLAN.md — Panel: kanban 4 estados (drag + `<select>` a11y) + drawer/timeline + prompt desenlace + alta manual + campo notify-email (LEADS-01..04, Wave 3)
 
 ### Phase 12: Editor de hotspots
 
@@ -203,5 +203,5 @@ Phases execute in numeric order: 8 → 9 → 10 → 11 → 12 (v1.3). D2 (11) y 
 | 8. Deuda v1.2 — merge + re-verificación staging | v1.3 | 2/2 | Complete    | 2026-07-20 |
 | 9. Shell del panel scoped al proyecto + role gate | v1.3 | 2/2 | Complete    | 2026-07-21 |
 | 10. D1 — Grilla de unidades + Excel | v1.3 | 4/4 | Complete    | 2026-07-24 |
-| 11. D2 — Bandeja de leads + email | v1.3 | 5/6 | In Progress|  |
+| 11. D2 — Bandeja de leads + email | v1.3 | 6/6 | In Progress|  |
 | 12. Editor de hotspots | v1.3 | 0/TBD | Not started | - |

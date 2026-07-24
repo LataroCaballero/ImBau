@@ -5,16 +5,16 @@ milestone_name: Panel de autogestión
 current_phase: 11
 current_phase_name: d2-bandeja-de-leads-notificaci-n-por-email
 status: verifying
-stopped_at: Completed 11-04-PLAN.md (lead-email worker consumer)
-last_updated: "2026-07-24T20:46:19.415Z"
+stopped_at: Completed 11-05-PLAN.md
+last_updated: "2026-07-24T20:59:18.563Z"
 last_activity: 2026-07-24
 last_activity_desc: Phase 11 execution started
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 14
-  completed_plans: 13
-  percent: 60
+  completed_plans: 14
+  percent: 80
 ---
 
 # Project State
@@ -89,6 +89,7 @@ Numeración GSD continúa desde v1.2 (última fase = 7).
 | Phase 11 P03 | 8min | 3 tasks | 5 files |
 | Phase 11 P04a | 20min | 2 tasks | 2 files |
 | Phase 11 P04 | 8min | 3 tasks | 7 files |
+| Phase 11 P05 | 6min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -123,6 +124,8 @@ Decisions are logged in PROJECT.md Key Decisions table (full log). Decisiones vi
 - [Phase ?]: projects.updateSettings: estado optional + empty-patch BAD_REQUEST guard for leadsNotifyEmail-only patches
 - [Phase ?]: 11-04a: org_owner_emails SECURITY DEFINER fn (migration 0007) — parameterized org door, pinned search_path, REVOKE EXECUTE FROM PUBLIC then GRANT to app_authenticated only; no broad user-table grant
 - [Phase ?]: 11-04: lead-email worker fallback reads org owners ONLY via org_owner_emails SECURITY DEFINER door under withTenant (never owner pool / direct user read)
+- [Phase ?]: Leads bandeja client types derived from inferRouterOutputs<AppRouter> (no drift from router)
+- [Phase ?]: Drag into cerrado defers optimistic move until desenlace prompt confirms (cancel = no mutation)
 
 ### Pending Todos
 
@@ -149,8 +152,8 @@ Items acknowledged and deferred at milestone closes (v1.0 2026-06-26, v1.2 2026-
 
 ## Session Continuity
 
-Last session: 2026-07-24T20:46:08.195Z
-Stopped at: Completed 11-04-PLAN.md (lead-email worker consumer)
+Last session: 2026-07-24T20:59:10.064Z
+Stopped at: Completed 11-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
