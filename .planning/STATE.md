@@ -5,15 +5,15 @@ milestone_name: Panel de autogestión
 current_phase: 11
 current_phase_name: d2-bandeja-de-leads-notificaci-n-por-email
 status: executing
-stopped_at: Completed 11-03-PLAN.md
-last_updated: "2026-07-24T19:44:07.530Z"
+stopped_at: Completed 11-04a-PLAN.md
+last_updated: "2026-07-24T20:28:30.741Z"
 last_activity: 2026-07-24
 last_activity_desc: Phase 11 execution started
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 13
-  completed_plans: 11
+  total_plans: 14
+  completed_plans: 12
   percent: 60
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 ## Current Position
 
 Phase: 11 (d2-bandeja-de-leads-notificaci-n-por-email) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-07-24 — Phase 11 execution started
 
@@ -87,6 +87,7 @@ Numeración GSD continúa desde v1.2 (última fase = 7).
 | Phase 11 P01 | 30min | 3 tasks | 5 files |
 | Phase 11 P02 | 6min | 3 tasks | 6 files |
 | Phase 11 P03 | 8min | 3 tasks | 5 files |
+| Phase 11 P04a | 20min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -119,6 +120,7 @@ Decisions are logged in PROJECT.md Key Decisions table (full log). Decisiones vi
 - [Phase ?]: leads.listForProject returns origenResuelto {tipo,label} (broker/unidad/cotizacion/directo)
 - [Phase ?]: leads events audit keyed by (project_id, tipo=lead_estado_changed) — events has no lead_id
 - [Phase ?]: projects.updateSettings: estado optional + empty-patch BAD_REQUEST guard for leadsNotifyEmail-only patches
+- [Phase ?]: 11-04a: org_owner_emails SECURITY DEFINER fn (migration 0007) — parameterized org door, pinned search_path, REVOKE EXECUTE FROM PUBLIC then GRANT to app_authenticated only; no broad user-table grant
 
 ### Pending Todos
 
@@ -145,8 +147,8 @@ Items acknowledged and deferred at milestone closes (v1.0 2026-06-26, v1.2 2026-
 
 ## Session Continuity
 
-Last session: 2026-07-24T19:44:07.525Z
-Stopped at: Completed 11-03-PLAN.md
+Last session: 2026-07-24T20:28:30.736Z
+Stopped at: Completed 11-04a-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
