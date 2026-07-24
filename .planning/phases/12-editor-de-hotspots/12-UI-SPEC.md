@@ -1,7 +1,7 @@
 ---
 phase: 12
 slug: editor-de-hotspots
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-07-24
@@ -371,11 +371,11 @@ panel's toolkit, not a UI registry — out of scope for this gate.
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: FLAG (non-blocking) — `Descartar` / `Cancelar` are single-word secondary CTAs without a noun; all other copy (empty/error/destructive/validation) is specific and complete. Recommended (non-blocking): `Descartar dibujo` / `Cancelar edición`.
+- [x] Dimension 2 Visuals: PASS
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
 
-**Approval:** pending
+**Approval:** APPROVED (gsd-ui-checker, 2026-07-24 — 6/6 dimensions, 1 non-blocking FLAG on Dimension 1)
