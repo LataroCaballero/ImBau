@@ -57,6 +57,10 @@ export default mergeConfig(
         // validates WEB_PUBLIC_BASE_URL. A dummy URL satisfies the import-time Zod check — the
         // pure QuoteDoc render never contacts it.
         WEB_PUBLIC_BASE_URL: process.env.WEB_PUBLIC_BASE_URL ?? "https://web.test",
+        // Panel origin (fase 11): the lead-email processor imports ./env (env.BETTER_AUTH_URL) to
+        // build the bandeja deep-link, and importing @imbau/api/email also validates it. A dummy
+        // URL satisfies both import-time Zod checks — lead-email.test.ts mocks the send + read.
+        BETTER_AUTH_URL: process.env.BETTER_AUTH_URL ?? "https://panel.test",
       },
     },
   }),
