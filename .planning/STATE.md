@@ -4,16 +4,16 @@ milestone: v1.3
 milestone_name: Panel de autogestión
 current_phase: 11
 current_phase_name: d2-bandeja-de-leads-notificaci-n-por-email
-status: executing
-stopped_at: Completed 11-04a-PLAN.md
-last_updated: "2026-07-24T20:28:30.741Z"
+status: verifying
+stopped_at: Completed 11-04-PLAN.md (lead-email worker consumer)
+last_updated: "2026-07-24T20:46:19.415Z"
 last_activity: 2026-07-24
 last_activity_desc: Phase 11 execution started
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 14
-  completed_plans: 12
+  completed_plans: 13
   percent: 60
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 
 Phase: 11 (d2-bandeja-de-leads-notificaci-n-por-email) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-24 — Phase 11 execution started
 
 ## Roadmap (v1.3 — Phases 8-12)
@@ -88,6 +88,7 @@ Numeración GSD continúa desde v1.2 (última fase = 7).
 | Phase 11 P02 | 6min | 3 tasks | 6 files |
 | Phase 11 P03 | 8min | 3 tasks | 5 files |
 | Phase 11 P04a | 20min | 2 tasks | 2 files |
+| Phase 11 P04 | 8min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -121,6 +122,7 @@ Decisions are logged in PROJECT.md Key Decisions table (full log). Decisiones vi
 - [Phase ?]: leads events audit keyed by (project_id, tipo=lead_estado_changed) — events has no lead_id
 - [Phase ?]: projects.updateSettings: estado optional + empty-patch BAD_REQUEST guard for leadsNotifyEmail-only patches
 - [Phase ?]: 11-04a: org_owner_emails SECURITY DEFINER fn (migration 0007) — parameterized org door, pinned search_path, REVOKE EXECUTE FROM PUBLIC then GRANT to app_authenticated only; no broad user-table grant
+- [Phase ?]: 11-04: lead-email worker fallback reads org owners ONLY via org_owner_emails SECURITY DEFINER door under withTenant (never owner pool / direct user read)
 
 ### Pending Todos
 
@@ -147,8 +149,8 @@ Items acknowledged and deferred at milestone closes (v1.0 2026-06-26, v1.2 2026-
 
 ## Session Continuity
 
-Last session: 2026-07-24T20:28:30.736Z
-Stopped at: Completed 11-04a-PLAN.md
+Last session: 2026-07-24T20:46:08.195Z
+Stopped at: Completed 11-04-PLAN.md (lead-email worker consumer)
 Resume file: None
 
 ## Operator Next Steps
