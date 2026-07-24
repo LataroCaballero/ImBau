@@ -3,17 +3,17 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Panel de autogestión
 current_phase: 11
-current_phase_name: D2 — Bandeja de leads + notificación por email
+current_phase_name: d2-bandeja-de-leads-notificaci-n-por-email
 status: executing
-stopped_at: Phase 11 UI-SPEC approved
-last_updated: "2026-07-24T19:07:40.958Z"
+stopped_at: Completed 11-01-PLAN.md
+last_updated: "2026-07-24T19:21:26.292Z"
 last_activity: 2026-07-24
-last_activity_desc: Phase 10 complete, transitioned to Phase 11
+last_activity_desc: Phase 11 execution started
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 8
-  completed_plans: 8
+  total_plans: 13
+  completed_plans: 9
   percent: 60
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-20)
 
 **Core value:** La fundación técnica desplegada y operable: cada commit a main termina corriendo en staging con aislamiento multi-tenant verificable por RLS.
-**Current focus:** Phase 10 — d1-grilla-de-unidades-editable-import-export-excel
+**Current focus:** Phase 11 — d2-bandeja-de-leads-notificaci-n-por-email
 
 ## Current Position
 
-Phase: 11 — D2 — Bandeja de leads + notificación por email
-Plan: Not started
+Phase: 11 (d2-bandeja-de-leads-notificaci-n-por-email) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-07-24 — Phase 10 complete, transitioned to Phase 11
+Last activity: 2026-07-24 — Phase 11 execution started
 
 ## Roadmap (v1.3 — Phases 8-12)
 
@@ -84,6 +84,7 @@ Numeración GSD continúa desde v1.2 (última fase = 7).
 | Phase 10 P02 | 20min | 2 tasks | 15 files |
 | Phase 10 P03 | 14min | 3 tasks | 5 files |
 | Phase 10 P04 | 35min | 3 tasks | 10 files |
+| Phase 11 P01 | 30min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -109,6 +110,8 @@ Decisions are logged in PROJECT.md Key Decisions table (full log). Decisiones vi
 - [Phase ?]: Phase 10-03: updatePrice (INSERT ... ON CONFLICT) can't rely on the UPDATE 0-row mold — a cross-org parent trips a composite-FK 23503; added an RLS-scoped unit+price_list existence pre-check → NOT_FOUND (no-enumeration). blank import price = DELETE the unit_prices row (precio NOT NULL). GRID-07 = Path A (force-dynamic cross-surface test, no revalidation plumbing). @imbau/api 124/124 green
 - [Phase ?]: Phase 10-04: panel units-grid = first STYLED surface; RSC guard verbatim + "use client" island via useTRPC + inline role=status/alert feedback (no global toast) + mandatory viejo→nuevo preview for every irreversible money op — the mold Phases 11/12 clone
 - [Phase ?]: Phase 10-04: money renders via canonical formatUsd as 'US$ 185.000' (not UI-SPEC illustrative 'USD 185.000') — user-accepted; single-source formatter guarantees UI == PDF == WhatsApp. packages/ui/src/tokens.css EXTENDED (un-prefixed), not forked to --imbau-*
+- [Phase ?]: desenlace as nullable text (Zod-validated), not a PG enum — leadEstadoEnum untouched (D-03)
+- [Phase ?]: leads_notify_email needs no new pgPolicy — projects_tenant covers it, anon policy is SELECT-only public fields (D-05)
 
 ### Pending Todos
 
@@ -135,9 +138,9 @@ Items acknowledged and deferred at milestone closes (v1.0 2026-06-26, v1.2 2026-
 
 ## Session Continuity
 
-Last session: 2026-07-24T18:14:52.310Z
-Stopped at: Phase 11 UI-SPEC approved
-Resume file: .planning/phases/11-d2-bandeja-de-leads-notificaci-n-por-email/11-UI-SPEC.md
+Last session: 2026-07-24T19:21:26.287Z
+Stopped at: Completed 11-01-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 
