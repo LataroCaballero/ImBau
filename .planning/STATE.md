@@ -5,8 +5,8 @@ milestone_name: Panel de autogestión
 current_phase: 12
 current_phase_name: Editor de hotspots
 status: planning
-stopped_at: Completed 11-05-PLAN.md
-last_updated: "2026-07-24T22:56:52.096Z"
+stopped_at: Phase 12 context gathered
+last_updated: "2026-07-24T23:17:26.996Z"
 last_activity: 2026-07-24
 last_activity_desc: Phase 11 complete, transitioned to Phase 12
 progress:
@@ -152,9 +152,9 @@ Items acknowledged and deferred at milestone closes (v1.0 2026-06-26, v1.2 2026-
 
 ## Session Continuity
 
-Last session: 2026-07-24T20:59:10.064Z
-Stopped at: Completed 11-05-PLAN.md
-Resume file: None
+Last session: 2026-07-24T23:17:26.988Z
+Stopped at: Phase 12 context gathered
+Resume file: .planning/phases/12-editor-de-hotspots/12-CONTEXT.md
 
 ## Operator Next Steps
 
