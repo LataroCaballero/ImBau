@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1076.0",
+    "@imbau/api": "workspace:*",
     "@imbau/config": "workspace:*",
     "@imbau/db": "workspace:*",
     "@imbau/observability": "workspace:*",

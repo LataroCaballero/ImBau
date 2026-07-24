@@ -1,5 +1,13 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
   "extends": "@imbau/config/tsconfig/node.json",
+  "compilerOptions": {
+    // The lead-email processor imports @imbau/api/email (Plan 11-04), a JIT workspace package whose
+    // send module pulls in the es-AR React Email `.tsx` template. tsc follows that import and must
+    // therefore know how to transform JSX — node.json (a pure-Node base) does not set `jsx`. The
+    // worker already ships react + @types/react (for @react-pdf/renderer), so react-jsx is safe and
+    // adds no new dependency; it only affects typecheck (tsup owns the build transform).
+    "jsx": "react-jsx"
+  },
   "include": ["src/**/*.ts", "tests/**/*.ts", "tsup.config.ts", "vitest.config.ts"]
 }

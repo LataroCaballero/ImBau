@@ -199,6 +199,9 @@ importers:
       '@aws-sdk/client-s3':
         specifier: 3.1076.0
         version: 3.1076.0
+      '@imbau/api':
+        specifier: workspace:*
+        version: link:../../packages/api
       '@imbau/config':
         specifier: workspace:*
         version: link:../../packages/config
