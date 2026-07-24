@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Panel de autogestión
-current_phase: 11
-current_phase_name: d2-bandeja-de-leads-notificaci-n-por-email
-status: verifying
+current_phase: 12
+current_phase_name: Editor de hotspots
+status: planning
 stopped_at: Completed 11-05-PLAN.md
-last_updated: "2026-07-24T20:59:18.563Z"
+last_updated: "2026-07-24T22:56:52.096Z"
 last_activity: 2026-07-24
-last_activity_desc: Phase 11 execution started
+last_activity_desc: Phase 11 complete, transitioned to Phase 12
 progress:
   total_phases: 5
   completed_phases: 4
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 
 ## Current Position
 
-Phase: 11 (d2-bandeja-de-leads-notificaci-n-por-email) — EXECUTING
-Plan: 5 of 5
-Status: Phase complete — ready for verification
-Last activity: 2026-07-24 — Phase 11 execution started
+Phase: 12 — Editor de hotspots
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-07-24 — Phase 11 complete, transitioned to Phase 12
 
 ## Roadmap (v1.3 — Phases 8-12)
 
