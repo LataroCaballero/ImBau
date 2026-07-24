@@ -61,7 +61,7 @@ Deuda v1.2 primero (merge + re-verificación en staging) → shell del panel sco
 - [x] **Phase 8: Deuda v1.2 — merge a main + re-verificación en staging** (0/2 plans) — not started (completed 2026-07-20)
 - [x] **Phase 9: Shell del panel scoped al proyecto + role gate** (0/2 plans) — not started (completed 2026-07-21)
 - [x] **Phase 10: D1 — Grilla de unidades editable + import/export Excel** (0/4 plans) — not started (completed 2026-07-24)
-- [ ] **Phase 11: D2 — Bandeja de leads + notificación por email** (0/TBD plans) — not started
+- [ ] **Phase 11: D2 — Bandeja de leads + notificación por email** (0/5 plans) — not started
 - [ ] **Phase 12: Editor de hotspots** (0/TBD plans) — not started
 
 ## Phase Details
@@ -146,8 +146,22 @@ Deuda v1.2 primero (merge + re-verificación en staging) → shell del panel sco
   3. El developer agrega notas al timeline de un lead y quedan persistidas en orden.
   4. Ante un lead nuevo, el developer recibe un aviso por email encolado (BullMQ) e idempotente por evento (`lead:{id}:{event}`) — nunca `await` inline en la mutación, nunca duplica en reintentos ni bulk.
 
-**Plans**: TBD
+**Plans**: 5 plans
 **UI hint**: yes
+
+**Wave 1** *(parallel — no cross-deps)*
+
+- [ ] 11-01-PLAN.md — Migración versionada `leads.desenlace` + `projects.leadsNotifyEmail` [BLOCKING apply] + seed desenlace/email-free (LEADS-02/04, Wave 1)
+- [ ] 11-02-PLAN.md — Molécula de email: contrato BullMQ `lead-email` (jobId `lead:{id}:created`) + dispatch Resend/dev-console + template React Email es-AR (LEADS-04, Wave 1)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 11-03-PLAN.md — `leadsRouter` (listForProject/create/updateEstado/addNote) + enqueue seam + `projects.updateSettings` extendida + matriz cross-rol/transición/timeline/idempotencia vs Postgres real (LEADS-01..04, Wave 2)
+- [ ] 11-04-PLAN.md — Worker `processLeadEmail` + resolución de destinatario (leadsNotifyEmail ?? owners) + registro en `boot()` + reporte de fallo observable (LEADS-04, Wave 2)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 11-05-PLAN.md — Panel: kanban 4 estados (drag + `<select>` a11y) + drawer/timeline + prompt desenlace + alta manual + campo notify-email (LEADS-01..04, Wave 3)
 
 ### Phase 12: Editor de hotspots
 
@@ -186,5 +200,5 @@ Phases execute in numeric order: 8 → 9 → 10 → 11 → 12 (v1.3). D2 (11) y 
 | 8. Deuda v1.2 — merge + re-verificación staging | v1.3 | 2/2 | Complete    | 2026-07-20 |
 | 9. Shell del panel scoped al proyecto + role gate | v1.3 | 2/2 | Complete    | 2026-07-21 |
 | 10. D1 — Grilla de unidades + Excel | v1.3 | 4/4 | Complete    | 2026-07-24 |
-| 11. D2 — Bandeja de leads + email | v1.3 | 0/TBD | Not started | - |
+| 11. D2 — Bandeja de leads + email | v1.3 | 0/5 | Not started | - |
 | 12. Editor de hotspots | v1.3 | 0/TBD | Not started | - |
