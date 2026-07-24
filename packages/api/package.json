@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./access-control": "./src/auth/access-control.ts",
-    "./money": "./src/excel/money-core.ts"
+    "./money": "./src/excel/money-core.ts",
+    "./email": "./src/email/send-lead-notification.ts"
   },
   "scripts": {
     "lint": "eslint .",
