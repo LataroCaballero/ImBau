@@ -11,6 +11,7 @@ import { useState, type ReactElement } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { formatUsd } from "@imbau/quoting";
 import { useTRPC } from "../../../../lib/trpc-client";
+import { describeApplyError } from "./apply-error";
 
 type BulkMode = "percent" | "fixed";
 
@@ -62,6 +63,8 @@ export function BulkEdit({
   const [value, setValue] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [applied, setApplied] = useState<number | null>(null);
+  // WR-03: the real, es-AR apply-error cause (falls back to the generic message when absent).
+  const [applyError, setApplyError] = useState<string | null>(null);
 
   const parsedValue = Number(value.trim());
   const valueValid = value.trim() !== "" && Number.isFinite(parsedValue);
@@ -76,6 +79,7 @@ export function BulkEdit({
   }
 
   function confirmApply(): void {
+    setApplyError(null);
     applyMut.mutate(
       { projectId, unitIds, priceListId, mode, value: parsedValue },
       {
@@ -83,6 +87,7 @@ export function BulkEdit({
           setApplied(data.applied);
           onApplied();
         },
+        onError: (err) => setApplyError(describeApplyError(err)),
       },
     );
   }
@@ -228,7 +233,8 @@ export function BulkEdit({
 
               {applyMut.isError ? (
                 <p role="alert" className="text-sm text-vendido">
-                  No se aplicó ningún cambio. Si una fila falla, no se aplica nada.
+                  {applyError ??
+                    "No se aplicó ningún cambio. Si una fila falla, no se aplica nada."}
                 </p>
               ) : null}
             </div>

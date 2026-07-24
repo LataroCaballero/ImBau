@@ -14,6 +14,7 @@ import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@imbau/api";
 import { formatUsd } from "@imbau/quoting";
 import { useTRPC } from "../../../../lib/trpc-client";
+import { describeApplyError } from "./apply-error";
 
 type DryRunResult = inferRouterOutputs<AppRouter>["units"]["dryRunImport"];
 type ClassifiedRow = DryRunResult["rows"][number];
@@ -60,10 +61,13 @@ export function ImportWizard({
   // rather than re-reading `fileInputRef.current.files` — a drag-dropped file never populates the
   // input's FileList, so the old re-read silently no-op'd the whole import through the drop path.
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  // WR-03: the real, es-AR apply-error cause (falls back to the generic message when absent).
+  const [applyError, setApplyError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleFile(file: File): Promise<void> {
     setReport(null);
+    setApplyError(null);
     setSelectedFile(file);
     const base64 = await fileToBase64(file);
     dryRunMut.mutate(
@@ -74,6 +78,7 @@ export function ImportWizard({
 
   function confirmApply(): void {
     if (!selectedFile) return;
+    setApplyError(null);
     void fileToBase64(selectedFile).then((base64) => {
       applyMut.mutate(
         { projectId, file: base64 },
@@ -82,6 +87,7 @@ export function ImportWizard({
             setApplied(data.applied);
             onApplied();
           },
+          onError: (err) => setApplyError(describeApplyError(err)),
         },
       );
     });
@@ -264,7 +270,8 @@ export function ImportWizard({
 
               {applyMut.isError ? (
                 <p role="alert" className="text-sm text-vendido">
-                  No se aplicó ningún cambio. Si una fila falla, no se aplica nada.
+                  {applyError ??
+                    "No se aplicó ningún cambio. Si una fila falla, no se aplica nada."}
                 </p>
               ) : null}
             </div>
