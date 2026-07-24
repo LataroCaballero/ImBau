@@ -4,6 +4,7 @@
 // REJECTS any result `< 0` with an es-AR reason (Open Q #2 resolution — never produce a negative
 // price). The returned `rows` are exactly what Plan 03's `units.bulkUpdatePrice` mutation will write,
 // so the mandatory preview modal (D-13) shows the true old→new before the single all-or-nothing tx.
+import { MAX_PRECIO_USD } from "./money-core";
 import type { BulkMode, BulkPreview, BulkPreviewRow, BulkError, BulkSelectionUnit } from "./types";
 
 /**
@@ -36,6 +37,12 @@ export function computeBulkPreview(
         ? Math.round(unit.current * (1 + value / 100))
         : Math.round(unit.current + value);
 
+    // WR-02 defense-in-depth: re-assert finiteness + the int4 cap here (not only at the Zod boundary),
+    // so no non-finite or above-cap result can ever reach the INSERT and 22003 the whole bulk tx.
+    if (!Number.isFinite(next) || next > MAX_PRECIO_USD) {
+      errors.push({ identificador: unit.identificador, reason: "el precio es demasiado grande" });
+      continue;
+    }
     if (next < 0) {
       errors.push({ identificador: unit.identificador, reason: "el precio no puede ser negativo" });
       continue;

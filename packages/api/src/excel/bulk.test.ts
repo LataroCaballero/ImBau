@@ -3,6 +3,7 @@ import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
 import { computeBulkPreview } from "./bulk";
+import { MAX_PRECIO_USD } from "./money-core";
 import type { BulkSelectionUnit } from "./types";
 
 // computeBulkPreview is the pure bulk-price engine (GRID-06, D-12). It applies a % or fixed change to
@@ -56,6 +57,18 @@ describe("computeBulkPreview — rejects invalid results with an es-AR reason", 
   it("rejects a negative result from a large negative fixed amount", () => {
     const preview = computeBulkPreview([sel({ current: 50000 })], "fixed", -60000);
     expect(preview.errors).toEqual([{ identificador: "4B", reason: "el precio no puede ser negativo" }]);
+  });
+
+  it("rejects a non-finite result (Infinity percent) with 'demasiado grande' (WR-02)", () => {
+    const preview = computeBulkPreview([sel({ current: 100000 })], "percent", Number.POSITIVE_INFINITY);
+    expect(preview.rows).toEqual([]);
+    expect(preview.errors).toEqual([{ identificador: "4B", reason: "el precio es demasiado grande" }]);
+  });
+
+  it("rejects a result above the int4 cap (WR-02 overflow guard)", () => {
+    const preview = computeBulkPreview([sel({ current: MAX_PRECIO_USD })], "fixed", MAX_PRECIO_USD);
+    expect(preview.rows).toEqual([]);
+    expect(preview.errors).toEqual([{ identificador: "4B", reason: "el precio es demasiado grande" }]);
   });
 
   it("rejects an unpriced unit (current === null) with an es-AR reason", () => {

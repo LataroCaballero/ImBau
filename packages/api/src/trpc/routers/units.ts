@@ -37,6 +37,7 @@ import { buildWorkbook } from "../../excel/build";
 import { parseWorkbook } from "../../excel/parse";
 import { buildDryRun } from "../../excel/dry-run";
 import { computeBulkPreview } from "../../excel/bulk";
+import { MAX_PRECIO_USD } from "../../excel/money-core";
 import type {
   BulkSelectionUnit,
   CurrentUnit,
@@ -193,7 +194,9 @@ export const unitsRouter = router({
         projectId: z.uuid(),
         unitId: z.uuid(),
         priceListId: z.uuid(),
-        precio: z.number().int().nonnegative(),
+        // WR-01: `precio` is an int4 column — cap at the int4 max so an oversized value is a clean 400
+        // at the boundary, never an unhandled `integer out of range (22003)` 500 from the INSERT.
+        precio: z.number().int().min(0).max(MAX_PRECIO_USD),
       }),
     )
     .mutation(({ ctx, input }) =>
@@ -427,7 +430,10 @@ export const unitsRouter = router({
         unitIds: z.array(z.uuid()).min(1),
         priceListId: z.uuid(),
         mode: z.enum(["percent", "fixed"]),
-        value: z.number(),
+        // WR-02: reject Infinity/NaN and absurd magnitudes at the boundary (the client gates
+        // Number.isFinite, but a direct tRPC call is not so constrained). A non-finite value would
+        // reach Math.round in computeBulkPreview and write precio: Infinity → a 500 aborting the tx.
+        value: z.number().finite().min(-MAX_PRECIO_USD).max(MAX_PRECIO_USD),
       }),
     )
     .mutation(({ ctx, input }) =>
@@ -451,7 +457,10 @@ export const unitsRouter = router({
         unitIds: z.array(z.uuid()).min(1),
         priceListId: z.uuid(),
         mode: z.enum(["percent", "fixed"]),
-        value: z.number(),
+        // WR-02: reject Infinity/NaN and absurd magnitudes at the boundary (the client gates
+        // Number.isFinite, but a direct tRPC call is not so constrained). A non-finite value would
+        // reach Math.round in computeBulkPreview and write precio: Infinity → a 500 aborting the tx.
+        value: z.number().finite().min(-MAX_PRECIO_USD).max(MAX_PRECIO_USD),
       }),
     )
     .mutation(({ ctx, input }) =>
