@@ -17,12 +17,14 @@
 import ExcelJS from "exceljs";
 
 import type { MoneyParseResult } from "./types";
-
-// es-AR grouped integer: 1–3 leading digits then one-or-more `.`-separated 3-digit groups. Matches
-// "185.000", "1.234.567"; rejects "185.5", "1.23", "12.3456".
-const ES_AR_GROUPED = /^\d{1,3}(\.\d{3})+$/;
-// Plain unseparated integer: "185000".
-const PLAIN_INTEGER = /^\d+$/;
+// The es-AR grouping rules + int4 cap live in the pure, dependency-free money-core (shared with the
+// panel's inline editor) so this parser and the client can never drift.
+import {
+  ES_AR_GROUPED,
+  MAX_PRECIO_USD,
+  PLAIN_INTEGER,
+  parseMoneyStringEsAr,
+} from "./money-core";
 
 /**
  * Parse an ExcelJS price cell → `{ ok: true, value }` (non-negative integer USD) or
@@ -51,27 +53,26 @@ export function parseMoneyEsAr(cell: ExcelJS.Cell): MoneyParseResult {
     return { ok: false, reason: "falta el precio" };
   }
 
-  // Number cell: accept only a non-negative INTEGER (Number.isInteger gate — the money invariant).
+  // Number cell: accept only a non-negative INTEGER within the int4 cap (the money invariant + WR-01
+  // overflow guard — Number.isInteger is `true` for values far above 2³¹ that would 22003 the INSERT).
   if (t === ExcelJS.ValueType.Number) {
     const n = cell.value as number;
     if (!Number.isInteger(n)) return { ok: false, reason: "el precio no es un número entero" };
     if (n < 0) return { ok: false, reason: "el precio no puede ser negativo" };
+    if (n > MAX_PRECIO_USD) return { ok: false, reason: "el precio es demasiado grande" };
     return { ok: true, value: n };
   }
 
-  // String / SharedString: normalize es-AR and re-gate on integer.
+  // String / SharedString: normalize es-AR and re-gate via the shared pure core.
   const raw = cell.text.trim();
   if (raw === "") return { ok: false, reason: "falta el precio" };
-  if (raw.startsWith("-")) return { ok: false, reason: "el precio no puede ser negativo" };
-
   const noSpace = raw.replace(/\s/g, "");
+  if (noSpace.startsWith("-")) return { ok: false, reason: "el precio no puede ser negativo" };
   if (!PLAIN_INTEGER.test(noSpace) && !ES_AR_GROUPED.test(noSpace)) {
     return { ok: false, reason: "el precio no es un número entero" };
   }
-  const n = Number(noSpace.replace(/\./g, ""));
-  // Defensive re-gate (a maliciously huge string could overflow to a non-integer/Infinity).
-  if (!Number.isInteger(n) || n < 0) {
-    return { ok: false, reason: "el precio no es un número entero" };
-  }
-  return { ok: true, value: n };
+  // Passed the shape gate above, so the only remaining rejection is an overflow beyond the int4 cap.
+  const value = parseMoneyStringEsAr(noSpace);
+  if (value === null) return { ok: false, reason: "el precio es demasiado grande" };
+  return { ok: true, value };
 }

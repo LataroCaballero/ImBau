@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./access-control": "./src/auth/access-control.ts"
+    "./access-control": "./src/auth/access-control.ts",
+    "./money": "./src/excel/money-core.ts"
   },
   "scripts": {
     "lint": "eslint .",

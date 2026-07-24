@@ -104,6 +104,16 @@ describe("parseMoneyEsAr — rejects non-integer / malformed / negative with an 
   it("rejects arbitrary non-numeric text", () => {
     expect(parseMoneyEsAr(cellOf("no disponible")).ok).toBe(false);
   });
+
+  it("rejects a Number cell above the int4 cap (WR-01 — 3e9 would 22003 the INSERT)", () => {
+    const r = parseMoneyEsAr(cellOf(3_000_000_000));
+    expect(r).toEqual({ ok: false, reason: "el precio es demasiado grande" });
+  });
+
+  it("rejects a grouped string above the int4 cap '999.999.999.999' (WR-01)", () => {
+    const r = parseMoneyEsAr(cellOf("999.999.999.999"));
+    expect(r).toEqual({ ok: false, reason: "el precio es demasiado grande" });
+  });
 });
 
 describe("parseMoneyEsAr — property: a successful parse is ALWAYS a non-negative integer", () => {

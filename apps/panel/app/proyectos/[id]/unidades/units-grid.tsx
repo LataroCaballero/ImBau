@@ -13,6 +13,11 @@
 import { useEffect, useRef, useState, type ReactElement } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatUsd } from "@imbau/quoting";
+// The SAME pure es-AR money parser the Excel import path uses (money.ts). Routing the inline editor
+// through it closes CR-01: raw Number("185.000") === 185 would silently write $185 for the natural
+// es-AR grouped input "185.000". money-core is dependency-free, so this drags no server deps into the
+// client bundle.
+import { parseMoneyStringEsAr } from "@imbau/api/money";
 import { useTRPC } from "../../../../lib/trpc-client";
 import { ImportWizard } from "./import-wizard";
 import { BulkEdit } from "./bulk-edit";
@@ -400,8 +405,10 @@ function PriceCell({
       setState("idle");
       return;
     }
-    const parsed = Number(trimmed);
-    if (!Number.isInteger(parsed) || parsed < 0) {
+    // Single source of truth with the Excel import: "185.000" → 185000, and "185,50"/"1.5"/negatives/
+    // above-int4-cap/garbage → null → red + revert (CR-01, IN-04).
+    const parsed = parseMoneyStringEsAr(trimmed);
+    if (parsed === null) {
       setState("error");
       return;
     }
