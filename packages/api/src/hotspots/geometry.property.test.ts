@@ -23,15 +23,16 @@ describe("serialize→parse round-trip (D-09 intrinsic-coordinate contract)", ()
 });
 
 // A convex polygon generator: N distinct angles sorted ascending, each vertex on a circle of a
-// fixed (per-polygon) radius around a center kept fully inside the viewBox. Points on a circle in
-// angular order are always convex ⇒ non-self-intersecting with strictly positive area — the exact
-// invariant "a real hotspot polygon always validates". Radius ≥ 200 keeps area >> EPSILON.
+// fixed (per-polygon) radius around a center kept WELL inside the viewBox. Center ∈ [470,530] with
+// radius ≤ 430 ⇒ every coordinate lands in [40,960]: no clamp ever fires, so each vertex is a true
+// (rounded) circle point and the polygon stays convex ⇒ non-self-intersecting and in-bounds — the
+// exact invariant "a real hotspot polygon always validates". Integer rounding of clustered angles
+// can still yield a sub-EPSILON sliver; the area precondition below drops exactly those.
 const convexPolygon: fc.Arbitrary<Point[]> = fc
   .record({
-    n: fc.integer({ min: 3, max: 12 }),
-    radius: fc.integer({ min: 200, max: 450 }),
-    cx: fc.integer({ min: 450, max: 550 }),
-    cy: fc.integer({ min: 450, max: 550 }),
+    radius: fc.integer({ min: 200, max: 430 }),
+    cx: fc.integer({ min: 470, max: 530 }),
+    cy: fc.integer({ min: 470, max: 530 }),
     angles: fc.uniqueArray(fc.integer({ min: 0, max: 3599 }), {
       minLength: 3,
       maxLength: 12,
@@ -41,17 +42,31 @@ const convexPolygon: fc.Arbitrary<Point[]> = fc
     const sorted = [...angles].sort((a, b) => a - b);
     return sorted.map((deciDeg) => {
       const rad = (deciDeg / 3600) * 2 * Math.PI;
-      const x = Math.round(cx + radius * Math.cos(rad));
-      const y = Math.round(cy + radius * Math.sin(rad));
-      return { x: Math.min(1000, Math.max(0, x)), y: Math.min(1000, Math.max(0, y)) };
+      return { x: Math.round(cx + radius * Math.cos(rad)), y: Math.round(cy + radius * Math.sin(rad)) };
     });
   });
 
+// Independent |2·signed area| (shoelace), used ONLY to FILTER degenerate draws in the precondition
+// below — never as the assertion oracle (the test still asserts the full validatePolygon result).
+function twiceAbsArea(pts: readonly Point[]): number {
+  let acc = 0;
+  for (let i = 0; i < pts.length; i += 1) {
+    const p = pts[i];
+    const q = pts[(i + 1) % pts.length];
+    if (!p || !q) continue;
+    acc += p.x * q.y - q.x * p.y;
+  }
+  return Math.abs(acc);
+}
+
 describe("a genuinely convex polygon always validates", () => {
   test.prop([convexPolygon])("validatePolygon(convex) === { ok:true }", (points) => {
-    // Guard against the rare case where rounding/clamping collapsed two adjacent angles onto the
-    // same integer point (would drop below a real 3-gon); skip only those degenerate draws.
-    fc.pre(points.length >= 3);
+    // Integer rounding of clustered angles can still collapse vertices into a sub-EPSILON sliver
+    // (coincident or near-collinear) that validatePolygon RIGHTLY rejects as `degenerate`. This
+    // invariant is about real, visible polygons, so skip exactly those: validatePolygon treats
+    // area < MIN_AREA_EPSILON (=1) as degenerate, i.e. |2·area| < 2. With exact integer coords the
+    // threshold is boundary-exact, so requiring |2·area| ≥ 2 keeps precisely the non-degenerate draws.
+    fc.pre(twiceAbsArea(points) >= 2);
     expect(validatePolygon(points)).toEqual({ ok: true });
   });
 });
