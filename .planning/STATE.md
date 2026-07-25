@@ -3,11 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Panel de autogestión
 current_phase: 12
-status: completed
+status: "v1.3 shipped — PR #6 open (fase-0/foundation-pr → main)"
 stopped_at: Completed 12-03-PLAN.md
-last_updated: "2026-07-25T16:08:26.115Z"
+last_updated: "2026-07-25T16:48:09.715Z"
 last_activity: 2026-07-25
-last_activity_desc: Phase 12 complete
 progress:
   total_phases: 5
   completed_phases: 5
@@ -15,6 +14,7 @@ progress:
   completed_plans: 17
   percent: 100
 current_phase_name: Editor de hotspots
+last_activity_desc: Phase 12 complete
 ---
 
 # Project State
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 
 Phase: 12
 Plan: Not started
-Status: All phases complete
-Last activity: 2026-07-25 — Phase 12 complete
+Status: v1.3 shipped — PR #6 open (fase-0/foundation-pr → main)
+Last activity: 2026-07-25
 
 ## Roadmap (v1.3 — Phases 8-12)
 
