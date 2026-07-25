@@ -62,7 +62,7 @@ Deuda v1.2 primero (merge + re-verificación en staging) → shell del panel sco
 - [x] **Phase 9: Shell del panel scoped al proyecto + role gate** (0/2 plans) — not started (completed 2026-07-21)
 - [x] **Phase 10: D1 — Grilla de unidades editable + import/export Excel** (0/4 plans) — not started (completed 2026-07-24)
 - [x] **Phase 11: D2 — Bandeja de leads + notificación por email** (0/5 plans) — not started (completed 2026-07-24)
-- [ ] **Phase 12: Editor de hotspots** (0/TBD plans) — not started
+- [ ] **Phase 12: Editor de hotspots** (0/3 plans) — not started
 
 ## Phase Details
 
@@ -178,9 +178,21 @@ Deuda v1.2 primero (merge + re-verificación en staging) → shell del panel sco
   3. El developer edita y borra polígonos existentes.
   4. Los polígonos se guardan en coordenadas viewBox intrínsecas (0-1000, no atadas a píxeles) y validados (no degenerados ni auto-intersecados), consumibles tal cual por el explorador de fase 2 vía las policies anon existentes de `floors.poligonoSvg`/`units.poligonoSvg` — cero migración de schema.
 
-**Plans**: TBD
+**Plans**: 3 plans
 **UI hint**: yes
-**Research flag**: al planificar, resolver la pregunta abierta de dónde vive el render exterior del edificio (campo en `projects` vs fila de `media` designada) antes de cablear el canvas del editor de pisos — bloqueante pero de bajo riesgo (`--research-phase` o un spike de arquitectura corto).
+**Research flag**: RESUELTO en planning — el render exterior vive en una nueva columna `projects.renderExteriorKey` (text, nullable), el par exacto de `floors.renderKey` / `units.planoKey` (RESEARCH §1); una migración versionada aditiva `0008` (no `media`, no `push`). Los polígonos siguen siendo cero-migración (`floors.poligonoSvg` / `units.poligonoSvg` ya existen). Formato SVG persistido LOCKED: `<polygon points>` `"x,y x,y"` enteros 0-1000, convención viewBox square-normalized (documentado para fase 2).
+
+**Wave 1**
+
+- [ ] 12-01-PLAN.md — Migración versionada `projects.renderExteriorKey` [BLOCKING] + módulo puro de geometría (serialize/parse/validate) con tests unit+property + fixture de render en el seed (HSPOT-04, Wave 1)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 12-02-PLAN.md — Router `hotspots` (getForProject + set/clear polígono de piso/unidad) clonando el molde `requireRole`+`withTenant`+`.returning()` + matriz cross-rol/validación/round-trip vs Postgres real (HSPOT-01..04, Wave 2)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 12-03-PLAN.md — Editor del panel: RSC (proyecto/rol/URLs de render + empty-states D-06) + isla SVG hand-rolled (draw/edit/delete, drill-down D-03, selector siempre visible D-04, validación bloqueante, guardado explícito) + checkpoint human-verify (HSPOT-01/02/03, Wave 3)
 
 ## Progress
 
@@ -204,4 +216,4 @@ Phases execute in numeric order: 8 → 9 → 10 → 11 → 12 (v1.3). D2 (11) y 
 | 9. Shell del panel scoped al proyecto + role gate | v1.3 | 2/2 | Complete    | 2026-07-21 |
 | 10. D1 — Grilla de unidades + Excel | v1.3 | 4/4 | Complete    | 2026-07-24 |
 | 11. D2 — Bandeja de leads + email | v1.3 | 6/6 | Complete    | 2026-07-24 |
-| 12. Editor de hotspots | v1.3 | 0/TBD | Not started | - |
+| 12. Editor de hotspots | v1.3 | 0/3 | Not started | - |
