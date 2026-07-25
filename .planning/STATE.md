@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Panel de autogestión
 current_phase: 12
-status: "v1.3 shipped — PR #6 open (fase-0/foundation-pr → main)"
+status: "v1.3 MERGED to main (PR #6, merge 4bd4789)"
 stopped_at: Completed 12-03-PLAN.md
-last_updated: "2026-07-25T16:48:09.715Z"
+last_updated: "2026-07-25T18:37:07.330Z"
 last_activity: 2026-07-25
 progress:
   total_phases: 5
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 
 Phase: 12
 Plan: Not started
-Status: v1.3 shipped — PR #6 open (fase-0/foundation-pr → main)
+Status: v1.3 MERGED to main (PR #6, merge 4bd4789)
 Last activity: 2026-07-25
 
 ## Roadmap (v1.3 — Phases 8-12)
