@@ -11,5 +11,6 @@ directly caused by the current task's changes).
   reproduces at the pre-phase-12 HEAD (`6cfa374`), so it predates this work.
 - **Impact:** `pnpm --filter @imbau/api lint` is red repo-wide (would fail the CI `quality` gate).
   Auto-fixable with `eslint --fix`.
-- **Action:** Left as-is (out of scope for phase 12). Fix in a follow-up touching the leads surface,
-  or a dedicated lint-debt cleanup. My new `packages/api/src/hotspots/*` files lint clean in isolation.
+- **Action:** ✅ RESOLVED at phase close (2026-07-25, commit `c723164`) — removed the unnecessary
+  `as LeadEstado` assertion (`prev.estado` is already typed from the select). Compile-time only, no
+  behavior change. Repo-wide `pnpm lint` + `pnpm typecheck` now 9/9 green; CI `quality` gate unblocked.
