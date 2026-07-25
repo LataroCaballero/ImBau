@@ -4,17 +4,17 @@ milestone: v1.3
 milestone_name: Panel de autogestión
 current_phase: 12
 current_phase_name: Editor de hotspots
-status: executing
-stopped_at: Completed 12-02-PLAN.md
-last_updated: "2026-07-25T02:24:47.307Z"
+status: verifying
+stopped_at: Completed 12-03-PLAN.md
+last_updated: "2026-07-25T15:48:30.825Z"
 last_activity: 2026-07-24
 last_activity_desc: Phase 12 execution started
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 17
-  completed_plans: 16
-  percent: 80
+  completed_plans: 17
+  percent: 100
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 
 Phase: 12 (Editor de hotspots) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-24 — Phase 12 execution started
 
 ## Roadmap (v1.3 — Phases 8-12)
@@ -92,6 +92,7 @@ Numeración GSD continúa desde v1.2 (última fase = 7).
 | Phase 11 P05 | 6min | 3 tasks | 7 files |
 | Phase 12 P01 | 20min | 2 tasks | 9 files |
 | Phase 12 P02 | 12min | 2 tasks | 3 files |
+| Phase 12 P03 | 25min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -128,6 +129,8 @@ Decisions are logged in PROJECT.md Key Decisions table (full log). Decisiones vi
 - [Phase ?]: 11-04: lead-email worker fallback reads org owners ONLY via org_owner_emails SECURITY DEFINER door under withTenant (never owner pool / direct user read)
 - [Phase ?]: Leads bandeja client types derived from inferRouterOutputs<AppRouter> (no drift from router)
 - [Phase ?]: Drag into cerrado defers optimistic move until desenlace prompt confirms (cancel = no mutation)
+- [Phase ?]: Phase 12-03: hotspots panel surface = RSC guard-spine + server-side render-URL resolution (R2_PUBLIC_BASE_URL, no NEXT_PUBLIC_ leak) wrapping a hand-rolled use client SVG island; no canvas/Konva/game-engine, no net-new dep
+- [Phase ?]: Phase 12-03: SVG viewBox-0-1000 editor persists LOCKED square-normalized integer coords via getScreenCTM().inverse() (D-09); canWrite cosmetic only, Plan 02 requireRole is authority; human-verified draw/drill/edit/delete/validation over real R2 render (UAT aprobado 2026-07-25)
 
 ### Pending Todos
 
@@ -154,8 +157,8 @@ Items acknowledged and deferred at milestone closes (v1.0 2026-06-26, v1.2 2026-
 
 ## Session Continuity
 
-Last session: 2026-07-25T02:24:47.301Z
-Stopped at: Completed 12-02-PLAN.md
+Last session: 2026-07-25T15:48:01.637Z
+Stopped at: Completed 12-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
