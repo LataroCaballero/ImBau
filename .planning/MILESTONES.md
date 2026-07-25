@@ -1,5 +1,31 @@
 # Milestones
 
+## v1.3 Panel de autogestión (Shipped: 2026-07-25)
+
+**Phases completed:** 5 phases, 17 plans, 43 tasks
+
+**Key accomplishments:**
+
+- PR #5 merged to `main` via a merge commit (history + v1.2 tag intact), the deploy-staging pipeline built the 4 v1.2 GHCR images and swapped staging to the merge SHA behind the migrate-before-swap gate (migrations 0000–0004), and the full 'Brigos Recoleta' seed is publicado — DEBT-01 done.
+- All three v1.2 live gaps confirmed on staging post-merge: the nginx edge rejects a quotes burst with 429 (77/100) and zero 503 while passing requests hit the real fase-5 app (400 tRPC, not the pre-merge 404), the end-to-end PDF pipeline renders a downloadable R2 PDF with embedded Roboto + correct es-AR accents whose deep-link targets the staging host, and the live surfaces smoke-pass (web 200 / cotizador 200 / panel 307, worker alive, Loki+Sentry receiving) — DEBT-02 done, all captured in 08-UAT.md.
+- The reusable `requireRole("owner","developer") + withTenant` panel write mold, proven server-side against real Postgres via a cross-role Vitest matrix (owner/developer ✓, viewer FORBIDDEN, cross-org/non-existent NOT_FOUND), plus the `getForOrg` resolver and `org.activeMemberRole` for D-08 gating.
+- 1. [Rule 3 - Blocking dependency] tab-bar.tsx created in Task 1 instead of Task 2
+- Added and DB-enforced the versioned `UNIQUE(unit_id, price_list_id)` constraint on `unit_prices`, proven by an integration test that seeds a live `_test` Postgres and asserts a duplicate natural-key insert is rejected with SQLSTATE 23505.
+- Pure, I/O-free `packages/api/src/excel/` module — defensive es-AR integer-USD money parse (property-proven), formula/CSV-injection-sanitized workbook build/parse, dry-run classification/diff, and bulk-preview — the net-new 20% risk isolated and exhaustively tested before any mutation is wired.
+- A `units` tRPC router wiring the grid read + four money mutations + Excel export/dry-run as thin `requireRole`-gated `withTenant` clones over the pure Plan-02 excel module, with all-or-nothing/idempotent import apply, co-transactional events audit, and GRID-07 public reflection proven cross-surface.
+- Styled panel units-grid at proyectos/[id]/unidades — inline price/estado editing, row selection, Excel export, a 4-step import wizard (apply-blocked until 100% valid), and bulk-edit with a mandatory viejo→nuevo preview — all es-AR voseo over the Plan 03 unitsRouter, with the panel's first brand-token wiring.
+- Two additive nullable columns (leads.desenlace ganado|perdido, projects.leads_notify_email) landed via generated Drizzle migration 0006, applied to the live dev DB idempotently, with cerrado seed leads carrying real Ganado/Perdido outcomes through the email-free direct-insert path.
+- Lead-email BullMQ queue contract with `lead:{id}:created` idempotency, an es-AR voseo React Email template, and a Resend dispatch with a dev console fallback — all worker-safe via a dedicated minimal env and the new `@imbau/api/email` export.
+- leadsRouter (listForProject/create/updateEstado/addNote) with the pipeline state machine, append-only timeline, events audit, and the load-bearing post-commit lead-email enqueue seam — all cloning the settled Phase 9/10 requireRole+withTenant write mold, proven against real Postgres.
+- The worker now drains `LEAD_EMAIL_QUEUE`: `processLeadEmail` reads the lead + project under `withTenant(payload.orgId)` as `app_authenticated`, resolves the recipient (`project.leadsNotifyEmail` ?? the org owners via the hardened `org_owner_emails` SECURITY DEFINER door), builds the bandeja deep-link, and dispatches exactly one es-AR notification through `@imbau/api/email` — with failures routed to Sentry + pino (ids only) and idempotency guaranteed by the producer's `jobId=lead:{id}:created` dedup. LEADS-04 is closed end-to-end.
+- Migration 0007 lands `public.org_owner_emails(p_org_id text)` — a pinned-search_path SECURITY DEFINER function that lets `app_authenticated` read an org's owner emails through one parameterized door, with EXECUTE revoked from PUBLIC so no tenant (and no anon) can enumerate owner emails across orgs.
+- Drag-and-drop 4-stage leads kanban with a lead drawer (timeline + add-note + estado select), a desenlace gate on close, an alta-manual form that enqueues the idempotent email, and a per-project notify-email field — all on the settled panel tokens/wiring/feedback.
+- Additive `projects.renderExteriorKey` (migration 0008) plus a pure, zero-import `@imbau/api/geometry` module (locked `"x,y x,y …"` viewBox-0-1000 serialize/parse + blocking no-autocorrect validation) and an idempotent seed render fixture.
+- The `hotspots` tRPC router — the single gated, tenant-scoped, server-re-validated write seam for floor and unit polygons (getForProject read + set/clear floor + set/clear unit) — a verbatim clone of the `projects.updateSettings` mold, proven against real Postgres by a 16-case authorization/isolation/validation matrix.
+- The `proyectos/[id]/hotspots` operator surface — an RSC that resolves project/role and builds public render URLs server-side, wrapping a hand-rolled `"use client"` SVG island that draws, vertex-drags, deletes, and drills floor + unit polygons over an intrinsic `viewBox="0 0 1000 1000"` overlay with target-first drawing, an always-visible selector rail, blocking no-autocorrect validation, and explicit save — wired to the Plan 02 `hotspots` router and human-verified over the real R2 render.
+
+---
+
 ## v1.2 Cotizador (Shipped: 2026-07-09)
 
 **Phases completed:** 4 phases, 19 plans, 43 tasks

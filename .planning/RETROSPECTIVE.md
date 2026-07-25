@@ -125,6 +125,38 @@
 
 ---
 
+## Milestone: v1.3 — Panel de autogestión (Fase 4 del plan maestro)
+
+**Shipped:** 2026-07-25
+**Phases:** 5 (8-12) | **Plans:** 17 | **Tasks:** 43
+
+### What Was Built
+Deuda v1.2 saldada + staging re-verificado en vivo (drill migrate-abort) → shell del panel scoped a `proyectos/[id]` con role-gate server-side → D1 grilla de unidades editable + import/export Excel transaccional → D2 bandeja de leads (pipeline 4 estados + email queued idempotente) → editor de hotspots SVG hand-rolled. Mergeado a `main` vía PR #6, CI `quality` verde.
+
+### What Worked
+- El molde `requireRole("owner","developer") + withTenant + .returning() 0-row → NOT_FOUND` de Phase 9 se clonó **verbatim** en D1/D2/hotspots — tres superficies de escritura sin re-litigar autorización.
+- Módulos puros I/O-free (`packages/api/src/excel/`, `@imbau/api/geometry`) con property tests: el riesgo (dinero, geometría) aislado y probado exhaustivamente **antes** de cablear cualquier mutación.
+- Ejecución wave-based secuencial en el trunk (worktrees off por incompatibilidad conocida) — sin fricción de merge.
+
+### What Was Inefficient
+- Levantar el UAT del editor de hotspots costó horas de infra: R2 nuevo (cuenta perdida), worker de media no en el compose local, y dos gotchas caros — **jobId dedup de BullMQ** bloqueando el reprocesamiento de media, y un **worker `dist` viejo colgado sin `R2_BUCKET`** consumiendo la cola en paralelo y fallando la mitad de los jobs. Documentado en memoria para no repetirlo.
+- El verificador encontró un **property-test flaky** que la ejecución no detectó (el generador producía polígonos degenerados sub-EPSILON) — reveló que la invariante real es "convexo **Y no-degenerado** valida", no solo "convexo".
+- Backfill de PROJECT.md: Phases 9/10 nunca pasaron a Validated durante sus transiciones — deuda que arrastró hasta este milestone review.
+
+### Patterns Established
+- **PR limpio sin `.planning`:** para un release con historia de código+planning entrelazada y hooks de lint intermedios rotos, un único commit de release (árbol exacto de la rama menos los transitorios) es más robusto que cherry-pick de N commits — con paridad de código verificada contra el trunk antes de pushear.
+- **Env local en dos archivos:** `apps/panel/.env.local` (auto-cargado por Next, sin exports) + `packages/db/.env` (seed) — el panel nunca ve las creds de escritura de R2, solo la URL pública.
+
+### Key Lessons
+- Verificar **paridad de código** (rama de PR == trunk verificado) antes de pushear un release construido con manipulación de árbol.
+- Seeds render-dependientes necesitan el worker de media corriendo + cola limpia; `variants IS NOT NULL` (superuser) es un falso positivo frente a `Object.keys(variants).length > 0` (RLS).
+
+### Cost Observations
+- Model mix: Opus (orquestador + executors) + Sonnet (verifier). Ejecución wave-based con subagentes `gsd-executor`.
+- Notable: la generación de código fue fluida (fases 8-11 rápidas); el costo real fue el bring-up de infra local para UAT y el debugging de la cola de media.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution

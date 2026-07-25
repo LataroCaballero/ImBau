@@ -12,23 +12,15 @@ La fundación técnica queda desplegada y operable desde el día uno: cada commi
 
 ## Current State
 
-**v1.2 Cotizador shipped 2026-07-09** (4 fases, 19 plans, 43 tasks, 8 días). El flujo comprador demo-crítico existe completo: deep-link/picker → cotización contado vs financiado en vivo → CTA WhatsApp precargado → PDF descargable. Todo deriva de un único `QuoteResult` (`packages/quoting`, 100% cobertura + fast-check), el path anónimo es server-side auditado (cero policies anon sobre `quotes`/`cac_index`) y el PDF es asíncrono e idempotente (BullMQ + R2).
+**v1.3 Panel de autogestión shipped 2026-07-25** (5 fases, 17 plans, 43 tasks) — mergeado a `main` vía PR #6 con CI `quality` verde. El developer ahora administra su proyecto sin tocar código: shell scoped por proyecto con role-gate server-side, grilla de unidades editable con import/export Excel transaccional, bandeja de leads con pipeline de 4 estados + email queued, y editor de hotspots SVG. Las tres superficies de escritura clonan un único molde `requireRole` + `withTenant`; los hotspots + renders quedan listos para que la fase 2 (explorador) los consuma. Sobre esto ya corren v1.0 (fundación/CI/CD/auth/RLS), v1.1 (schema/media/seed) y v1.2 (cotizador de punta a punta).
 
-**Pendientes inmediatos post-cierre:**
-- Merge de `fase-0/foundation` a `main` → deploy a staging (staging corre imagen pre-fase-5) + re-verificación en vivo: rate-limit 429, flujo PDF completo, QR con URL de staging.
-- Pasada visual humana del cotizador en viewport real (06-UAT.md, diferido — `/gsd-verify-work 6`).
+**Pendientes / deuda conocida:**
+- Pasada visual humana de marca en viewport real (06-UAT.md de v1.2, diferido — `/gsd-verify-work 6`).
+- Sincronizar `fase-0/foundation` (trunk) con `main` tras el release de v1.3 si se desea (el trunk quedó 3 commits detrás; es el modelo trunk/release esperado).
 
-## Current Milestone: v1.3 Panel de autogestión
+## Next Milestone
 
-**Goal:** El developer administra su proyecto sin tocar código ni depender del operador: edita precios/estados de unidades (incl. import/export Excel), gestiona su bandeja de leads y dibuja los hotspots del edificio desde el panel — sobre la fundación auth/RLS existente y con todo v1.2 corriendo verificado en staging.
-
-**Target features:**
-- Deuda v1.2 primero: merge de `fase-0/foundation` a `main` → deploy a staging + re-verificación en vivo (rate-limit 429, flujo PDF completo, QR con URL de staging)
-- D1 — Grilla de unidades: editar precio, estado y listas por forma de pago; import/export Excel (el formato en que los developers ya manejan sus datos)
-- D2 — Bandeja de leads: origen (broker/unidad/cotización), estados nuevo → contactado → negociación → cerrado, aviso por email
-- Editor de hotspots: polígonos SVG como datos, editor visual en el panel (habilita el explorador de fase 2)
-
-**Fuera de este milestone (fase 6 del plan maestro):** métricas (D4), alertas de interés repetido (D6) y configuración/branding (D5).
+Sin definir aún — arrancar con `/gsd-new-milestone`. Por orden ventana-Fable (0 → 1 → 3 → 4 → **2** → 5 → 6), el siguiente es la **fase 2 del plan maestro: explorador del edificio por pisos + ficha de unidad**, el consumidor público directo de los hotspots SVG y renders que v1.3 dejó editables. Luego fase 5 (portada/obra/galería/brokers) y fase 6 (métricas/alertas/QA).
 
 ## Requirements
 
@@ -53,14 +45,15 @@ La fundación técnica queda desplegada y operable desde el día uno: cada commi
 - ✓ UI pública del cotizador + CTA WhatsApp: `/p/[slug]/cotizador` mobile-first (RSC + isla cliente) con deep-link `?u=&plan=` y picker piso→unidad sobre unidades publicadas (router `picker` anon RLS-safe incl. `projects.whatsapp` nueva columna, migración 0004), resultado completo contado vs financiado (dos corridas del motor, primera cuota ARS, refuerzos, totales), slider snap-to-preset (nunca términos libres), leyenda CAC + "no vinculante", formato es-AR vía `formatUsd`/`formatArs` compartidos (cero `toLocaleString` en UI), dual `splitLink` que mantiene `quotes.*` bajo el path nginx-throttleado, y CTA wa.me precargado desde `toWhatsAppText` con guard sin-número — Validated in Phase 6 (v1.2, UI-01..06, WA-01). 26 unit/render + 5 integration + e2e Playwright 4/4 en corrida independiente post-merge contra seed Brigos Recoleta (2026-07-05). Pendiente no bloqueante: pasada visual de marca en viewport real (06-UAT.md).
 - ✓ Deuda v1.2 saldada: todo v1.2 mergeado a `main` (merge commit `22d1e96`, historia + tag v1.2 preservados, D-01) y corriendo verificado en vivo en staging — Validated in Phase 8 (v1.3, DEBT-01/DEBT-02). UAT 5/5 (2026-07-17/20): burst anónimo 77×429 / 0×503 con vhost box==repo (D-12, sin sync-back), PDF e2e (quoteId `5d67277a`) Roboto embebida + acentos es-AR + deep-link a staging, smoke de superficies (web 200 / coti 200 / panel 307) + worker/Loki/Sentry sanos, deploy no-op verde, y **drill de migración fallida (T-4-MIGRATE, flagueado desde v1.0 y nunca drilleado en 3 milestones): migración rota → migrate-before-swap aborta bajo `set -e` sin swap, staging intacto sin downtime**. Security gate: 10/10 amenazas cerradas (08-SECURITY.md, threats_open:0).
 - ✓ D2 — Bandeja de leads + notificación por email: bandeja con origen trazable (broker/unidad/cotización/Directo resuelto por joins), pipeline fijo de 4 estados `nuevo→contactado→negociación→cerrado` (state-machine impuesta, prompt de desenlace Ganado/Perdido al cerrar), timeline de notas ordenado, y aviso por email encolado en BullMQ (`jobId=lead:{id}:created` idempotente, nunca `await` inline en la mutación) despachado por el worker vía Resend con destinatario = `leadsNotifyEmail ?? org owners` resuelto bajo `withTenant`/RLS — Validated in Phase 11 (v1.3, LEADS-01..04). @imbau/api 166/166 + @imbau/worker 42/42 verde; security 14/14 (11-SECURITY.md, threats_open:0); nyquist-compliant. UAT 4/4 (2026-07-24) incluyendo **envío real Resend end-to-end** — que reveló y cerró un blocker latente de staging (G-11-3: `react-dom/server` inlineado en el bundle ESM del worker rompía el render; nunca ejercido antes porque la verificación solo tocaba el fallback dev-console).
+- ✓ Shell del panel scoped al proyecto + role gate: layout `proyectos/[id]` con tabs (unidades/leads/hotspots) sobre la org activa (`projects.listForOrg`), resolución por org + RLS (cross-org → notFound uniforme), y el molde de escritura `requireRole("owner","developer")` + `withTenant` + `.returning()` 0-row → NOT_FOUND probado por matriz cross-rol contra Postgres real — Validated in Phase 9 (v1.3, PANEL-01/02). Es el prerrequisito estructural que D1/D2/hotspots clonan; `projects-role-gate.test.ts` 41/41 verde (backfill de milestone review).
+- ✓ D1 — Grilla de unidades editable + import/export Excel: edición inline de precio (matriz unidad×price_list) y estado, export a Excel canónico (sanitizado contra formula/CSV injection) + re-import con preview dry-run diff campo-por-campo, apply all-or-nothing e idempotente por `UNIQUE(unit_id, price_list_id)` (migración 0005), bulk-edit con preview viejo→nuevo obligatorio, y reflejo instantáneo en el cotizador público (GRID-07) — Validated in Phase 10 (v1.3, GRID-01..07). Módulo puro `packages/api/src/excel/` (parse dinero es-AR property-proven nunca no-entero); router `units` clonando el molde de Phase 9; @imbau/api 124/124 verde; primera superficie con tokens de marca (backfill de milestone review).
+- ✓ Editor de hotspots: el developer dibuja/edita/borra polígonos SVG de pisos (sobre el render exterior) y unidades (sobre la planta) y los vincula, guardados en coordenadas viewBox intrínsecas 0-1000 y validados (no degenerados ni auto-intersecados, sin autocorrección) — Validated in Phase 12 (v1.3, HSPOT-01..04). Módulo puro `@imbau/api/geometry` (serialize/parse/validate, unit+property tests deterministas), router `hotspots` gated/tenant-scoped/server-re-validated (16-case matrix vs Postgres real), editor SVG hand-rolled (sin canvas/game-engine); migración aditiva 0008 `renderExteriorKey`, cero migración de polígonos. @imbau/api 205/205 verde; UAT humano aprobado en vivo sobre render real de R2 (2026-07-25).
 
 ### Active
 
-Milestone **v1.3 Panel de autogestión** (fase 4 del plan maestro):
+Sin milestone activo — **v1.3 Panel de autogestión completo y mergeado a `main` (PR #6, 2026-07-25)**. Próximo milestone vía `/gsd-new-milestone`. Candidato por orden ventana-Fable (0 → 1 → 3 → 4 → **2** → 5 → 6): **fase 2 del plan maestro — explorador del edificio + ficha de unidad**, que consume directamente los hotspots SVG y los renders que v1.3 dejó editables.
 
-- [ ] Editor de hotspots: polígonos SVG como datos con editor visual en el panel (Phase 12)
-
-<sub>D1 — Grilla de unidades (Phase 10) y D2 — Bandeja de leads (Phase 11) ya entregadas; ver Validated.</sub>
+<sub>Las cinco fases de v1.3 (8-12) están en Validated arriba.</sub>
 
 ### Out of Scope
 
@@ -130,4 +123,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-24 after Phase 11 (D2 — Bandeja de leads + notificación por email; LEADS-01..04; UAT 4/4 incl. envío real Resend con fix G-11-3; security 14/14; nyquist-compliant). Sigue Phase 12 (editor de hotspots). Nota: Phases 9 (shell+role gate) y 10 (D1 grilla) quedaron sin reflejar aquí durante sus transiciones — backfill pendiente en el próximo milestone review.*
+*Last updated: 2026-07-25 after v1.3 milestone (Panel de autogestión, Phases 8-12; 17 plans, 43 tasks; mergeado a `main` vía PR #6, CI `quality` verde). Backfill de Phases 9 (PANEL), 10 (D1/GRID) y 12 (HSPOT) aplicado en este milestone review. Próximo: `/gsd-new-milestone`.*

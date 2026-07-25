@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Panel de autogestión
-current_phase: 12
-status: "v1.3 MERGED to main (PR #6, merge 4bd4789)"
+status: Awaiting next milestone
 stopped_at: Completed 12-03-PLAN.md
-last_updated: "2026-07-25T18:37:07.330Z"
+last_updated: "2026-07-25T18:38:53.225Z"
 last_activity: 2026-07-25
+last_activity_desc: Milestone v1.3 completed and archived
 progress:
   total_phases: 5
   completed_phases: 5
   total_plans: 17
   completed_plans: 17
   percent: 100
+current_phase: 12
 current_phase_name: Editor de hotspots
-last_activity_desc: Phase 12 complete
 ---
 
 # Project State
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 
 ## Current Position
 
-Phase: 12
-Plan: Not started
-Status: v1.3 MERGED to main (PR #6, merge 4bd4789)
-Last activity: 2026-07-25
+Phase: Milestone v1.3 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-07-25 — Milestone v1.3 completed and archived
 
 ## Roadmap (v1.3 — Phases 8-12)
 
@@ -163,4 +163,4 @@ Resume file: None
 
 ## Operator Next Steps
 
-- Phase 8 cerrada (deuda v1.2 saldada, staging verificado en vivo). Seguir con `/gsd-discuss-phase 9` (o `/gsd-plan-phase 9` directo). Phase 9 es el shell del panel scoped a `proyectos/[id]` con tabs + role-gate server-side — primera superficie frontend del panel (candidata a `/gsd-ui-phase`).
+- Start the next milestone with /gsd-new-milestone
