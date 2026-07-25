@@ -216,4 +216,4 @@ Phases execute in numeric order: 8 → 9 → 10 → 11 → 12 (v1.3). D2 (11) y 
 | 9. Shell del panel scoped al proyecto + role gate | v1.3 | 2/2 | Complete    | 2026-07-21 |
 | 10. D1 — Grilla de unidades + Excel | v1.3 | 4/4 | Complete    | 2026-07-24 |
 | 11. D2 — Bandeja de leads + email | v1.3 | 6/6 | Complete    | 2026-07-24 |
-| 12. Editor de hotspots | v1.3 | 3/3 | In Progress|  |
+| 12. Editor de hotspots | v1.3 | 3/3 | Complete    | 2026-07-25 |
