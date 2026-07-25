@@ -178,13 +178,13 @@ Deuda v1.2 primero (merge + re-verificación en staging) → shell del panel sco
   3. El developer edita y borra polígonos existentes.
   4. Los polígonos se guardan en coordenadas viewBox intrínsecas (0-1000, no atadas a píxeles) y validados (no degenerados ni auto-intersecados), consumibles tal cual por el explorador de fase 2 vía las policies anon existentes de `floors.poligonoSvg`/`units.poligonoSvg` — cero migración de schema.
 
-**Plans**: 3 plans
+**Plans**: 1/3 plans executed
 **UI hint**: yes
 **Research flag**: RESUELTO en planning — el render exterior vive en una nueva columna `projects.renderExteriorKey` (text, nullable), el par exacto de `floors.renderKey` / `units.planoKey` (RESEARCH §1); una migración versionada aditiva `0008` (no `media`, no `push`). Los polígonos siguen siendo cero-migración (`floors.poligonoSvg` / `units.poligonoSvg` ya existen). Formato SVG persistido LOCKED: `<polygon points>` `"x,y x,y"` enteros 0-1000, convención viewBox square-normalized (documentado para fase 2).
 
 **Wave 1**
 
-- [ ] 12-01-PLAN.md — Migración versionada `projects.renderExteriorKey` [BLOCKING] + módulo puro de geometría (serialize/parse/validate) con tests unit+property + fixture de render en el seed (HSPOT-04, Wave 1)
+- [x] 12-01-PLAN.md — Migración versionada `projects.renderExteriorKey` [BLOCKING] + módulo puro de geometría (serialize/parse/validate) con tests unit+property + fixture de render en el seed (HSPOT-04, Wave 1)
 
 **Wave 2** *(blocked on Wave 1)*
 
@@ -216,4 +216,4 @@ Phases execute in numeric order: 8 → 9 → 10 → 11 → 12 (v1.3). D2 (11) y 
 | 9. Shell del panel scoped al proyecto + role gate | v1.3 | 2/2 | Complete    | 2026-07-21 |
 | 10. D1 — Grilla de unidades + Excel | v1.3 | 4/4 | Complete    | 2026-07-24 |
 | 11. D2 — Bandeja de leads + email | v1.3 | 6/6 | Complete    | 2026-07-24 |
-| 12. Editor de hotspots | v1.3 | 0/3 | Not started | - |
+| 12. Editor de hotspots | v1.3 | 1/3 | In Progress|  |

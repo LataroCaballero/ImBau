@@ -5,15 +5,15 @@ milestone_name: Panel de autogestión
 current_phase: 12
 current_phase_name: Editor de hotspots
 status: executing
-stopped_at: Phase 12 UI-SPEC approved
-last_updated: "2026-07-25T00:37:08.562Z"
+stopped_at: Completed 12-01-PLAN.md
+last_updated: "2026-07-25T02:18:15.025Z"
 last_activity: 2026-07-24
-last_activity_desc: Phase 11 complete, transitioned to Phase 12
+last_activity_desc: Phase 12 execution started
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 14
-  completed_plans: 14
+  total_plans: 17
+  completed_plans: 15
   percent: 80
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-20)
 
 **Core value:** La fundación técnica desplegada y operable: cada commit a main termina corriendo en staging con aislamiento multi-tenant verificable por RLS.
-**Current focus:** Phase 11 — d2-bandeja-de-leads-notificaci-n-por-email
+**Current focus:** Phase 12 — Editor de hotspots
 
 ## Current Position
 
-Phase: 12 — Editor de hotspots
-Plan: Not started
+Phase: 12 (Editor de hotspots) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-07-24 — Phase 11 complete, transitioned to Phase 12
+Last activity: 2026-07-24 — Phase 12 execution started
 
 ## Roadmap (v1.3 — Phases 8-12)
 
@@ -90,6 +90,7 @@ Numeración GSD continúa desde v1.2 (última fase = 7).
 | Phase 11 P04a | 20min | 2 tasks | 2 files |
 | Phase 11 P04 | 8min | 3 tasks | 7 files |
 | Phase 11 P05 | 6min | 3 tasks | 7 files |
+| Phase 12 P01 | 20min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -152,9 +153,9 @@ Items acknowledged and deferred at milestone closes (v1.0 2026-06-26, v1.2 2026-
 
 ## Session Continuity
 
-Last session: 2026-07-24T23:27:37.511Z
-Stopped at: Phase 12 UI-SPEC approved
-Resume file: .planning/phases/12-editor-de-hotspots/12-UI-SPEC.md
+Last session: 2026-07-25T02:18:15.020Z
+Stopped at: Completed 12-01-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 
