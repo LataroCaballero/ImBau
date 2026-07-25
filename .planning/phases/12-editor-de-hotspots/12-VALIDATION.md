@@ -52,7 +52,7 @@ created: 2026-07-24
 ## Wave 0 Requirements
 
 - [ ] `packages/api/src/hotspots/geometry.test.ts` + `geometry.property.test.ts` — degenerate/self-intersection/bounds/round-trip stubs for HSPOT-04
-- [ ] `packages/api/src/trpc/routers/hotspots-role-gate.test.ts` — cross-role matrix vs real Postgres (clone of `projects-role-gate.test.ts`)
+- [ ] `packages/api/tests/hotspots-role-gate.test.ts` — cross-role matrix vs real Postgres (clone of `projects-role-gate.test.ts`)
 
 *Existing Vitest/Playwright infrastructure covers the rest; no framework install needed.*
 

@@ -4,9 +4,9 @@ milestone: v1.3
 milestone_name: Panel de autogestión
 current_phase: 12
 current_phase_name: Editor de hotspots
-status: planning
-stopped_at: Phase 12 context gathered
-last_updated: "2026-07-24T23:17:26.996Z"
+status: executing
+stopped_at: Phase 12 UI-SPEC approved
+last_updated: "2026-07-25T00:37:08.562Z"
 last_activity: 2026-07-24
 last_activity_desc: Phase 11 complete, transitioned to Phase 12
 progress:
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-07-20)
 
 Phase: 12 — Editor de hotspots
 Plan: Not started
-Status: Ready to plan
+Status: Ready to execute
 Last activity: 2026-07-24 — Phase 11 complete, transitioned to Phase 12
 
 ## Roadmap (v1.3 — Phases 8-12)
@@ -152,9 +152,9 @@ Items acknowledged and deferred at milestone closes (v1.0 2026-06-26, v1.2 2026-
 
 ## Session Continuity
 
-Last session: 2026-07-24T23:17:26.988Z
-Stopped at: Phase 12 context gathered
-Resume file: .planning/phases/12-editor-de-hotspots/12-CONTEXT.md
+Last session: 2026-07-24T23:27:37.511Z
+Stopped at: Phase 12 UI-SPEC approved
+Resume file: .planning/phases/12-editor-de-hotspots/12-UI-SPEC.md
 
 ## Operator Next Steps
 
