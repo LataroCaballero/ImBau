@@ -7,6 +7,7 @@
     ".": "./src/index.ts",
     "./access-control": "./src/auth/access-control.ts",
     "./money": "./src/excel/money-core.ts",
+    "./geometry": "./src/hotspots/geometry.ts",
     "./email": "./src/email/send-lead-notification.ts"
   },
   "scripts": {
