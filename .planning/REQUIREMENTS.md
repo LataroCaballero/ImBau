@@ -36,9 +36,9 @@ Requirements de este milestone (fase 4 del plan maestro). Cada uno mapea a una f
 
 ### Editor de hotspots
 
-- [ ] **HSPOT-01**: Developer dibuja polígonos de pisos sobre el render exterior del edificio y los vincula a un piso
-- [ ] **HSPOT-02**: Developer dibuja polígonos de unidades sobre la planta del piso y los vincula a una unidad
-- [ ] **HSPOT-03**: Developer edita y borra polígonos existentes
+- [x] **HSPOT-01**: Developer dibuja polígonos de pisos sobre el render exterior del edificio y los vincula a un piso
+- [x] **HSPOT-02**: Developer dibuja polígonos de unidades sobre la planta del piso y los vincula a una unidad
+- [x] **HSPOT-03**: Developer edita y borra polígonos existentes
 - [x] **HSPOT-04**: Polígonos guardados en coordenadas viewBox intrínsecas y validados (no degenerados), consumibles tal cual por el explorador de fase 2 vía las policies anon existentes
 
 ## Future Requirements
@@ -94,9 +94,9 @@ Qué fases cubren qué requirements. Se actualiza al crear el roadmap.
 | LEADS-02 | Phase 11 | Complete |
 | LEADS-03 | Phase 11 | Complete |
 | LEADS-04 | Phase 11 | Complete |
-| HSPOT-01 | Phase 12 | Pending |
-| HSPOT-02 | Phase 12 | Pending |
-| HSPOT-03 | Phase 12 | Pending |
+| HSPOT-01 | Phase 12 | Complete |
+| HSPOT-02 | Phase 12 | Complete |
+| HSPOT-03 | Phase 12 | Complete |
 | HSPOT-04 | Phase 12 | Complete |
 
 **Coverage:**
