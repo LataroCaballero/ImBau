@@ -9,37 +9,37 @@ Requirements de este milestone (fase 4 del plan maestro). Cada uno mapea a una f
 
 ### Deuda v1.2
 
-- [ ] **DEBT-01**: `fase-0/foundation` mergeada a `main` con todo v1.2 desplegado en staging
-- [ ] **DEBT-02**: Re-verificación en vivo en staging: rate-limit 429 en `quotes.*`, flujo PDF completo, QR con URL de staging
+- [x] **DEBT-01**: `fase-0/foundation` mergeada a `main` con todo v1.2 desplegado en staging
+- [x] **DEBT-02**: Re-verificación en vivo en staging: rate-limit 429 en `quotes.*`, flujo PDF completo, QR con URL de staging
 
 ### Shell del panel
 
-- [ ] **PANEL-01**: Developer navega a `proyectos/[id]` y ve un layout con tabs (unidades, leads, hotspots) scoped al proyecto de su org
-- [ ] **PANEL-02**: Toda mutación del panel exige rol owner/developer (viewer solo lectura) — verificado por matriz de tests cross-rol, no solo UI
+- [x] **PANEL-01**: Developer navega a `proyectos/[id]` y ve un layout con tabs (unidades, leads, hotspots) scoped al proyecto de su org
+- [x] **PANEL-02**: Toda mutación del panel exige rol owner/developer (viewer solo lectura) — verificado por matriz de tests cross-rol, no solo UI
 
 ### D1 — Grilla de unidades
 
-- [ ] **GRID-01**: Developer edita el precio de una unidad inline, por lista de pagos (matriz unidad × price_list), persistido con vigencia
-- [ ] **GRID-02**: Developer cambia el estado de una unidad (disponible/reservado/vendido) desde la grilla
-- [ ] **GRID-03**: Developer exporta la grilla a Excel con template canónico (sanitizado contra formula injection)
-- [ ] **GRID-04**: Developer importa Excel con validación completa y preview dry-run con diff campo por campo antes de aplicar
-- [ ] **GRID-05**: El import se aplica transaccional e idempotente (all-or-nothing, upsert por clave natural; migración `UNIQUE(unit_id, price_list_id)`)
-- [ ] **GRID-06**: Developer aplica bulk edit de precios (% o monto fijo) sobre una selección de unidades
-- [ ] **GRID-07**: Cambios de precio/estado se reflejan en la web pública al instante (revalidación ISR on-demand del picker/cotizador)
+- [x] **GRID-01**: Developer edita el precio de una unidad inline, por lista de pagos (matriz unidad × price_list), persistido con vigencia
+- [x] **GRID-02**: Developer cambia el estado de una unidad (disponible/reservado/vendido) desde la grilla
+- [x] **GRID-03**: Developer exporta la grilla a Excel con template canónico (sanitizado contra formula injection)
+- [x] **GRID-04**: Developer importa Excel con validación completa y preview dry-run con diff campo por campo antes de aplicar
+- [x] **GRID-05**: El import se aplica transaccional e idempotente (all-or-nothing, upsert por clave natural; migración `UNIQUE(unit_id, price_list_id)`)
+- [x] **GRID-06**: Developer aplica bulk edit de precios (% o monto fijo) sobre una selección de unidades
+- [x] **GRID-07**: Cambios de precio/estado se reflejan en la web pública al instante (revalidación ISR on-demand del picker/cotizador)
 
 ### D2 — Bandeja de leads
 
-- [ ] **LEADS-01**: Developer ve la bandeja de leads con origen (broker / unidad / cotización)
-- [ ] **LEADS-02**: Developer mueve un lead por el pipeline fijo nuevo → contactado → negociación → cerrado
-- [ ] **LEADS-03**: Developer agrega notas al timeline del lead
-- [ ] **LEADS-04**: Developer recibe aviso por email ante lead nuevo (queued e idempotente — nunca bloquea la mutación)
+- [x] **LEADS-01**: Developer ve la bandeja de leads con origen (broker / unidad / cotización)
+- [x] **LEADS-02**: Developer mueve un lead por el pipeline fijo nuevo → contactado → negociación → cerrado
+- [x] **LEADS-03**: Developer agrega notas al timeline del lead
+- [x] **LEADS-04**: Developer recibe aviso por email ante lead nuevo (queued e idempotente — nunca bloquea la mutación)
 
 ### Editor de hotspots
 
-- [ ] **HSPOT-01**: Developer dibuja polígonos de pisos sobre el render exterior del edificio y los vincula a un piso
-- [ ] **HSPOT-02**: Developer dibuja polígonos de unidades sobre la planta del piso y los vincula a una unidad
-- [ ] **HSPOT-03**: Developer edita y borra polígonos existentes
-- [ ] **HSPOT-04**: Polígonos guardados en coordenadas viewBox intrínsecas y validados (no degenerados), consumibles tal cual por el explorador de fase 2 vía las policies anon existentes
+- [x] **HSPOT-01**: Developer dibuja polígonos de pisos sobre el render exterior del edificio y los vincula a un piso
+- [x] **HSPOT-02**: Developer dibuja polígonos de unidades sobre la planta del piso y los vincula a una unidad
+- [x] **HSPOT-03**: Developer edita y borra polígonos existentes
+- [x] **HSPOT-04**: Polígonos guardados en coordenadas viewBox intrínsecas y validados (no degenerados), consumibles tal cual por el explorador de fase 2 vía las policies anon existentes
 
 ## Future Requirements
 
@@ -79,32 +79,34 @@ Qué fases cubren qué requirements. Se actualiza al crear el roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DEBT-01 | Phase 8 | Pending |
-| DEBT-02 | Phase 8 | Pending |
-| PANEL-01 | Phase 9 | Pending |
-| PANEL-02 | Phase 9 | Pending |
-| GRID-01 | Phase 10 | Pending |
-| GRID-02 | Phase 10 | Pending |
-| GRID-03 | Phase 10 | Pending |
-| GRID-04 | Phase 10 | Pending |
-| GRID-05 | Phase 10 | Pending |
-| GRID-06 | Phase 10 | Pending |
-| GRID-07 | Phase 10 | Pending |
-| LEADS-01 | Phase 11 | Pending |
-| LEADS-02 | Phase 11 | Pending |
-| LEADS-03 | Phase 11 | Pending |
-| LEADS-04 | Phase 11 | Pending |
-| HSPOT-01 | Phase 12 | Pending |
-| HSPOT-02 | Phase 12 | Pending |
-| HSPOT-03 | Phase 12 | Pending |
-| HSPOT-04 | Phase 12 | Pending |
+| DEBT-01 | Phase 8 | Complete |
+| DEBT-02 | Phase 8 | Complete |
+| PANEL-01 | Phase 9 | Complete |
+| PANEL-02 | Phase 9 | Complete |
+| GRID-01 | Phase 10 | Complete |
+| GRID-02 | Phase 10 | Complete |
+| GRID-03 | Phase 10 | Complete |
+| GRID-04 | Phase 10 | Complete |
+| GRID-05 | Phase 10 | Complete |
+| GRID-06 | Phase 10 | Complete |
+| GRID-07 | Phase 10 | Complete |
+| LEADS-01 | Phase 11 | Complete |
+| LEADS-02 | Phase 11 | Complete |
+| LEADS-03 | Phase 11 | Complete |
+| LEADS-04 | Phase 11 | Complete |
+| HSPOT-01 | Phase 12 | Complete |
+| HSPOT-02 | Phase 12 | Complete |
+| HSPOT-03 | Phase 12 | Complete |
+| HSPOT-04 | Phase 12 | Complete |
 
 **Coverage:**
+
 - v1.3 requirements: 19 total
 - Mapped to phases: 19 ✓
 - Unmapped: 0
 
 **Phase distribution:**
+
 - Phase 8 (Deuda v1.2 — merge + re-verificación staging): DEBT-01, DEBT-02
 - Phase 9 (Shell del panel scoped al proyecto + role gate): PANEL-01, PANEL-02
 - Phase 10 (D1 — Grilla de unidades + Excel): GRID-01..07

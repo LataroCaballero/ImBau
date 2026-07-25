@@ -5,7 +5,10 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./access-control": "./src/auth/access-control.ts"
+    "./access-control": "./src/auth/access-control.ts",
+    "./money": "./src/excel/money-core.ts",
+    "./geometry": "./src/hotspots/geometry.ts",
+    "./email": "./src/email/send-lead-notification.ts"
   },
   "scripts": {
     "lint": "eslint .",
@@ -13,11 +16,13 @@
     "test": "vitest run"
   },
   "devDependencies": {
+    "@fast-check/vitest": "0.4.1",
     "@imbau/config": "workspace:*",
     "@t3-oss/env-core": "0.13.11",
     "@types/node": "22.18.13",
     "@types/react": "19.2.17",
     "drizzle-orm": "0.45.2",
+    "fast-check": "4.8.0",
     "postgres": "3.4.9",
     "typescript": "5.9.3",
     "vitest": "4.1.8"
@@ -35,6 +40,7 @@
     "@trpc/tanstack-react-query": "11.17.0",
     "better-auth": "1.6.18",
     "bullmq": "5.78.1",
+    "exceljs": "4.4.0",
     "ioredis": "5.10.1",
     "react": "19.2.7",
     "resend": "^6.12.4",

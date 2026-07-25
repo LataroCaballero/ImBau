@@ -17,5 +17,18 @@ export default defineConfig({
   // real module FILE — neither survives being inlined into a single ESM bundle
   // ("Dynamic require of os is not supported" / unresolvable transport). The
   // runner image carries node_modules (see Dockerfile), so these resolve at runtime.
-  external: ["pino", "pino-loki", "pino-pretty"],
+  // react-dom/server (used by @react-email/render when the Resend SDK renders the `react:`
+  // prop of a notification email) is CommonJS and does an internal `require("react")`. Inlined
+  // into the single ESM bundle it throws "Dynamic require of react is not supported" at render
+  // time — the exact class of bug as pino above. Keep the React runtime external so it loads as
+  // CJS from node_modules (the runner image carries node_modules); externalize `react` too so a
+  // single React instance is shared with the external react-dom/server.
+  external: [
+    "pino",
+    "pino-loki",
+    "pino-pretty",
+    "react",
+    "react-dom",
+    "react-dom/server",
+  ],
 });

@@ -22,7 +22,7 @@ import { TRPCError } from "@trpc/server";
 import { eq, and } from "drizzle-orm";
 import { withTenant, schema } from "@imbau/db";
 import { auth } from "../../auth/runtime";
-import { router, publicProcedure } from "../init";
+import { router, publicProcedure, protectedProcedure } from "../init";
 
 // Session-only gate: requires an authenticated user but NOT an active org (the caller may have
 // none yet — picking one is exactly what setActive does). Distinct from protectedProcedure,
@@ -69,4 +69,26 @@ export const orgRouter = router({
         headers: ctx.headers,
       });
     }),
+
+  // The caller's role in the ACTIVE org — the role source the RSC tab pages (Plan 02) hand to
+  // the write-affordance conditional (D-08 defense-in-depth ON TOP of the server-side requireRole
+  // gate, never a substitute for it). Clones the requireRole lookup exactly: read member.role for
+  // ctx.session.user.id under withTenant/RLS (member_tenant policy), so the query itself runs as
+  // the unprivileged app_authenticated role and can only ever see the caller's own org member row.
+  // Returns null when the caller has no membership in the active org.
+  activeMemberRole: protectedProcedure.query(async ({ ctx }) => {
+    const rows = await withTenant(ctx.activeOrgId, (tx) =>
+      tx
+        .select({ role: schema.member.role })
+        .from(schema.member)
+        .where(eq(schema.member.userId, ctx.session.user.id)),
+    );
+    // Narrow member.role (a `text` column that could hold Better Auth's built-in
+    // "admin"/"member") at runtime instead of asserting the union — an unexpected value
+    // collapses to null, which downstream canWrite/requireRole already reject (IN-01).
+    const role = rows[0]?.role;
+    return role === "owner" || role === "developer" || role === "viewer"
+      ? role
+      : null;
+  }),
 });

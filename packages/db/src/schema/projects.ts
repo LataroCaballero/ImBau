@@ -32,6 +32,22 @@ export const projects = pgTable(
     // projects_anon_published SELECT policy — NO new pgPolicy needed (only publicado projects
     // reach anon, and the number is intended to be public — it is the CTA target).
     whatsapp: text("whatsapp"),
+    // leadsNotifyEmail — per-project recipient for the "nuevo lead" notification (D-05,
+    // phase 11). Nullable: null is the valid "fall back to org owners" sentinel resolved by
+    // the worker (plan 04); written by projects.updateSettings (plan 03), validated as
+    // `.email()` at the Zod boundary. Panel-private: no new pgPolicy — projects_tenant covers
+    // reads/writes and projects_anon_published is SELECT-only over public-facing fields.
+    leadsNotifyEmail: text("leads_notify_email"),
+    // renderExteriorKey — R2 storage key of the building's EXTERIOR render (the background over
+    // which floor polygons are drawn in the phase-12 hotspot editor; modelo §P2 / RESEARCH §1).
+    // The exact peer of floors.renderKey / units.planoKey: a plain nullable text storage key
+    // living directly on its domain table — NOT an FK to `media` (media has no kind/role
+    // discriminator, so a designated row would break the floors/units symmetry). Nullable:
+    // null → the D-06 empty-state ("Falta el render exterior de este proyecto"). Auto-readable
+    // by anon for `publicado` projects via the existing table-level projects_anon_published
+    // SELECT policy — a new text column needs ZERO new pgPolicy (the phase-2 explorer consumes
+    // it as-is). Written only via the hotspot media pipeline / seed; NEVER a client-supplied key.
+    renderExteriorKey: text("render_exterior_key"),
   },
   (t) => [
     // Parent UNIQUE for composite FKs (D-02 / Pitfall 7): every child table org-pins its

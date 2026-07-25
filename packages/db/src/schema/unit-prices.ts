@@ -20,6 +20,7 @@ import {
   timestamp,
   pgPolicy,
   foreignKey,
+  unique,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { organization } from "./auth-schema";
@@ -65,6 +66,10 @@ export const unitPrices = pgTable(
       columns: [t.priceListId, t.organizationId],
       foreignColumns: [priceLists.id, priceLists.organizationId],
     }).onDelete("cascade"),
+    // Natural-key UNIQUE (GRID-05, D-01): at most one price row per (unit_id, price_list_id).
+    // Enforces the v1.2 cotizador's one-row-per-unit×list invariant at the DB (not by convention)
+    // and provides the conflict target every grid/Excel upsert (Plan 03) relies on.
+    unique("unit_prices_unit_list_uq").on(t.unitId, t.priceListId),
     // Tenant policy — flat clone of projects_tenant. `::text` cast; default-deny via missing_ok.
     pgPolicy("unit_prices_tenant", {
       as: "permissive",

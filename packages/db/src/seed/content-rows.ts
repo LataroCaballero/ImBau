@@ -97,6 +97,9 @@ export async function seedContentRows(
       contacto: l.contacto,
       origen: l.origen,
       estado: l.estado,
+      // desenlace only on cerrado leads (D-03); undefined → column stays null. This is a
+      // DIRECT tx.insert (below), NOT the leads.create seam — a re-seed enqueues zero emails.
+      ...(l.desenlace ? { desenlace: l.desenlace } : {}),
       timeline,
     };
   });

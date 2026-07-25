@@ -1,0 +1,60 @@
+/* apps/panel UI entry — Tailwind v4 CSS-first (10-UI-SPEC §Design System/Wiring).
+ *
+ * The panel is this milestone's FIRST styled surface. It adopts the SAME Tailwind
+ * v4 `@import "tailwindcss"` + `@theme` mirror pattern apps/web already established
+ * (apps/web/app/globals.css) — it does not invent a new one. The `@theme` block
+ * mirrors `@imbau/ui/tokens.css` so utilities like `bg-hormigon`, `text-gris-500`,
+ * `font-mono` and `rounded-md` resolve to the ImBau brand palette.
+ *
+ * Token divergence resolution (10-UI-SPEC §Token divergence FLAG): the LIVE
+ * `packages/ui/src/tokens.css` was EXTENDED with the neutrals / radii / type-scale
+ * from the brand book (docs/marca), keeping its un-prefixed naming — NOT forked to
+ * `--imbau-*`. This block mirrors those additions into Tailwind theme variables.
+ *
+ * Unlike apps/web (dark-first marketing), the panel is a LIGHT-surface data tool
+ * (brand-book: "el panel de autogestión puede ser claro"). Body defaults live in
+ * layout.tsx (bg-hormigon / text-grafito / font-text).
+ *
+ * The three `--font-*` tokens forward to the next/font CSS variables that
+ * app/layout.tsx sets on <html> (--font-space-grotesk / --font-inter /
+ * --font-jetbrains). JetBrains Mono is the figures face (money renders in tabular
+ * mono). All grid/wizard components live under apps/panel/app, so Tailwind's
+ * content auto-detection covers them and no `@source` into packages/ui is needed.
+ */
+@import "tailwindcss";
+
+@theme {
+  /* Superficies */
+  --color-grafito: #14181e;
+  --color-carbon: #1d232c;
+  --color-hormigon: #f2efe9;
+  --color-blanco: #ffffff;
+
+  /* Acento cobre (reservado: acciones primarias + anillo de foco de la celda de precio) */
+  --color-cobre: #d98a4f;
+  --color-cobre-profundo: #c0703a;
+
+  /* Datos / blueprint (links) */
+  --color-blueprint: #4c7df0;
+
+  /* Estados de disponibilidad de unidades (dot + label; nunca como fondo de botón) */
+  --color-disponible: #2fa26e;
+  --color-reservado: #e3a63c;
+  --color-vendido: #d65454;
+
+  /* Neutros (estructura, bordes, texto de referencia del panel) */
+  --color-gris-700: #3a424d;
+  --color-gris-500: #6b7480;
+  --color-gris-300: #a8afb8;
+  --color-gris-100: #e5e2db;
+
+  /* Radios */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+
+  /* Familias tipográficas (self-hosted vía next/font en layout.tsx) */
+  --font-display: var(--font-space-grotesk), system-ui, sans-serif;
+  --font-text: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+}
