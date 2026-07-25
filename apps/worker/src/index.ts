@@ -12,10 +12,13 @@ import {
   type MediaJobData,
   QUOTE_PDF_QUEUE,
   type QuotePdfJobData,
+  LEAD_EMAIL_QUEUE,
+  type LeadEmailJobData,
 } from "@imbau/storage";
 import { PARTITIONS_QUEUE, runPartitionMaintenance } from "./partitions";
 import { processMedia, reportMediaFailure } from "./media";
 import { processQuotePdf, reportQuotePdfFailure } from "./quote-pdf";
+import { processLeadEmail, reportLeadEmailFailure } from "./lead-email";
 
 // Deployable BullMQ shell (APP-03 / D-16, RESEARCH Pattern 6). This phase the
 // worker only proves it can reach Redis and stand up a Worker — there is NO real
@@ -97,6 +100,22 @@ export function createQuotePdfWorker(
   );
 }
 
+// Build the BullMQ Worker that runs the lead-email pipeline (LEADS-04). The processor delegates to
+// processLeadEmail (lead-email.ts), which reads the lead + project under withTenant, resolves the
+// recipient (project.leadsNotifyEmail ?? org owners), and dispatches one notification via
+// @imbau/api/email. concurrency 2 matches the media/quote-pdf workers. The `failed` handler (Sentry
+// + pino, via reportLeadEmailFailure) is wired in boot(). Retries + jobId dedup come from the
+// producer (leadEmailJobOptions: jobId=`lead:{id}:created`, Plan 03) — the worker never sets them.
+export function createLeadEmailWorker(
+  connection: IORedis,
+): Worker<LeadEmailJobData> {
+  return new Worker<LeadEmailJobData>(
+    LEAD_EMAIL_QUEUE,
+    (job) => processLeadEmail(job),
+    { connection, concurrency: 2 },
+  );
+}
+
 // Boot the shell: open the connection, register the (idle) health queue + the
 // repeatable events-partition maintenance schedule (D-06), stand up both workers, and
 // log a structured JSON line once Redis is reached. Returns the handles so a caller
@@ -112,6 +131,8 @@ export async function boot(): Promise<{
   mediaWorker: Worker<MediaJobData>;
   quotePdfQueue: Queue;
   quotePdfWorker: Worker<QuotePdfJobData>;
+  leadEmailQueue: Queue;
+  leadEmailWorker: Worker<LeadEmailJobData>;
 }> {
   const connection = createConnection();
   const queue = new Queue(HEALTH_QUEUE, { connection });
@@ -176,6 +197,25 @@ export async function boot(): Promise<{
     });
   });
 
+  // Lead-email pipeline (LEADS-04 / D-06): the worker is the CONSUMER of LEAD_EMAIL_QUEUE. Declare
+  // the Queue here on the shared connection (the producer is @imbau/api's leads.create, which
+  // enqueues with jobId=`lead:{id}:created` dedup — Plan 03) and stand up the lead-email Worker that
+  // runs processLeadEmail. Like the media/quote-pdf queues there is NO upsertJobScheduler — lead
+  // notifications are event-driven (one per created lead), not repeatable.
+  const leadEmailQueue = new Queue(LEAD_EMAIL_QUEUE, { connection });
+  const leadEmailWorker = createLeadEmailWorker(connection);
+
+  // Observable failure handling (D-06 / T-11-10): route an exhausted/failed lead-email job to
+  // reportLeadEmailFailure → Sentry + structured pino, carrying only the leadId (from the typed
+  // payload) and attemptsMade — never the raw payload or PII. The error is NEVER swallowed
+  // (CLAUDE.md). `job` can be undefined if BullMQ could not load it, so access is optional-chained.
+  leadEmailWorker.on("failed", (job, err) => {
+    reportLeadEmailFailure(err, {
+      leadId: job?.data.leadId,
+      attempts: job?.attemptsMade,
+    });
+  });
+
   // Preserve the env-first boot log so deploy smoke checks still see it.
   logger.info({ node_env: env.NODE_ENV }, "worker boot ok");
 
@@ -189,6 +229,8 @@ export async function boot(): Promise<{
     mediaWorker,
     quotePdfQueue,
     quotePdfWorker,
+    leadEmailQueue,
+    leadEmailWorker,
   };
 }
 

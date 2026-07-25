@@ -19,6 +19,9 @@ const nextConfig: NextConfig = {
     "@imbau/ui",
     "@imbau/config",
     "@imbau/observability",
+    // Pure es-AR money formatter (formatUsd) consumed by the units grid islands (Plan 10-04) —
+    // JIT-transpiled from raw src like the other internal packages.
+    "@imbau/quoting",
   ],
   // Standalone output for the fase-3 Docker image.
   output: "standalone",

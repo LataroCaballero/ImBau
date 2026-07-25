@@ -1,0 +1,1 @@
+ALTER TABLE "projects" ADD COLUMN "render_exterior_key" text;

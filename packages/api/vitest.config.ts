@@ -12,7 +12,10 @@ export default mergeConfig(
   rootConfig,
   defineConfig({
     test: {
-      include: ["tests/**/*.test.ts"],
+      // tests/** holds the DB-integration suites; src/**/*.test.ts holds the PURE, I/O-free excel
+      // module tests (Phase 10, cloning the packages/quoting colocated discipline). The globalSetup
+      // still runs (it only verifies a reachable _test DB) but the excel tests touch no DB.
+      include: ["tests/**/*.test.ts", "src/**/*.test.ts"],
       globalSetup: ["./tests/setup.ts"],
       hookTimeout: 60_000,
       testTimeout: 30_000,

@@ -7,6 +7,7 @@ import {
   sentryEnv,
   lokiEnv,
   webEnv,
+  authEnv,
 } from "@imbau/config/env/presets";
 
 // Worker env validation (D-01, D-02), EXTENDED for the media pipeline (A8). The worker is no
@@ -53,6 +54,12 @@ export const env = createEnv({
     // build the cotizador deep-link + QR embedded in the generated PDF footer (D-08). Required at
     // boot so a misconfigured worker fails loudly (with the NAME) instead of shipping a broken link.
     ...webEnv.server,
+    // fase 11 (leads): BETTER_AUTH_URL — the apps/panel base origin the lead-email worker prepends
+    // to build the bandeja deep-link `${BETTER_AUTH_URL}/proyectos/${projectId}/leads` (D-07).
+    // Cherry-picked from authEnv (NOT `...authEnv.server`) on purpose: the worker must NOT be
+    // forced to carry BETTER_AUTH_SECRET — the send module keeps a minimal email env for the same
+    // reason. Required (url) so a misconfigured worker fails loudly with the NAME, not a broken link.
+    BETTER_AUTH_URL: authEnv.server.BETTER_AUTH_URL,
   },
   runtimeEnv: process.env,
   skipValidation: process.env.SKIP_ENV_VALIDATION === "1",

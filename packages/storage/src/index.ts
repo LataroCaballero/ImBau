@@ -8,3 +8,5 @@ export { MEDIA_QUEUE, mediaJobOptions } from "./queue";
 export type { MediaJobData } from "./queue";
 export { QUOTE_PDF_QUEUE, quotePdfJobOptions } from "./quote-pdf";
 export type { QuotePdfJobData } from "./quote-pdf";
+export { LEAD_EMAIL_QUEUE, leadEmailJobOptions } from "./lead-email";
+export type { LeadEmailJobData } from "./lead-email";

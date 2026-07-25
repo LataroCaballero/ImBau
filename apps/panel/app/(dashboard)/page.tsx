@@ -8,6 +8,7 @@
 // functional UI, es-AR voseo (D-13) — no design system this phase.
 //
 // This route lives in the (dashboard) route group, which does not affect the URL: it IS `/`.
+import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { TRPCError } from "@trpc/server";
@@ -15,17 +16,12 @@ import { createCaller } from "@imbau/api";
 import { TRPCReactProvider } from "../../lib/trpc-client";
 import { InviteForm } from "./invite-form";
 
-interface ProjectRow {
-  id: string;
-  nombre: string;
-  slug: string;
-  estado: string;
-}
-
 export default async function DashboardPage(): Promise<React.JSX.Element> {
   const caller = await createCaller({ headers: await headers() });
 
-  let projects: ProjectRow[];
+  // Let the tRPC-inferred row type from listForOrg() drive — no hand-written interface to
+  // drift from the schema (IN-02).
+  let projects: Awaited<ReturnType<typeof caller.projects.listForOrg>>;
   try {
     projects = await caller.projects.listForOrg();
   } catch (err) {
@@ -54,7 +50,8 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
         <ul>
           {projects.map((p) => (
             <li key={p.id}>
-              {p.nombre} · {p.slug} · {p.estado}
+              <Link href={`/proyectos/${p.id}/unidades`}>{p.nombre}</Link> ·{" "}
+              {p.slug} · {p.estado}
             </li>
           ))}
         </ul>

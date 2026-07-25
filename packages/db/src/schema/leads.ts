@@ -46,6 +46,13 @@ export const leads = pgTable(
     contacto: text("contacto").notNull(),
     origen: text("origen"),
     estado: leadEstadoEnum("estado").notNull().default("nuevo"),
+    // desenlace — closed-outcome flag (D-03, phase 11). Nullable `text` validated as
+    // `ganado`|`perdido` at the Zod boundary (leads.updateEstado, plan 03), mirroring how
+    // `origen` above is plain text: the `leadEstadoEnum` is DELIBERATELY untouched — the
+    // ganado/perdido distinction lives in this cheap, forward-compatible sidecar column
+    // (consumed by D4/fase 6 conversion metrics). Null outside `cerrado`; set only on the
+    // transition INTO `cerrado`.
+    desenlace: text("desenlace"),
     // Typed JSONB timeline (D-12). drizzle-zod infers z.any() for jsonb, so the runtime gate is
     // the co-located leadInsertSchema below; $type<LeadNote[]> is the compile-time contract.
     timeline: jsonb("timeline")

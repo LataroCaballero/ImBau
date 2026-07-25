@@ -58,11 +58,11 @@ Directorios archivados en `milestones/v1.2-phases/`. Full detail: [milestones/v1
 
 Deuda v1.2 primero (merge + re-verificación en staging) → shell del panel scoped al proyecto con role gate → D1 grilla de unidades editable + Excel → D2 bandeja de leads + email → editor de hotspots. Las tres superficies de escritura (D1/D2/hotspots) cuelgan del shell (Phase 9); D1 se hace antes de D2/hotspots porque fuerza la decisión de unicidad de `unit_prices` que protege el motor de cotización de v1.2 y establece el patrón `withTenant` + `requireRole` que D2 y hotspots clonan.
 
-- [ ] **Phase 8: Deuda v1.2 — merge a main + re-verificación en staging** (0/2 plans) — not started
-- [ ] **Phase 9: Shell del panel scoped al proyecto + role gate** (0/TBD plans) — not started
-- [ ] **Phase 10: D1 — Grilla de unidades editable + import/export Excel** (0/TBD plans) — not started
-- [ ] **Phase 11: D2 — Bandeja de leads + notificación por email** (0/TBD plans) — not started
-- [ ] **Phase 12: Editor de hotspots** (0/TBD plans) — not started
+- [x] **Phase 8: Deuda v1.2 — merge a main + re-verificación en staging** (0/2 plans) — not started (completed 2026-07-20)
+- [x] **Phase 9: Shell del panel scoped al proyecto + role gate** (0/2 plans) — not started (completed 2026-07-21)
+- [x] **Phase 10: D1 — Grilla de unidades editable + import/export Excel** (0/4 plans) — not started (completed 2026-07-24)
+- [x] **Phase 11: D2 — Bandeja de leads + notificación por email** (0/5 plans) — not started (completed 2026-07-24)
+- [x] **Phase 12: Editor de hotspots** (3/3 plans) — plans complete, ready for verification (2026-07-25)
 
 ## Phase Details
 
@@ -78,14 +78,14 @@ Deuda v1.2 primero (merge + re-verificación en staging) → shell del panel sco
   3. En staging, el flujo PDF completo funciona de punta a punta: cotización → PDF asíncrono descargable con acentos es-AR correctos.
   4. El QR y el deep-link del PDF apuntan a la URL de staging (no localhost ni imagen pre-fase-5).
 
-**Plans**: 2 plans
+**Plans**: 2/2 plans executed
 **Wave 1**
 
-- [ ] 08-01-PLAN.md — Merge PR #5 a `main` (merge commit) + deploy a staging + verificar migrate-before-swap y seed (DEBT-01, Wave 1)
+- [x] 08-01-PLAN.md — Merge PR #5 a `main` (merge commit) + deploy a staging + verificar migrate-before-swap y seed (DEBT-01, Wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 08-02-PLAN.md — Re-verificación en vivo: burst 429 sin 503, PDF e2e con acentos es-AR, QR/deep-link a staging, smoke + `08-UAT.md` (DEBT-02, Wave 2)
+- [x] 08-02-PLAN.md — Re-verificación en vivo: burst 429 sin 503, PDF e2e con acentos es-AR, QR/deep-link a staging, smoke + `08-UAT.md` (DEBT-02, Wave 2)
 
 **Note**: Mecánico — re-corre la UAT existente de v1.2 contra staging; sin research nuevo. La re-verificación en vivo depende de infra del operador (merge + deploy a VPS).
 
@@ -101,8 +101,16 @@ Deuda v1.2 primero (merge + re-verificación en staging) → shell del panel sco
   3. Toda mutación scoped al proyecto exige rol owner/developer; un viewer recibe `403` al intentar escribir — probado por una matriz de tests cross-rol contra Postgres real, no solo por UI oculta.
   4. El middleware `requireRole("owner","developer")` queda establecido como patrón reutilizable de escritura del panel, listo para que D1/D2/hotspots lo clonen.
 
-**Plans**: TBD
+**Plans**: 2/2 plans executed
 **UI hint**: yes
+
+**Wave 1**
+
+- [x] 09-01-PLAN.md — Canary write mold (`projects.updateSettings` + `getForOrg` + `org.activeMemberRole`) + cross-role matrix vs real Postgres (PANEL-01, PANEL-02, Wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [x] 09-02-PLAN.md — Panel shell `proyectos/[id]` route tree: layout + tabs + placeholders + notFound + selector wiring (PANEL-01, Wave 2)
 
 ### Phase 10: D1 — Grilla de unidades editable + import/export Excel
 
@@ -117,9 +125,14 @@ Deuda v1.2 primero (merge + re-verificación en staging) → shell del panel sco
   4. El import se aplica all-or-nothing (una sola transacción `withTenant`) e idempotente por clave natural (`UNIQUE(unit_id, price_list_id)`); una fila inválida aborta todo sin escrituras parciales, y el dinero nunca se contamina con floats (parse es-AR con `Number.isInteger` post-parse).
   5. El developer aplica bulk edit de precios (% o monto fijo) sobre una selección de unidades, y todo cambio de precio/estado se refleja al instante en el picker/cotizador público (revalidación ISR on-demand).
 
-**Plans**: TBD
+**Plans**: 4/4 plans executed
 **UI hint**: yes
-**Research flag**: al planificar, hacer una pasada de research sobre los edge cases de parsing de dinero es-AR (separador de miles `.`, formato de fecha DD/MM/YYYY, encoding) y la UX exacta del reporte de validación/error del import antes de escribir la mutación.
+**Research flag**: RESUELTO en planning — parse de dinero es-AR se disuelve por la regla de dominio (USD entero, sin centavos → cualquier fraccional es inválido, elimina la ambigüedad `.`/`,`); `vigencia` es server-set `now()` (no se importa fecha, DD/MM/YYYY fuera de scope); UX de validación/error especificada en 10-UI-SPEC.md (Copywriting Contract es-AR + Import Flow). GRID-07 resuelto a Path A (web `force-dynamic`, sin plumbing de revalidación; se valida con test cross-surface).
+
+- [x] 10-01-PLAN.md — Migración versionada `UNIQUE(unit_id, price_list_id)` [BLOCKING] + prueba de enforcement (GRID-05, Wave 1)
+- [x] 10-02-PLAN.md — Módulo puro `packages/api/src/excel/` (build/parse/money/dry-run/bulk) + property tests + exceljs/fast-check (GRID-03/04/06, Wave 1)
+- [x] 10-03-PLAN.md — Router `units` (4 mutaciones + read + export/dry-run) clonando el molde de Phase 9 + matriz cross-rol/transaccional/idempotencia/GRID-07 vs Postgres real (GRID-01..07, Wave 2)
+- [x] 10-04-PLAN.md — UI del panel: grilla + edición inline + dropdown estado + selección/bulk-con-preview + wizard de import (4 pasos) + wiring de tokens de marca (GRID-01/02/03/04/06/07, Wave 3)
 
 ### Phase 11: D2 — Bandeja de leads + notificación por email
 
@@ -133,8 +146,25 @@ Deuda v1.2 primero (merge + re-verificación en staging) → shell del panel sco
   3. El developer agrega notas al timeline de un lead y quedan persistidas en orden.
   4. Ante un lead nuevo, el developer recibe un aviso por email encolado (BullMQ) e idempotente por evento (`lead:{id}:{event}`) — nunca `await` inline en la mutación, nunca duplica en reintentos ni bulk.
 
-**Plans**: TBD
+**Plans**: 6/6 plans executed
+
+- [x] 11-04a-PLAN.md
+
 **UI hint**: yes
+
+**Wave 1** *(parallel — no cross-deps)*
+
+- [x] 11-01-PLAN.md — Migración versionada `leads.desenlace` + `projects.leadsNotifyEmail` [BLOCKING apply] + seed desenlace/email-free (LEADS-02/04, Wave 1)
+- [x] 11-02-PLAN.md — Molécula de email: contrato BullMQ `lead-email` (jobId `lead:{id}:created`) + dispatch Resend/dev-console + template React Email es-AR (LEADS-04, Wave 1)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [x] 11-03-PLAN.md — `leadsRouter` (listForProject/create/updateEstado/addNote) + enqueue seam + `projects.updateSettings` extendida + matriz cross-rol/transición/timeline/idempotencia vs Postgres real (LEADS-01..04, Wave 2)
+- [x] 11-04-PLAN.md — Worker `processLeadEmail` + resolución de destinatario (leadsNotifyEmail ?? owners) + registro en `boot()` + reporte de fallo observable (LEADS-04, Wave 2)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [x] 11-05-PLAN.md — Panel: kanban 4 estados (drag + `<select>` a11y) + drawer/timeline + prompt desenlace + alta manual + campo notify-email (LEADS-01..04, Wave 3)
 
 ### Phase 12: Editor de hotspots
 
@@ -148,9 +178,21 @@ Deuda v1.2 primero (merge + re-verificación en staging) → shell del panel sco
   3. El developer edita y borra polígonos existentes.
   4. Los polígonos se guardan en coordenadas viewBox intrínsecas (0-1000, no atadas a píxeles) y validados (no degenerados ni auto-intersecados), consumibles tal cual por el explorador de fase 2 vía las policies anon existentes de `floors.poligonoSvg`/`units.poligonoSvg` — cero migración de schema.
 
-**Plans**: TBD
+**Plans**: 3/3 plans executed
 **UI hint**: yes
-**Research flag**: al planificar, resolver la pregunta abierta de dónde vive el render exterior del edificio (campo en `projects` vs fila de `media` designada) antes de cablear el canvas del editor de pisos — bloqueante pero de bajo riesgo (`--research-phase` o un spike de arquitectura corto).
+**Research flag**: RESUELTO en planning — el render exterior vive en una nueva columna `projects.renderExteriorKey` (text, nullable), el par exacto de `floors.renderKey` / `units.planoKey` (RESEARCH §1); una migración versionada aditiva `0008` (no `media`, no `push`). Los polígonos siguen siendo cero-migración (`floors.poligonoSvg` / `units.poligonoSvg` ya existen). Formato SVG persistido LOCKED: `<polygon points>` `"x,y x,y"` enteros 0-1000, convención viewBox square-normalized (documentado para fase 2).
+
+**Wave 1**
+
+- [x] 12-01-PLAN.md — Migración versionada `projects.renderExteriorKey` [BLOCKING] + módulo puro de geometría (serialize/parse/validate) con tests unit+property + fixture de render en el seed (HSPOT-04, Wave 1)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [x] 12-02-PLAN.md — Router `hotspots` (getForProject + set/clear polígono de piso/unidad) clonando el molde `requireRole`+`withTenant`+`.returning()` + matriz cross-rol/validación/round-trip vs Postgres real (HSPOT-01..04, Wave 2)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [x] 12-03-PLAN.md — Editor del panel: RSC (proyecto/rol/URLs de render + empty-states D-06) + isla SVG hand-rolled (draw/edit/delete, drill-down D-03, selector siempre visible D-04, validación bloqueante, guardado explícito) + checkpoint human-verify (HSPOT-01/02/03, Wave 3)
 
 ## Progress
 
@@ -170,8 +212,8 @@ Phases execute in numeric order: 8 → 9 → 10 → 11 → 12 (v1.3). D2 (11) y 
 | 5. Emisión y persistencia server-side | v1.2 | 5/5 | Complete | 2026-07-04 |
 | 6. UI pública del cotizador + WhatsApp | v1.2 | 6/6 | Complete | 2026-07-05 |
 | 7. PDF asíncrono en el worker | v1.2 | 4/4 | Complete | 2026-07-08 |
-| 8. Deuda v1.2 — merge + re-verificación staging | v1.3 | 0/2 | Not started | - |
-| 9. Shell del panel scoped al proyecto + role gate | v1.3 | 0/TBD | Not started | - |
-| 10. D1 — Grilla de unidades + Excel | v1.3 | 0/TBD | Not started | - |
-| 11. D2 — Bandeja de leads + email | v1.3 | 0/TBD | Not started | - |
-| 12. Editor de hotspots | v1.3 | 0/TBD | Not started | - |
+| 8. Deuda v1.2 — merge + re-verificación staging | v1.3 | 2/2 | Complete    | 2026-07-20 |
+| 9. Shell del panel scoped al proyecto + role gate | v1.3 | 2/2 | Complete    | 2026-07-21 |
+| 10. D1 — Grilla de unidades + Excel | v1.3 | 4/4 | Complete    | 2026-07-24 |
+| 11. D2 — Bandeja de leads + email | v1.3 | 6/6 | Complete    | 2026-07-24 |
+| 12. Editor de hotspots | v1.3 | 3/3 | Complete    | 2026-07-25 |

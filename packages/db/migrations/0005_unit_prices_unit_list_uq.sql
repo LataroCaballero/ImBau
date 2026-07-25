@@ -1,0 +1,1 @@
+ALTER TABLE "unit_prices" ADD CONSTRAINT "unit_prices_unit_list_uq" UNIQUE("unit_id","price_list_id");
