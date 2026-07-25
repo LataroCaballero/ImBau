@@ -26,6 +26,13 @@ export const env = createEnv({
     // dev still boots with zero external deps.
     ...sentryEnv.server,
     ...lokiEnv.server,
+    // R2 public-serving origin (A6, decision in packages/config r2Env). The hotspots
+    // editor RSC (Phase 12) builds public render URLs server-side as `${R2_PUBLIC_BASE_URL}/${key}`
+    // and passes the URL (never the storage key, never credentials) as a prop to the client island.
+    // Declared inline — NOT via ...r2Env.server — so the panel only requires the public base URL,
+    // not the R2 secret keys (those live in the worker/api that mint uploads). No NEXT_PUBLIC_*:
+    // the URL is composed on the server, so no client env leak (T-12-06 accept).
+    R2_PUBLIC_BASE_URL: z.string().url(),
   },
   client: {
     NEXT_PUBLIC_APP_ENV: z.enum(["development", "staging", "production"]),
