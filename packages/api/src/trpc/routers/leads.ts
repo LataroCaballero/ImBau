@@ -180,7 +180,7 @@ export const leadsRouter = router({
         const autoNote = {
           ts: new Date().toISOString(),
           autor: autorFrom(ctx.session),
-          nota: `movió el lead de ${ESTADO_LABEL[prev.estado as LeadEstado]} a ${ESTADO_LABEL[input.estado]}`,
+          nota: `movió el lead de ${ESTADO_LABEL[prev.estado]} a ${ESTADO_LABEL[input.estado]}`,
           estadoPrev: prev.estado,
           estadoNuevo: input.estado,
         };
