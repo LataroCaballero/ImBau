@@ -10,6 +10,7 @@
 import { router } from "../init";
 import { projectsRouter } from "./projects";
 import { unitsRouter } from "./units";
+import { hotspotsRouter } from "./hotspots";
 import { leadsRouter } from "./leads";
 import { orgRouter } from "./org";
 import { memberRouter } from "./member";
@@ -21,6 +22,7 @@ import { pickerRouter } from "./picker";
 export const appRouter = router({
   projects: projectsRouter,
   units: unitsRouter,
+  hotspots: hotspotsRouter,
   leads: leadsRouter,
   org: orgRouter,
   member: memberRouter,
