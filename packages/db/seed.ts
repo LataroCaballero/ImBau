@@ -23,6 +23,7 @@ import { assertSeedPrerequisites } from "./src/seed/prerequisites";
 import { seedBuilding } from "./src/seed/building";
 import { seedPricing } from "./src/seed/pricing";
 import { seedMedia } from "./src/seed/media";
+import { seedRenders } from "./src/seed/renders";
 import { seedContentRows } from "./src/seed/content-rows";
 
 // ── Events partition pre-create (idempotent owner DDL) ──────────────────────────────────────
@@ -128,6 +129,12 @@ export async function runSeed(opts?: RunSeedOptions): Promise<void> {
     if (!opts?.skipMedia) {
       await seedMedia(orgId, projectId);
     }
+
+    // Render fixture (phase 12): idempotently point projects.renderExteriorKey + a few
+    // floors.renderKey at the already-seeded gallery assets' originalKeys so the hotspot editor's
+    // draw-over-render happy path has a resolvable background at UAT (RESEARCH §7). Runs AFTER
+    // seedMedia so the referenced media originalKeys exist in R2; guarded by isNull → safe re-run.
+    await seedRenders(orgId, projectId);
 
     // Content rows: brokers → leads (+timeline) → galleries → progress_posts → events (across ≥2
     // monthly partitions). galleries/progress reference the deterministic mediaIds seedMedia
